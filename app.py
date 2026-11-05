@@ -1,9 +1,54 @@
 import os
+import re
+import sqlite3
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import (Flask, flash, g, redirect, render_template, request,
+                   session, url_for)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'centromail-dev-secret'
+DATABASE = os.path.join(app.root_path, "centro.db")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DATABASE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+@app.teardown_appcontext
+def close_db(_exc):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    with sqlite3.connect(DATABASE) as db:
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS users
+               (
+                   id
+                   INTEGER
+                   PRIMARY
+                   KEY
+                   AUTOINCREMENT,
+                   email
+                   TEXT
+                   NOT
+                   NULL,
+                   password
+                   TEXT
+                   NOT
+                   NULL,
+                   created_at
+                   TEXT
+                   DEFAULT
+                   CURRENT_TIMESTAMP
+               )"""
+        )
+def find_user(email):
+    return get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
 
 messages = [
     {
@@ -81,6 +126,19 @@ def make_stats():
 @app.route('/')
 def index():
     return redirect(url_for('login'))
+
+@app.post('/onboarding')
+def onboarding():
+    if "user_id" in session:
+        return redirect(url_for('dashboard'))
+    return render_template("Onboard.html")
+
+@app.route('/continue')
+def continue_flow():
+    email = request.form.get('email', '').strip().lower()
+    if not EMAIL_RE.match(email):
+        flash("Please enter a valid email address.", "error")
+        return redirect(url_for('onboarding'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
