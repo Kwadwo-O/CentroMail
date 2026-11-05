@@ -14,7 +14,7 @@
 
 ## What is CentroMail?
 
-CentroMail is an upcoming unified communications application that brings your email accounts and supported messaging services together in one place.
+CentroMail is an upcoming unified communication application that brings your email accounts and supported messaging services together in one place.
 
 Instead of jumping between different apps to keep up with conversations, CentroMail aims to give you one clean, organised space to manage everything.
 
