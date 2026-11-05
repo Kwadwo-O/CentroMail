@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Row Project">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+    <title>{% block title %}Row Project{% endblock %}</title>
+</head>
+<body>
+    {% if request.endpoint != 'login' %}
+    <header class="site-header">
+        <nav class="navbar container" aria-label="Main navigation">
+            <a class="brand" href="{{ url_for('dashboard') }}">Centro<span>Mail</span></a>
+            <div class="nav-links">
+                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Overview</a>
+                <a class="nav-link {% if request.endpoint == 'inbox' or request.endpoint == 'mail' %}active{% endif %}" href="{{ url_for('inbox') }}">Inbox</a>
+                <a class="nav-link {% if request.endpoint == 'compose' %}active{% endif %}" href="{{ url_for('compose') }}">Compose</a>
+                <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">Settings</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">Log out</a>
+            </div>
+        </nav>
+    </header>
+    {% endif %}
+
+    <main class="container page-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}
+        <section class="hero" id="content">
+            <p class="eyebrow">Welcome</p>
+            <h1>Build something <span>great.</span></h1>
+            <p class="intro">A clean starting point for the Row Project.</p>
+            <a class="button" href="#content">Explore the project <span aria-hidden="true">&rarr;</span></a>
+        </section>
+        {% endblock %}
+    </main>
+
+    {% if request.endpoint != 'login' %}
+    <footer class="site-footer">
+        <div class="container">
+            <p>CentroMail</p>
+        </div>
+    </footer>
+    {% endif %}
+    {% block scripts %}{% endblock %}
+    <script>
+        const root = document.documentElement;
+        const savedTheme = localStorage.getItem('centromail-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        root.dataset.theme = savedTheme;
+    </script>
+</body>
+</html>

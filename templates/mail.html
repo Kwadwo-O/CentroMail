@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Mail | Row Project{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">
+{% endblock %}
+
+{% block navigation %}
+<a class="nav-link" href="{{ url_for('dashboard') }}">Home</a>
+<a class="nav-link active" href="{{ url_for('mail') }}">Mail</a>
+{% endblock %}
+
+{% block content %}
+<div class="gmail-app">
+    <header class="gmail-header">
+        <button class="icon-button mobile-menu" aria-label="Open menu"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Menu" class="ui-icon"></button>
+        <a class="gmail-logo" href="{{ url_for('mail') }}">
+            <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="CentroMail logo" class="header-logo">
+            <span class="brand-wordmark"><strong>Centro</strong><span>Mail</span></span>
+        </a>
+        <label class="search-box">
+            <img src="{{ url_for('static', filename='images/icons/search.svg') }}" alt="Search" class="ui-icon search-icon">
+            <input id="mail-search" type="search" placeholder="Search mail" aria-label="Search mail">
+            <button type="button" class="icon-button" aria-label="Search options"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Options" class="ui-icon"></button>
+        </label>
+        <div class="header-actions">
+            <button class="icon-button" aria-label="Help"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Help" class="ui-icon"></button>
+            <button class="icon-button" aria-label="Settings"><img src="{{ url_for('static', filename='images/icons/lock.svg') }}" alt="Settings" class="ui-icon"></button>
+            <button class="icon-button" aria-label="Google apps"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Apps" class="ui-icon"></button>
+            <button class="profile-button" aria-label="Account">A</button>
+        </div>
+    </header>
+
+    <div class="gmail-body">
+        <aside class="mail-sidebar">
+            <button class="compose-button" id="open-compose"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Compose" class="ui-icon">Compose</button>
+            <nav class="mail-nav" aria-label="Mailbox folders">
+                <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>12</b></a>
+                <a class="mail-nav-link" href="#starred"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Starred" class="ui-icon"><span>Starred</span></a>
+                <a class="mail-nav-link" href="#snoozed"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Snoozed" class="ui-icon"><span>Snoozed</span></a>
+                <a class="mail-nav-link" href="#sent"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Sent" class="ui-icon"><span>Sent</span></a>
+                <a class="mail-nav-link" href="#drafts"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Drafts" class="ui-icon"><span>Drafts</span><b>3</b></a>
+                <a class="mail-nav-link" href="#more"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="More" class="ui-icon"><span>More</span></a>
+            </nav>
+            <div class="sidebar-section">
+                <div class="section-title"><strong>Labels</strong><button class="icon-button" aria-label="Add label"><img src="{{ url_for('static', filename='images/icons/plus.svg') }}" alt="Add" class="ui-icon"></button></div>
+                <a class="label-link" id="work" href="#work"><i class="label-colour work"></i>Work</a>
+                <a class="label-link" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
+                <a class="label-link" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
+            </div>
+        </aside>
+
+        <main class="inbox" id="inbox">
+            <div class="inbox-heading">
+                <div>
+                    <p class="eyebrow">Main menu</p>
+                    <h1>Inbox</h1>
+                </div>
+                <span class="page-count">1–5 of 12</span>
+            </div>
+            <div class="inbox-toolbar">
+                <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
+                <button class="toolbar-button" id="refresh-mail" aria-label="Refresh"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Refresh" class="ui-icon"></button>
+                <button class="toolbar-button" id="archive-mail" aria-label="Archive selected"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Archive" class="ui-icon"></button>
+                <button class="toolbar-button" id="delete-mail" aria-label="Delete selected"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Delete" class="ui-icon"></button>
+                <button class="toolbar-button" id="mark-read" aria-label="Mark selected as read"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Read" class="ui-icon"></button>
+                <span class="toolbar-spacer"></span>
+                <button class="toolbar-button" aria-label="Previous page"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Previous" class="ui-icon rotate-left"></button>
+                <button class="toolbar-button" aria-label="Next page"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Next" class="ui-icon"></button>
+            </div>
+            <div class="inbox-tabs" role="tablist">
+                <button class="inbox-tab active" data-tab="primary" role="tab"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Primary" class="ui-icon">Primary</button>
+                <button class="inbox-tab" data-tab="updates" role="tab"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Updates" class="ui-icon">Updates</button>
+                <button class="inbox-tab" data-tab="social" role="tab"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Social" class="ui-icon">Social</button>
+            </div>
+            <div class="message-list" id="message-list">
+                <article class="message unread" data-category="primary" data-search="not ai this was created by a human">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Not AI message"><span class="checkmark"></span></label>
+                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
+                    <div class="sender-avatar">NA</div><div class="message-details"><strong>Not AI</strong><p><b>This was created by a human</b> — Read the latest message in your inbox.</p></div><time>Tomorrow</time>
+                </article>
+                <article class="message unread" data-category="primary" data-search="mike adams quit informing">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Mike Adams message"><span class="checkmark"></span></label>
+                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
+                    <div class="sender-avatar">MA</div><div class="message-details"><strong>Mike Adams</strong><p><b>I am informing you that “I QUIT”.</b> — Following up on our conversation.</p></div><time>Yesterday</time>
+                </article>
+                <article class="message" data-category="primary" data-search="boss using lying">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Boss message"><span class="checkmark"></span></label>
+                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
+                    <div class="sender-avatar">B</div><div class="message-details"><strong>Boss</strong><p>What Did I tell you about using AI!!! — Please review this message.</p></div><time>9:20 AM</time>
+                </article>
+                <article class="message" data-category="updates" data-search="automated message code account">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Automated Message"><span class="checkmark"></span></label>
+                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
+                    <div class="sender-avatar">AM</div><div class="message-details"><strong>Automated Message</strong><p>Code for account: 1948 — Your security notification.</p></div><time>2:00 AM</time>
+                </article>
+                <article class="message" data-category="social" data-search="elon musk investment idea">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Elon Musk message"><span class="checkmark"></span></label>
+                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
+                    <div class="sender-avatar">EM</div><div class="message-details"><strong>Elon Musk</strong><p>This is a good investment idea — Let’s discuss this soon.</p></div><time>1:00 PM</time>
+                </article>
+            </div>
+            <p class="empty-state" id="empty-state" hidden>No messages match your search.</p>
+        </main>
+    </div>
+
+    <form class="compose-window" id="compose-window" hidden>
+        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Close" class="ui-icon"></button></div>
+        <input type="email" placeholder="Recipients" aria-label="Recipients" required>
+        <input type="text" placeholder="Subject" aria-label="Subject">
+        <textarea placeholder="Write a message..." aria-label="Message"></textarea>
+        <div class="compose-footer"><button class="send-button" type="submit">Send <img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Send" class="ui-icon send-icon"></button><button type="button" class="icon-button" id="discard-compose" aria-label="Discard draft"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Discard" class="ui-icon"></button></div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const compose = document.querySelector("#compose-window");
+    const showCompose = (show) => {
+        compose.hidden = !show;
+        if (show) compose.querySelector("input").focus();
+    };
+    document.querySelector("#open-compose").addEventListener("click", () => showCompose(true));
+    document.querySelector("#close-compose").addEventListener("click", () => showCompose(false));
+    document.querySelector("#discard-compose").addEventListener("click", () => showCompose(false));
+    compose.addEventListener("submit", (event) => { event.preventDefault(); showCompose(false); });
+
+    const messages = [...document.querySelectorAll(".message")];
+    const filterMessages = () => {
+        const query = document.querySelector("#mail-search").value.toLowerCase().trim();
+        const tab = document.querySelector(".inbox-tab.active").dataset.tab;
+        let visible = 0;
+        messages.forEach((message) => {
+            const matches = (!query || message.dataset.search.includes(query)) && (tab === "primary" || message.dataset.category === tab);
+            message.hidden = !matches;
+            if (matches) visible += 1;
+        });
+        document.querySelector("#empty-state").hidden = visible > 0;
+    };
+    document.querySelector("#mail-search").addEventListener("input", filterMessages);
+    document.querySelectorAll(".inbox-tab").forEach((tab) => tab.addEventListener("click", () => {
+        document.querySelector(".inbox-tab.active").classList.remove("active");
+        tab.classList.add("active");
+        filterMessages();
+    }));
+    document.querySelector("#select-all").addEventListener("change", (event) => {
+        document.querySelectorAll(".message:not([hidden]) .message-check").forEach((check) => { check.checked = event.target.checked; });
+    });
+    document.querySelectorAll(".star-button").forEach((button) => button.addEventListener("click", () => button.classList.toggle("starred")));
+    document.querySelector("#refresh-mail").addEventListener("click", () => window.location.reload());
+    document.querySelector("#mark-read").addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").classList.remove("unread")));
+    document.querySelectorAll("#archive-mail, #delete-mail").forEach((button) => button.addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").remove())));
+</script>
+{% endblock %}

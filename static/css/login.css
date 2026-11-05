@@ -1,0 +1,293 @@
+:root {
+    --login-bg: #1d2125;
+    --login-card: #252d31;
+    --login-text: #edf3f1;
+    --login-muted: #9ca7a3;
+    --login-brand: #bde5c6;
+    --login-accent: #dfeee7;
+    --login-button: #bce4c9;
+    --login-button-strong: #9ad6ae;
+    --login-surface: #252d31;
+    --login-surface-2: #2c3438;
+    --login-border: rgba(255,255,255,0.08);
+    --login-shadow: 0 22px 44px rgba(0,0,0,0.42);
+}
+
+body:has(.login-page) {
+    background: var(--login-bg);
+    margin: 0;
+}
+
+body:has(.login-page) .page-content {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+}
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top, rgba(146, 186, 160, 0.08), transparent 30%), var(--login-bg);
+    padding: 2rem 1rem;
+}
+
+.login-m3-card {
+    width: min(100%, 360px);
+    display: block;
+    --md-comp-card-container-color: var(--login-card);
+    --md-comp-card-container-shape: 24px;
+    --md-comp-card-elevation: var(--login-shadow);
+    --md-sys-color-surface-container-highest: var(--login-card);
+    --md-sys-color-on-surface: var(--login-text);
+    --md-sys-color-primary: var(--login-button-strong);
+    --md-sys-color-on-primary: #0d1b12;
+    --md-sys-color-error: #f2b8b5;
+    padding: 1.3rem 1.25rem 1.25rem;
+}
+
+.brand-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.8rem;
+}
+
+.brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--login-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+
+.logo-image {
+    width: 25px;
+    height: 25px;
+    object-fit: contain;
+}
+
+.brand-text {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    color: var(--login-text);
+}
+
+.brand-text span {
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+}
+
+.login-copy {
+    margin: 0.2rem 0 1rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--login-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.login-copy h1 {
+    margin: 0;
+    font-size: clamp(2.2rem, 5vw, 3rem);
+    line-height: 0.97;
+    letter-spacing: -0.07em;
+    color: var(--login-text);
+}
+
+.login-intro {
+    margin: 0.7rem 0 0;
+    color: var(--login-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.sign-in-form {
+    display: grid;
+    gap: 0.9rem;
+}
+
+m3-text-field {
+    --md-sys-color-surface-container-highest: rgba(59, 70, 74, 0.9);
+    --md-sys-color-on-surface: var(--login-text);
+    --md-sys-color-on-surface-variant: rgba(255,255,255,0.72);
+    --md-sys-color-primary: rgba(185, 225, 198, 0.9);
+    --md-sys-color-error: #f2b8b5;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.2rem;
+}
+
+.checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--login-muted);
+    font-size: 0.8rem;
+}
+
+.checkbox-row input {
+    accent-color: var(--login-button);
+}
+
+.text-link {
+    color: var(--login-accent);
+    font-size: 0.76rem;
+    text-decoration: none;
+}
+
+m3-button.login-action {
+    --md-sys-color-primary: var(--login-button);
+    --md-sys-color-on-primary: #0d1b12;
+    --md-comp-button-container-shape: 14px;
+    --md-comp-button-container-height: 44px;
+    --md-comp-button-label-text-size: 0.95rem;
+    --md-comp-button-label-text-weight: 700;
+    margin-top: 0.3rem;
+    width: 100%;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 1.1rem 0 0.8rem;
+    color: rgba(255,255,255,0.56);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    height: 1px;
+    background: rgba(255,255,255,0.12);
+    flex: 1;
+}
+
+.provider-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
+.provider-button {
+    min-height: 44px;
+    border-radius: 10px;
+    background: rgba(59, 70, 74, 0.9);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--login-text);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.96rem;
+}
+
+.provider-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0.9rem;
+}
+
+.google-logo {
+    color: #f5f7fb;
+    font-family: Arial, sans-serif;
+}
+
+.microsoft-logo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.microsoft-logo i:nth-child(1) { background: #f35325; }
+.microsoft-logo i:nth-child(2) { background: #81bc06; }
+.microsoft-logo i:nth-child(3) { background: #05a6f0; }
+.microsoft-logo i:nth-child(4) { background: #ffba08; }
+
+.setup-message {
+    align-items: flex-start;
+    background: rgba(255, 204, 92, 0.12);
+    border: 1px solid rgba(172, 126, 0, 0.18);
+    border-radius: 12px;
+    color: var(--login-text);
+    display: flex;
+    font-size: 0.8rem;
+    gap: 0.55rem;
+    margin: 0 0 1rem;
+    padding: 0.78rem 0.85rem;
+    text-align: left;
+}
+
+.error-message {
+    background: rgba(179, 38, 30, 0.08);
+    border-color: rgba(179, 38, 30, 0.2);
+    color: #f3d3d1;
+}
+
+.ui-icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+    color: currentColor;
+    stroke: currentColor;
+    fill: none;
+}
+
+.small-icon {
+    width: 15px;
+    height: 15px;
+}
+
+.lock-wrap {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: #090b0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1.2rem auto 0;
+}
+
+.lock-icon {
+    width: 58px;
+    height: 58px;
+    stroke: var(--login-text);
+    fill: none;
+}
+
+@media (max-width: 420px) {
+    .login-m3-card {
+        width: 100%;
+    }
+
+    .provider-buttons {
+        grid-template-columns: 1fr;
+    }
+}

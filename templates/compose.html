@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Compose | CentroMail{% endblock %}
+
+{% block content %}
+<section class="compose-page">
+    <div class="form-card">
+        <h1>Compose message</h1>
+
+        <form method="post">
+            <label>
+                To
+                <input type="email" name="to" placeholder="name@example.com" required>
+            </label>
+
+            <label>
+                Subject
+                <input type="text" name="subject" placeholder="Subject">
+            </label>
+
+            <label>
+                Message
+                <textarea name="body" rows="10" placeholder="Write your message..." required></textarea>
+            </label>
+
+            <div class="form-actions">
+                <button class="button" type="submit">Send</button>
+                <a class="button secondary" href="{{ url_for('inbox') }}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+

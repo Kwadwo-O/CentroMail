@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | CentroMail{% endblock %}
+
+{% block content %}
+<section class="hero dashboard">
+    <p class="eyebrow">Overview</p>
+    <h1>Welcome to <span>CentroMail</span></h1>
+    <p class="intro">Your inbox, tasks, and account activity in one place.</p>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span>Total mail</span>
+            <strong>{{ stats.total }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Unread</span>
+            <strong>{{ stats.unread }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Starred</span>
+            <strong>{{ stats.starred }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Sent</span>
+            <strong>{{ stats.sent }}</strong>
+        </div>
+    </div>
+
+    <div class="action-row">
+        <a class="button" href="{{ url_for('inbox') }}">Open inbox</a>
+        <a class="button secondary" href="{{ url_for('compose') }}">Compose mail</a>
+    </div>
+</section>
+{% endblock %}
+

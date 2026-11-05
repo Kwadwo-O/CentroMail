@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ message.subject }} | CentroMail{% endblock %}
+
+{% block content %}
+<section class="message-detail">
+    <a class="back-link" href="{{ url_for('inbox') }}">← Back to inbox</a>
+
+    <article class="mail-card">
+        <div class="mail-header">
+            <div>
+                <p class="eyebrow">From</p>
+                <h2>{{ message.sender }}</h2>
+                <p>{{ message.email }}</p>
+            </div>
+            <span class="mail-time">{{ message.time }}</span>
+        </div>
+
+        <h3>{{ message.subject }}</h3>
+        <p>{{ message.body }}</p>
+
+        <div class="message-actions">
+            <a class="button" href="{{ url_for('compose') }}">Reply</a>
+            <a class="button secondary" href="{{ url_for('inbox') }}">Close</a>
+        </div>
+    </article>
+</section>
+{% endblock %}
+

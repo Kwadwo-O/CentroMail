@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in | CentroMail{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@banegasn/m3-card/+esm"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@banegasn/m3-text-field/+esm"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@banegasn/m3-button/+esm"></script>
+{% endblock %}
+
+{% block content %}
+<section class="login-page">
+    <m3-card class="login-m3-card" variant="filled" width="full">
+        <div class="brand-row" aria-label="CentroMail brand">
+            <span class="brand-mark">
+                <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="CentroMail logo" class="logo-image">
+            </span>
+            <span class="brand-text">Centro <span>Mail</span></span>
+        </div>
+
+        <div class="login-copy">
+            <p class="eyebrow">Centro Mail</p>
+            <h1>Welcome back</h1>
+            <p class="login-intro">Sign in with your email to keep your inbox, schedule, and messages in sync.</p>
+        </div>
+
+        {% if setup_message %}
+        <div class="setup-message" role="alert">
+            <img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Info" class="ui-icon small-icon">
+            <span>{{ setup_message }}</span>
+        </div>
+        {% endif %}
+
+        {% if form_error %}
+        <div class="setup-message error-message" role="alert">
+            <img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Warning" class="ui-icon small-icon">
+            <span>{{ form_error }}</span>
+        </div>
+        {% endif %}
+
+        <form class="sign-in-form" method="post" action="{{ url_for('login') }}">
+            <m3-text-field name="email" type="email" label="Email" placeholder="name@example.com" autocomplete="email" value="{{ email|default('') }}" required></m3-text-field>
+            <m3-text-field name="password" type="password" label="Password" placeholder="Enter your password" autocomplete="current-password" required></m3-text-field>
+
+            <div class="form-row">
+                <label class="checkbox-row">
+                    <input type="checkbox" name="remember">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="text-link">Forgot password?</a>
+            </div>
+
+            <m3-button class="login-action" variant="filled" size="large" type="submit" full-width aria-label="Sign in">
+                Sign in
+            </m3-button>
+        </form>
+
+        <div class="divider"><span>or continue with</span></div>
+
+        <div class="provider-buttons">
+            <a class="provider-button" href="{{ url_for('authenticate', provider='google') }}">
+                <span class="provider-logo google-logo">G</span>
+                <span>Google</span>
+            </a>
+            <a class="provider-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                <span class="provider-logo microsoft-logo"><i></i><i></i><i></i><i></i></span>
+                <span>Microsoft</span>
+            </a>
+        </div>
+
+        <div class="lock-wrap" aria-label="Secure sign-in">
+            <img src="{{ url_for('static', filename='images/icons/lock.svg') }}" alt="Secure sign-in" class="lock-icon">
+        </div>
+    </m3-card>
+</section>
+{% endblock %}
