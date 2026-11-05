@@ -146,5 +146,4 @@ CentroMail is an independent project and is not affiliated with, endorsed by or 
 <p align="center">
   <strong>CentroMail</strong>
   <br />
-  <sub>All your conversations. Connected.</sub>
 </p>
