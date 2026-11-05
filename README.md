@@ -1,4 +1,4 @@
-# CentroMail - A unified communication hub for email and messaging - 80
+# CentroMail
 
 <p align="center">
   <strong>Your conversations. One place.</strong>
