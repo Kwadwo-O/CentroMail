@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CentroMail">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <title>Get Started with CentroMail</title>
+</head>
+<body>
+    <main class="page">
+        <div class="auth-container">
+            <div class="logo" aria-label="CentroMail">
+                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" width="48" height="48">
+            </div>
+
+            <h1 class="heading">Get Started with CentroMail</h1>
+
+            <div class="auth-buttons">
+                <button
+                        class="auth-button"
+                        type="button"
+                        onclick="startGoogleLogin()"
+                >
+                    <img
+                            src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="Google logo" width="20" height="20"
+                    >
+                    <span>Continue with Google</span>
+                </button>
+
+                <div class="separator"></div>
+
+                <button
+                        class="auth-button"
+                        type="button"
+                        onclick="startMicrosoftLogin()"
+                >
+                    <img
+                            src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="Microsoft logo" width="20" height="20"
+                    >
+                    <span>Continue with Microsoft</span>
+                </button>
+
+                <button
+                    class="auth-button"
+                    type="button"
+                    onclick="startAppleLogin()"
+                >
+                    <img
+                            src="{{ url_for('static', filename='images/Apple_Favicon_2025.webp') }}" alt="Apple logo" width="20" height="20"
+                    >
+                    <span>Continue with Apple</span>
+                </button>
+
+                <button
+                    class="auth-button"
+                    type="button"
+                    onclick="startEmailLogin()"
+                >
+                    <span>Continue with Email</span>
+                </button>
+            </div>
+
+            <form
+                class="email-form"
+                id="email-form"
+                action="/auth/email"
+                method="post"
+            >
+                <input
+                    class="email-input"
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    autocomplete="email"
+                    aria-label="Email address"
+                    required
+                >
+                <button class="email-submit" type="submit">Continue</button>
+            </form>
+
+            <p class="legal-text">
+                By continuing, you agree to our
+                <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+                and
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+            </p>
+        </div>
+    </main>
+    <script>
+        function toggleEmail() {
+            const form = document.getElementById('email-form');
+            const button = document.getElementById("email-toggle");
+
+            const isActive = form.classList.toggle('active');
+
+            button.setAttribute("aria-expanded", String(isActive));
+
+            if (isActive) {
+                form.querySelector('input').focus();
+            }
+        }
+
+        function startGoogleLogin() {
+            window.location.href = "{{ url_for('auth_google') }}";
+        }
+
+        function startMicrosoftLogin() {
+            window.location.href = "{{ url_for('auth_microsoft') }}";
+        }
+
+        function startAppleLogin() {
+            window.location.href = "{{ url_for('auth_apple') }}";
+        }
+    </script>
+</body>

@@ -22,6 +22,7 @@
 
   --core-size: min(54vmin, 540px);
   --tilt: 0deg;
+}
 
 .page-login    { --tilt: -24deg; }
 .page-register { --tilt:  38deg; }

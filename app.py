@@ -131,7 +131,7 @@ def index():
 def onboarding():
     if "user_id" in session:
         return redirect(url_for('dashboard'))
-    return render_template("Onboard.html")
+    return render_template("onboard.html")
 
 @app.route('/continue')
 def continue_flow():
