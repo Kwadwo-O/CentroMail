@@ -1,4 +1,4 @@
-# CentroMail - 
+# CentroMail
 
 <p align="center">
   <strong>Your conversations. One place.</strong>
