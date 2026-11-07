@@ -1,19 +1,49 @@
 import os
 import re
+import secrets
 import sqlite3
+from contextlib import closing
+from datetime import timedelta
+from pathlib import Path
 
-from flask import (Flask, flash, g, redirect, render_template, request,
+from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'centromail-dev-secret'
 DATABASE = os.path.join(app.root_path, "centro.db")
+app.config.update(
+    DATABASE=os.environ.get("CENTROMAIL_DATABASE", DATABASE),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("CENTROMAIL_COOKIE_SECURE") == "1",
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    MAX_CONTENT_LENGTH=1024 * 1024,
+)
+
+
+def load_secret_key():
+    """Keep local sessions valid after a restart without a shared default key."""
+    configured_key = os.environ.get("SECRET_KEY")
+    if configured_key:
+        return configured_key
+    secret_file = Path(app.instance_path) / ".secret_key"
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with secret_file.open("x", encoding="utf-8") as handle:
+            key = secrets.token_hex(32)
+            handle.write(key)
+            return key
+    except FileExistsError:
+        return secret_file.read_text(encoding="utf-8").strip()
+
+
+app.secret_key = load_secret_key()
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
+        g.db = sqlite3.connect(app.config["DATABASE"], timeout=10)
         g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -24,31 +54,92 @@ def close_db(_exc):
         db.close()
 
 def init_db():
-    with sqlite3.connect(DATABASE) as db:
+    """Create the account store and upgrade the original users table in place."""
+    with closing(sqlite3.connect(app.config["DATABASE"], timeout=10)) as db, db:
         db.execute(
-            """CREATE TABLE IF NOT EXISTS users
-               (
-                   id
-                   INTEGER
-                   PRIMARY
-                   KEY
-                   AUTOINCREMENT,
-                   email
-                   TEXT
-                   NOT
-                   NULL,
-                   password
-                   TEXT
-                   NOT
-                   NULL,
-                   created_at
-                   TEXT
-                   DEFAULT
-                   CURRENT_TIMESTAMP
-               )"""
+            """CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                password TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )"""
         )
+        columns = {column[1] for column in db.execute("PRAGMA table_info(users)")}
+        if "name" not in columns:
+            db.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email))")
+
+
+with app.app_context():
+    init_db()
+
+
+def normalize_email(email):
+    return email.strip().lower()
+
+
+def valid_email(email):
+    return len(email) <= 254 and EMAIL_RE.fullmatch(email) is not None
+
+
 def find_user(email):
-    return get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    return get_db().execute(
+        "SELECT * FROM users WHERE lower(email) = ?", (normalize_email(email),)
+    ).fetchone()
+
+
+@app.template_global()
+def csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return session["csrf_token"]
+
+
+PROTECTED_ENDPOINTS = {
+    "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
+}
+
+
+@app.before_request
+def load_user_and_check_forms():
+    user_id = session.get("user_id")
+    g.user = (
+        get_db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if user_id is not None else None
+    )
+    if user_id is not None and g.user is None:
+        session.clear()
+    if request.endpoint in PROTECTED_ENDPOINTS and g.user is None:
+        return redirect(url_for("login"))
+    if request.method == "POST":
+        expected = session.get("csrf_token", "")
+        submitted = request.form.get("csrf_token", "")
+        if not expected or not secrets.compare_digest(expected.encode('utf-8'), submitted.encode('utf-8')):
+            abort(400, description="Your form has expired. Go back, refresh the page, and try again.")
+
+
+@app.after_request
+def prevent_cached_account_pages(response):
+    if request.endpoint in PROTECTED_ENDPOINTS or request.endpoint in {
+        "login", "register", "onboarding",
+    }:
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def sign_in(user, remember=False):
+    session.clear()
+    session["user_id"] = user["id"]
+    session["user_email"] = user["email"]
+    session.permanent = remember
+
+
+def render_auth(active_panel="login", email="", name="", remember=False):
+    return render_template(
+        "login.html", active_panel=active_panel, email=email, name=name, remember=remember,
+    )
+
 
 messages = [
     {
@@ -127,45 +218,84 @@ def make_stats():
 def index():
     return redirect(url_for('login'))
 
-@app.post('/onboarding')
+@app.get('/onboarding')
 def onboarding():
-    if "user_id" in session:
+    if g.user is not None:
         return redirect(url_for('dashboard'))
-    return render_template("onboard.html")
+    return render_template('onboard.html')
 
-@app.route('/continue')
+
+@app.post('/continue')
 def continue_flow():
-    email = request.form.get('email', '').strip().lower()
-    if not EMAIL_RE.match(email):
+    if g.user is not None:
+        return redirect(url_for('dashboard'))
+    email = normalize_email(request.form.get('email', ''))
+    if not valid_email(email):
         flash("Please enter a valid email address.", "error")
         return redirect(url_for('onboarding'))
+    session["pending_email"] = email
+    return redirect(url_for('login' if find_user(email) else 'register'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        email = (request.form.get('email') or '').strip()
-        password = request.form.get('password') or ''
-
-        if not email or '@' not in email:
-            return render_template(
-                'login.html',
-                email=email,
-                form_error='Please enter a valid email address.',
-            ), 400
-
-        if not password:
-            return render_template(
-                'login.html',
-                email=email,
-                form_error='Please enter your password.',
-            ), 400
-
-        session['user_email'] = email
-        flash(f'Welcome back, {email}.', 'success')
+    if g.user is not None:
         return redirect(url_for('dashboard'))
+    email = session.get('pending_email', '')
+    remember = False
+    if request.method == 'POST':
+        email = normalize_email(request.form.get('email', ''))
+        password = request.form.get('password', '')
+        remember = request.form.get('remember') == 'on'
+        if not valid_email(email):
+            flash("Please enter a valid email address.", "error")
+        elif not password:
+            flash("Please enter your password.", "error")
+        elif len(password) > 1024:
+            flash("Incorrect email or password. Please try again.", "error")
+        else:
+            user = find_user(email)
+            if user is not None and check_password_hash(user["password"], password):
+                sign_in(user, remember=remember)
+                return redirect(url_for('dashboard'))
+            flash("Incorrect email or password. Please try again.", "error")
+    return render_auth(email=email, remember=remember)
 
-    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if g.user is not None:
+        return redirect(url_for('dashboard'))
+    email = session.get('pending_email', '')
+    name = ''
+    if request.method == 'POST':
+        email = normalize_email(request.form.get('email', ''))
+        name = request.form.get('name', '').strip()
+        password = request.form.get('password', '')
+        confirmation = request.form.get('confirm_password', '')
+        if not name or len(name) > 100:
+            flash("Enter a name between 1 and 100 characters.", "error")
+        elif not valid_email(email):
+            flash("Please enter a valid email address.", "error")
+        elif not 12 <= len(password) <= 1024:
+            flash("Use between 12 and 1024 characters for your password.", "error")
+        elif password != confirmation:
+            flash("Your passwords do not match.", "error")
+        else:
+            db = get_db()
+            try:
+                db.execute(
+                    "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+                    (name, email, generate_password_hash(password)),
+                )
+                db.commit()
+            except sqlite3.IntegrityError:
+                db.rollback()
+                flash("An account with this email already exists. Please log in.", "error")
+            else:
+                sign_in(find_user(email))
+                return redirect(url_for('dashboard'))
+    return render_auth(active_panel='signup', email=email, name=name)
 
 
 @app.route('/home')
@@ -213,28 +343,22 @@ def settings():
     return render_template('settings.html')
 
 
-@app.route('/logout')
+@app.post('/logout')
 def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
 
 
-@app.route('/auth/<provider>')
+@app.get('/auth/<provider>')
 def authenticate(provider):
     if provider not in {'google', 'microsoft'}:
-        return 'Unsupported email provider', 404
-
-    client_id_name = 'GOOGLE_CLIENT_ID' if provider == 'google' else 'MICROSOFT_CLIENT_ID'
-    if not os.getenv(client_id_name):
-        return render_template(
-            'login.html',
-            setup_message=f'{provider.title()} sign-in is not configured yet. Add {client_id_name} to your environment before connecting.',
-        ), 503
-
-    session['user_email'] = f'{provider}@placeholder.local'
-    return redirect(url_for('dashboard'))
+        abort(404)
+    # An environment client ID alone is not an OAuth implementation.
+    # Keep local email login available until the provider callback is implemented.
+    flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
+    return redirect(url_for('onboarding'))
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1')

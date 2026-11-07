@@ -3,115 +3,58 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="CentroMail">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="description" content="Get started with CentroMail.">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-    <title>Get Started with CentroMail</title>
+    <title>Get Started · CentroMail</title>
 </head>
-<body>
-    <main class="page">
-        <div class="auth-container">
-            <div class="logo" aria-label="CentroMail">
-                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" width="48" height="48">
-            </div>
+<body class="page-onboarding">
+    <div class="bg-circle bg1" aria-hidden="true"></div>
+    <div class="bg-circle bg2" aria-hidden="true"></div>
+    <div class="bg-circle bg3" aria-hidden="true"></div>
 
-            <h1 class="heading">Get Started with CentroMail</h1>
+    <main class="auth-wrapper">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack" aria-live="polite">
+                    {% for category, message in messages %}
+                        <p class="flash flash-{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="onboarding-card" aria-labelledby="onboardingTitle">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+            </div>
+            <h1 id="onboardingTitle">Get Started with CentroMail</h1>
+            <p class="subtitle">Your conversations. One place.</p>
 
             <div class="auth-buttons">
-                <button
-                        class="auth-button"
-                        type="button"
-                        onclick="startGoogleLogin()"
-                >
-                    <img
-                            src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="Google logo" width="20" height="20"
-                    >
+                <a class="auth-button" href="{{ url_for('authenticate', provider='google') }}">
+                    <img src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="" width="20" height="20">
                     <span>Continue with Google</span>
-                </button>
-
-                <div class="separator"></div>
-
-                <button
-                        class="auth-button"
-                        type="button"
-                        onclick="startMicrosoftLogin()"
-                >
-                    <img
-                            src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="Microsoft logo" width="20" height="20"
-                    >
+                </a>
+                <a class="auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                    <img src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="" width="20" height="20">
                     <span>Continue with Microsoft</span>
-                </button>
-
-                <button
-                    class="auth-button"
-                    type="button"
-                    onclick="startAppleLogin()"
-                >
-                    <img
-                            src="{{ url_for('static', filename='images/Apple_Favicon_2025.webp') }}" alt="Apple logo" width="20" height="20"
-                    >
-                    <span>Continue with Apple</span>
-                </button>
-
-                <button
-                    class="auth-button"
-                    type="button"
-                    onclick="startEmailLogin()"
-                >
-                    <span>Continue with Email</span>
-                </button>
+                </a>
             </div>
 
-            <form
-                class="email-form"
-                id="email-form"
-                action="/auth/email"
-                method="post"
-            >
-                <input
-                    class="email-input"
-                    type="email"
-                    name="email"
-                    placeholder="Enter your email"
-                    autocomplete="email"
-                    aria-label="Email address"
-                    required
-                >
-                <button class="email-submit" type="submit">Continue</button>
+            <p class="separator"><span>or continue with email</span></p>
+            <form class="auth-form email-form" method="post" action="{{ url_for('continue_flow') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="input-group">
+                    <div class="electric-glow" aria-hidden="true"></div>
+                    <div class="electric-border" aria-hidden="true"></div>
+                    <input type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
+                    <label for="onboardingEmail">Email Address</label>
+                </div>
+                <button class="main-btn" type="submit">Continue with Email</button>
             </form>
 
-            <p class="legal-text">
-                By continuing, you agree to our
-                <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
-                and
-                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
-            </p>
-        </div>
+            <p class="auth-footer">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+        </section>
     </main>
-    <script>
-        function toggleEmail() {
-            const form = document.getElementById('email-form');
-            const button = document.getElementById("email-toggle");
-
-            const isActive = form.classList.toggle('active');
-
-            button.setAttribute("aria-expanded", String(isActive));
-
-            if (isActive) {
-                form.querySelector('input').focus();
-            }
-        }
-
-        function startGoogleLogin() {
-            window.location.href = "{{ url_for('auth_google') }}";
-        }
-
-        function startMicrosoftLogin() {
-            window.location.href = "{{ url_for('auth_microsoft') }}";
-        }
-
-        function startAppleLogin() {
-            window.location.href = "{{ url_for('auth_apple') }}";
-        }
-    </script>
 </body>
+</html>

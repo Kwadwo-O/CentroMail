@@ -1,5 +1,47 @@
 # CentroMail
 
+## Run locally
+
+From this folder in PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py
+```
+
+Open **http://127.0.0.1:5000/login** in your browser. HTML templates must be
+served by Flask; opening `templates/login.html` directly as a file does not run
+the login backend or resolve its CSS links.
+
+Create an account using the **Create account** link on the login card. Enter a
+name, email, and matching passwords of at least 12 characters. Registration
+signs you in and opens the dashboard. Log out to test signing back in.
+The **Get started** link opens `/onboarding`, where Continue with Email checks
+whether the address needs login or registration.
+
+Accounts persist in `centro.db`, created automatically on startup. Passwords
+are stored as hashes, and each account has a unique email address regardless
+of letter case. Existing account databases receive the missing name field
+automatically. The **Remember me** option keeps a login for up to 30 days;
+otherwise the cookie lasts for the browser session.
+
+A local session secret is generated once in `instance/.secret_key`. Keep this
+file private and retain it across restarts, or set the `SECRET_KEY` environment
+variable to a strong random secret. Set `CENTROMAIL_DATABASE` to choose a
+different SQLite file. For hosting over HTTPS, set `CENTROMAIL_COOKIE_SECURE=1`
+and use a production WSGI server. `FLASK_DEBUG=1` enables local debug mode.
+
+Google and Microsoft sign-in still require OAuth integration; their buttons
+show that email sign-in is available. Inbox messages and sending remain demo
+features; signing in does not connect an external mailbox.
+
+Run the authentication integration tests with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
 <p align="center">
   <strong>Your conversations. One place.</strong>
   <br />

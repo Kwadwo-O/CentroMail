@@ -8,16 +8,16 @@
 
         <div class="settings-list">
             <div class="setting-item">
-                <span>Connected account</span>
-                <strong>Google</strong>
+                <span>Account</span>
+                <strong>{{ g.user.email }}</strong>
             </div>
             <div class="setting-item">
-                <span>Mailbox status</span>
-                <strong>Active</strong>
+                <span>Name</span>
+                <strong>{{ g.user.name or g.user.email }}</strong>
             </div>
             <div class="setting-item">
                 <span>Security</span>
-                <strong>Protected</strong>
+                <strong>Password sign-in</strong>
             </div>
         </div>
     </div>

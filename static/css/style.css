@@ -134,6 +134,17 @@ button, input, textarea {
     transform: translateY(-1px);
 }
 
+.logout-form {
+    margin: 0;
+}
+
+.logout-form button {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
 .page-content {
     min-height: calc(100vh - 148px);
 }
