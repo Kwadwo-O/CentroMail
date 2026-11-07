@@ -8,6 +8,8 @@ from pathlib import Path
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
+from authlib.integrations.base_client.errors import OAuthError
+from authlib.integrations.flask_client import OAuth
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -19,6 +21,17 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("CENTROMAIL_COOKIE_SECURE") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     MAX_CONTENT_LENGTH=1024 * 1024,
+    GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
+    GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    GOOGLE_REDIRECT_URI=os.environ.get("GOOGLE_REDIRECT_URI"),
+)
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
 )
 
 
@@ -354,10 +367,60 @@ def logout():
 def authenticate(provider):
     if provider not in {'google', 'microsoft'}:
         abort(404)
-    # An environment client ID alone is not an OAuth implementation.
-    # Keep local email login available until the provider callback is implemented.
+    if provider == "google":
+        if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
+            flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
+            return redirect(url_for('onboarding'))
+        callback_uri = (
+            app.config["GOOGLE_REDIRECT_URI"]
+            or url_for("google_callback", _external=True)
+        )
+        return google.authorize_redirect(callback_uri)
+
     flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
     return redirect(url_for('onboarding'))
+
+
+@app.get('/auth/google/callback')
+def google_callback():
+    if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
+        flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
+        return redirect(url_for('onboarding'))
+
+    try:
+        token = google.authorize_access_token()
+    except OAuthError:
+        flash("Google sign-in was not completed. Please try again.", "error")
+        return redirect(url_for('onboarding'))
+
+    profile = token.get("userinfo")
+    if not profile or profile.get("email_verified") is not True:
+        flash("Google did not provide a verified email address.", "error")
+        return redirect(url_for('onboarding'))
+
+    email = normalize_email(profile.get("email", ""))
+    if not valid_email(email):
+        flash("Google did not provide a valid email address.", "error")
+        return redirect(url_for('onboarding'))
+
+    user = find_user(email)
+    if user is None:
+        name = (profile.get("name") or email.split("@", 1)[0]).strip()[:100]
+        db = get_db()
+        try:
+            db.execute(
+                "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+                (name or email, email, generate_password_hash(secrets.token_urlsafe(32))),
+            )
+            db.commit()
+        except sqlite3.IntegrityError:
+            db.rollback()
+        user = find_user(email)
+    if user is None:
+        abort(500, description="Could not create or find the Google account.")
+
+    sign_in(user)
+    return redirect(url_for('dashboard'))
 
 
 if __name__ == '__main__':

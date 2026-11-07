@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlparse
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -23,13 +24,19 @@ class AuthTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.previous_config = {
             key: application.app.config.get(key)
-            for key in ("DATABASE", "TESTING", "SECRET_KEY")
+            for key in (
+                "DATABASE", "TESTING", "SECRET_KEY", "GOOGLE_CLIENT_ID",
+                "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI",
+            )
         }
         self.addCleanup(application.app.config.update, self.previous_config)
         application.app.config.update(
             DATABASE=str(Path(self.directory.name) / "test.sqlite"),
             TESTING=True,
             SECRET_KEY="test-only-secret",
+            GOOGLE_CLIENT_ID=None,
+            GOOGLE_CLIENT_SECRET=None,
+            GOOGLE_REDIRECT_URI=None,
         )
         with application.app.app_context():
             application.init_db()
@@ -236,6 +243,59 @@ class AuthTests(unittest.TestCase):
                 with self.client.session_transaction() as session:
                     self.assertNotIn("user_id", session)
                     self.assertNotIn("user_email", session)
+
+    def test_google_sign_in_starts_oauth_with_configured_callback(self):
+        application.app.config.update(
+            GOOGLE_CLIENT_ID="test-client-id",
+            GOOGLE_CLIENT_SECRET="test-client-secret",
+            GOOGLE_REDIRECT_URI="https://example.test/auth/google/callback",
+        )
+        with patch.object(
+            application.google, "authorize_redirect", return_value=application.redirect("/google")
+        ) as authorize_redirect:
+            response = self.client.get("/auth/google")
+        self.assert_redirect_path(response, "/google")
+        authorize_redirect.assert_called_once_with("https://example.test/auth/google/callback")
+
+    def test_google_callback_creates_verified_account_and_signs_in(self):
+        application.app.config.update(
+            GOOGLE_CLIENT_ID="test-client-id",
+            GOOGLE_CLIENT_SECRET="test-client-secret",
+        )
+        with patch.object(application.google, "authorize_access_token", return_value={
+            "userinfo": {
+                "sub": "google-user-id",
+                "email": "Person@Example.com",
+                "email_verified": True,
+                "name": "Test Person",
+            },
+        }):
+            response = self.client.get("/auth/google/callback")
+        self.assert_redirect_path(response, "/dashboard")
+        users = self.users()
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0]["email"], "person@example.com")
+        self.assertEqual(users[0]["name"], "Test Person")
+        self.assertNotEqual(users[0]["password"], self.password)
+        with self.client.session_transaction() as session:
+            self.assertEqual(session["user_id"], users[0]["id"])
+
+    def test_google_callback_rejects_unverified_email(self):
+        application.app.config.update(
+            GOOGLE_CLIENT_ID="test-client-id",
+            GOOGLE_CLIENT_SECRET="test-client-secret",
+        )
+        with patch.object(application.google, "authorize_access_token", return_value={
+            "userinfo": {
+                "sub": "google-user-id",
+                "email": "person@example.com",
+                "email_verified": False,
+                "name": "Test Person",
+            },
+        }):
+            response = self.client.get("/auth/google/callback")
+        self.assert_redirect_path(response, "/onboarding")
+        self.assertEqual(self.users(), [])
 
     def test_existing_database_schema_migrates_without_losing_login(self):
         legacy_database = str(Path(self.directory.name) / "legacy.sqlite")

@@ -33,11 +33,12 @@
 
 body {
   min-height: 100vh;
+  min-height: 100svh;
   min-width: 320px;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 0;
+  padding: clamp(16px, 3vh, 40px) 0;
   background: var(--md-on-surface-variant);
   color: #303943;
   overflow-x: hidden;
@@ -559,6 +560,66 @@ button:focus-visible,
 
   h1 {
     font-size: 25px;
+  }
+}
+
+@media (max-height: 800px) {
+  body {
+    padding: 12px 0;
+  }
+
+  .form-panel,
+  .onboarding-card {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .logo {
+    width: 68px;
+    height: 68px;
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    margin-bottom: 18px;
+  }
+
+  .input-group {
+    height: 50px;
+    margin-bottom: 12px;
+  }
+
+  .input-group input {
+    height: 46px;
+  }
+
+  .input-group label {
+    top: 16px;
+  }
+
+  .password-toggle {
+    top: 11px;
+  }
+
+  .form-help {
+    margin-bottom: 12px;
+  }
+
+  .main-btn {
+    height: 48px;
+  }
+
+  .switch-area {
+    margin-top: 16px;
+  }
+
+  .switch-circle {
+    width: 42px;
+    height: 42px;
+  }
+
+  .auth-footer {
+    margin-top: 12px;
   }
 }
 

@@ -32,9 +32,26 @@ variable to a strong random secret. Set `CENTROMAIL_DATABASE` to choose a
 different SQLite file. For hosting over HTTPS, set `CENTROMAIL_COOKIE_SECURE=1`
 and use a production WSGI server. `FLASK_DEBUG=1` enables local debug mode.
 
-Google and Microsoft sign-in still require OAuth integration; their buttons
-show that email sign-in is available. Inbox messages and sending remain demo
-features; signing in does not connect an external mailbox.
+### Google sign-in
+
+In Google Cloud Console, configure an OAuth client ID for a Web application.
+Add `http://127.0.0.1:5000/auth/google/callback` as an authorized redirect URI.
+Before starting Flask in PowerShell, provide the client credentials:
+
+```powershell
+$env:GOOGLE_CLIENT_ID = "your-client-id"
+$env:GOOGLE_CLIENT_SECRET = "your-client-secret"
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py
+```
+
+The callback URI can be overridden with `GOOGLE_REDIRECT_URI` if it differs
+from the local address above. Keep the client secret private. Google sign-in
+creates a CentroMail account for a new verified email or signs into an existing
+account with the same email, then opens the dashboard. Google sign-in does not
+connect Gmail; inbox messages and sending remain demo features.
+
+Microsoft sign-in still requires OAuth integration.
 
 Run the authentication integration tests with:
 
