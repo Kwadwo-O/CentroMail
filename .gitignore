@@ -5,3 +5,4 @@ instance/
 centro.db
 centro.db-*
 .env
+.run/CentroMail.run.xml
