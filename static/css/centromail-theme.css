@@ -1,0 +1,77 @@
+/*
+ * CentroMail theme generated from the Coolors palette:
+ * #F1F7ED #E0EEC6 #7CA982 #50745C #243E36
+ *
+ * These are the M3E system roles consumed by the bundled components.
+ */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url("fonts/material-symbols-rounded.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+  --m3e-sys-color-background: #ffffff;
+  --m3e-sys-color-on-background: #243e36;
+  --m3e-sys-color-surface: #ffffff;
+  --m3e-sys-color-surface-bright: #ffffff;
+  --m3e-sys-color-surface-dim: #e8eee8;
+  --m3e-sys-color-surface-container-lowest: #ffffff;
+  --m3e-sys-color-surface-container-low: #fbfdfb;
+  --m3e-sys-color-surface-container: #f7faf7;
+  --m3e-sys-color-surface-container-high: #f1f6f1;
+  --m3e-sys-color-surface-container-highest: #e9f0e9;
+  --m3e-sys-color-surface-variant: #e9f0e9;
+  --m3e-sys-color-on-surface: #243e36;
+  --m3e-sys-color-on-surface-variant: #50745c;
+  --m3e-sys-color-primary: #50745c;
+  --m3e-sys-color-on-primary: #f1f7ed;
+  --m3e-sys-color-primary-container: #e0eec6;
+  --m3e-sys-color-on-primary-container: #243e36;
+  --m3e-sys-color-secondary: #7ca982;
+  --m3e-sys-color-on-secondary: #243e36;
+  --m3e-sys-color-secondary-container: #d5e8d0;
+  --m3e-sys-color-on-secondary-container: #243e36;
+  --m3e-sys-color-tertiary: #50745c;
+  --m3e-sys-color-on-tertiary: #f1f7ed;
+  --m3e-sys-color-tertiary-container: #c9dec0;
+  --m3e-sys-color-on-tertiary-container: #243e36;
+  --m3e-sys-color-outline: #50745c;
+  --m3e-sys-color-outline-variant: #b7cbb2;
+  --m3e-sys-color-surface-tint: #50745c;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --m3e-sys-color-background: #243e36;
+  --m3e-sys-color-on-background: #f1f7ed;
+  --m3e-sys-color-surface: #243e36;
+  --m3e-sys-color-surface-bright: #3e594d;
+  --m3e-sys-color-surface-dim: #1b3029;
+  --m3e-sys-color-surface-container-lowest: #182b25;
+  --m3e-sys-color-surface-container-low: #29443b;
+  --m3e-sys-color-surface-container: #2e4a40;
+  --m3e-sys-color-surface-container-high: #304b40;
+  --m3e-sys-color-surface-container-highest: #3d5b4e;
+  --m3e-sys-color-surface-variant: #50745c;
+  --m3e-sys-color-on-surface: #f1f7ed;
+  --m3e-sys-color-on-surface-variant: #d0e0cb;
+  --m3e-sys-color-primary: #e0eec6;
+  --m3e-sys-color-on-primary: #243e36;
+  --m3e-sys-color-primary-container: #50745c;
+  --m3e-sys-color-on-primary-container: #e0eec6;
+  --m3e-sys-color-secondary: #a9d2ad;
+  --m3e-sys-color-on-secondary: #243e36;
+  --m3e-sys-color-secondary-container: #50745c;
+  --m3e-sys-color-on-secondary-container: #e0eec6;
+  --m3e-sys-color-tertiary: #b1d5a5;
+  --m3e-sys-color-on-tertiary: #243e36;
+  --m3e-sys-color-tertiary-container: #50745c;
+  --m3e-sys-color-on-tertiary-container: #e0eec6;
+  --m3e-sys-color-outline: #a9c5a5;
+  --m3e-sys-color-outline-variant: #50745c;
+  --m3e-sys-color-surface-tint: #e0eec6;
+}

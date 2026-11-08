@@ -150,72 +150,12 @@ def sign_in(user, remember=False):
 
 def render_auth(active_panel="login", email="", name="", remember=False):
     return render_template(
-        "login.html", active_panel=active_panel, email=email, name=name, remember=remember,
+        "register.html" if active_panel == "signup" else "login.html",
+        email=email, name=name, remember=remember,
     )
 
 
-messages = [
-    {
-        'id': 1,
-        'sender': 'Not AI',
-        'email': 'hello@notai.dev',
-        'subject': 'This was created by a human',
-        'preview': 'Read the latest message in your inbox.',
-        'body': 'Hi team, this project was created by a human. Please review the latest update before launch.',
-        'time': 'Tomorrow',
-        'unread': True,
-        'category': 'primary',
-        'starred': True,
-    },
-    {
-        'id': 2,
-        'sender': 'Mike Adams',
-        'email': 'mike@company.com',
-        'subject': 'I am informing you that “I QUIT”.',
-        'preview': 'Following up on our conversation.',
-        'body': 'After careful consideration, I have decided to leave the role. Please arrange the handover.',
-        'time': 'Yesterday',
-        'unread': True,
-        'category': 'primary',
-        'starred': False,
-    },
-    {
-        'id': 3,
-        'sender': 'Boss',
-        'email': 'boss@company.com',
-        'subject': 'What did I tell you about using AI!!!',
-        'preview': 'Please review this message.',
-        'body': 'The work is not acceptable. Please revise the draft and send it again before noon.',
-        'time': '9:20 AM',
-        'unread': False,
-        'category': 'primary',
-        'starred': False,
-    },
-    {
-        'id': 4,
-        'sender': 'Automated Message',
-        'email': 'security@service.com',
-        'subject': 'Code for account: 1948',
-        'preview': 'Your security notification.',
-        'body': 'Your account verification code is 1948. Do not share it with anyone.',
-        'time': '2:00 AM',
-        'unread': False,
-        'category': 'updates',
-        'starred': False,
-    },
-    {
-        'id': 5,
-        'sender': 'Elon Musk',
-        'email': 'elon@x.com',
-        'subject': 'This is a good investment idea',
-        'preview': 'Let’s discuss this soon.',
-        'body': 'This could be a great move if we scale it smartly. Let’s talk later this week.',
-        'time': '1:00 PM',
-        'unread': False,
-        'category': 'social',
-        'starred': False,
-    },
-]
+messages = []
 
 
 def make_stats():
@@ -323,12 +263,12 @@ def dashboard():
 
 @app.route('/inbox')
 def inbox():
-    return render_template('mail.html', messages=messages)
+    return render_template('mail.html', messages=messages, stats=make_stats())
 
 
 @app.route('/mail')
 def mail():
-    return render_template('mail.html', messages=messages)
+    return render_template('mail.html', messages=messages, stats=make_stats())
 
 
 @app.route('/message/<int:message_id>')
@@ -336,7 +276,7 @@ def message_detail(message_id):
     for message in messages:
         if message['id'] == message_id:
             return render_template('message.html', message=message)
-    return 'Message not found', 404
+    return render_template('mail.html', messages=messages, stats=make_stats())
 
 
 @app.route('/compose', methods=['GET', 'POST'])

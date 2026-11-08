@@ -16,8 +16,7 @@
     <header class="gmail-header">
         <button class="icon-button mobile-menu" aria-label="Open menu"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Menu" class="ui-icon"></button>
         <a class="gmail-logo" href="{{ url_for('mail') }}">
-            <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="CentroMail logo" class="header-logo">
-            <span class="brand-wordmark"><strong>Centro</strong><span>Mail</span></span>
+            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo">
         </a>
         <label class="search-box">
             <img src="{{ url_for('static', filename='images/icons/search.svg') }}" alt="Search" class="ui-icon search-icon">
@@ -36,7 +35,7 @@
         <aside class="mail-sidebar">
             <button class="compose-button" id="open-compose"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Compose" class="ui-icon">Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
-                <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>12</b></a>
+                <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>{{ stats.unread }}</b></a>
                 <a class="mail-nav-link" href="#starred"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Starred" class="ui-icon"><span>Starred</span></a>
                 <a class="mail-nav-link" href="#snoozed"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Snoozed" class="ui-icon"><span>Snoozed</span></a>
                 <a class="mail-nav-link" href="#sent"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Sent" class="ui-icon"><span>Sent</span></a>
@@ -57,7 +56,7 @@
                     <p class="eyebrow">Main menu</p>
                     <h1>Inbox</h1>
                 </div>
-                <span class="page-count">1–5 of 12</span>
+                <span class="page-count">0–0 of {{ stats.total }}</span>
             </div>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
@@ -75,33 +74,17 @@
                 <button class="inbox-tab" data-tab="social" role="tab"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Social" class="ui-icon">Social</button>
             </div>
             <div class="message-list" id="message-list">
-                <article class="message unread" data-category="primary" data-search="not ai this was created by a human">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Not AI message"><span class="checkmark"></span></label>
+                {% for message in messages %}
+                <article class="message{% if message.unread %} unread{% endif %}" data-category="{{ message.category }}" data-search="{{ message.sender }} {{ message.subject }} {{ message.preview }}">
+                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select {{ message.sender }} message"><span class="checkmark"></span></label>
                     <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">NA</div><div class="message-details"><strong>Not AI</strong><p><b>This was created by a human</b> — Read the latest message in your inbox.</p></div><time>Tomorrow</time>
+                    <div class="sender-avatar">{{ message.sender[:2]|upper }}</div>
+                    <div class="message-details"><strong>{{ message.sender }}</strong><p><b>{{ message.subject }}</b> — {{ message.preview }}</p></div>
+                    <time>{{ message.time }}</time>
                 </article>
-                <article class="message unread" data-category="primary" data-search="mike adams quit informing">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Mike Adams message"><span class="checkmark"></span></label>
-                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">MA</div><div class="message-details"><strong>Mike Adams</strong><p><b>I am informing you that “I QUIT”.</b> — Following up on our conversation.</p></div><time>Yesterday</time>
-                </article>
-                <article class="message" data-category="primary" data-search="boss using lying">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Boss message"><span class="checkmark"></span></label>
-                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">B</div><div class="message-details"><strong>Boss</strong><p>What Did I tell you about using AI!!! — Please review this message.</p></div><time>9:20 AM</time>
-                </article>
-                <article class="message" data-category="updates" data-search="automated message code account">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Automated Message"><span class="checkmark"></span></label>
-                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">AM</div><div class="message-details"><strong>Automated Message</strong><p>Code for account: 1948 — Your security notification.</p></div><time>2:00 AM</time>
-                </article>
-                <article class="message" data-category="social" data-search="elon musk investment idea">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select Elon Musk message"><span class="checkmark"></span></label>
-                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">EM</div><div class="message-details"><strong>Elon Musk</strong><p>This is a good investment idea — Let’s discuss this soon.</p></div><time>1:00 PM</time>
-                </article>
+                {% endfor %}
             </div>
-            <p class="empty-state" id="empty-state" hidden>No messages match your search.</p>
+            <p class="empty-state" id="empty-state" {% if messages %}hidden{% endif %}>No messages match your search.</p>
         </main>
     </div>
 

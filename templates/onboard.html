@@ -3,15 +3,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <meta name="description" content="Get started with CentroMail.">
+    <script>
+        const savedTheme = localStorage.getItem('centromail-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+            document.documentElement.dataset.theme = savedTheme;
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <title>Get Started · CentroMail</title>
 </head>
 <body class="page-onboarding">
-    <div class="bg-circle bg1" aria-hidden="true"></div>
-    <div class="bg-circle bg2" aria-hidden="true"></div>
-    <div class="bg-circle bg3" aria-hidden="true"></div>
-
+    <button class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
+        <span class="theme-toggle-icon material-symbols-rounded" aria-hidden="true">dark_mode</span>
+        <span class="theme-toggle-label">Dark theme</span>
+    </button>
     <main class="auth-wrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -23,7 +32,7 @@
             {% endif %}
         {% endwith %}
 
-        <section class="onboarding-card" aria-labelledby="onboardingTitle">
+        <section class="form-panel onboarding-card m3e-card m3e-card--elevated" aria-labelledby="onboardingTitle">
             <div class="logo">
                 <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
             </div>
@@ -31,11 +40,11 @@
             <p class="subtitle">Your conversations. One place.</p>
 
             <div class="auth-buttons">
-                <a class="auth-button" href="{{ url_for('authenticate', provider='google') }}">
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='google') }}">
                     <img src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="" width="20" height="20">
                     <span>Continue with Google</span>
                 </a>
-                <a class="auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
                     <img src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="" width="20" height="20">
                     <span>Continue with Microsoft</span>
                 </a>
@@ -44,17 +53,37 @@
             <p class="separator"><span>or continue with email</span></p>
             <form class="auth-form email-form" method="post" action="{{ url_for('continue_flow') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="input-group">
-                    <div class="electric-glow" aria-hidden="true"></div>
-                    <div class="electric-border" aria-hidden="true"></div>
-                    <input type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
-                    <label for="onboardingEmail">Email Address</label>
-                </div>
-                <button class="main-btn" type="submit">Continue with Email</button>
+                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                    <span class="m3e-text-field__container">
+                        <input class="m3e-text-field__input" type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
+                        <span class="m3e-text-field__label">Email address</span>
+                        <fieldset class="m3e-text-field__outline" aria-hidden="true">
+                            <legend class="m3e-text-field__notch"><span>Email address</span></legend>
+                        </fieldset>
+                    </span>
+                </label>
+                <button class="m3e-button m3e-button--filled m3e-button--size-l main-btn" type="submit">Continue with email</button>
             </form>
 
             <p class="auth-footer">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
         </section>
     </main>
+    <script>
+        const themeToggle = document.querySelector('.theme-toggle');
+        function updateThemeToggle() {
+            const dark = document.documentElement.dataset.theme === 'dark';
+            themeToggle.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+            themeToggle.setAttribute('aria-pressed', String(dark));
+            themeToggle.querySelector('.theme-toggle-icon').textContent = dark ? 'light_mode' : 'dark_mode';
+            themeToggle.querySelector('.theme-toggle-label').textContent = dark ? 'Light theme' : 'Dark theme';
+        }
+        themeToggle.addEventListener('click', () => {
+            const dark = document.documentElement.dataset.theme === 'dark';
+            document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+            localStorage.setItem('centromail-theme', dark ? 'light' : 'dark');
+            updateThemeToggle();
+        });
+        updateThemeToggle();
+    </script>
 </body>
 </html>

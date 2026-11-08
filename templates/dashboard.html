@@ -1,36 +1,108 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | CentroMail{% endblock %}
 
-{% block content %}
-<section class="hero dashboard">
-    <p class="eyebrow">Overview</p>
-    <h1>Welcome to <span>CentroMail</span></h1>
-    <p class="intro">Your inbox, tasks, and account activity in one place.</p>
-    <p>Signed in as {{ g.user.name or g.user.email }} ({{ g.user.email }}).</p>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <span>Total mail</span>
-            <strong>{{ stats.total }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Unread</span>
-            <strong>{{ stats.unread }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Starred</span>
-            <strong>{{ stats.starred }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Sent</span>
-            <strong>{{ stats.sent }}</strong>
-        </div>
-    </div>
-
-    <div class="action-row">
-        <a class="button" href="{{ url_for('inbox') }}">Open inbox</a>
-        <a class="button secondary" href="{{ url_for('compose') }}">Compose mail</a>
-    </div>
-</section>
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
+{% block content %}
+<div class="dashboard-app">
+    <header class="dashboard-topbar">
+        <a class="dashboard-brand" href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="104" height="52">
+        </a>
+        <div class="dashboard-search">
+            <span class="material-symbols-rounded" aria-hidden="true">search</span>
+            <input type="search" placeholder="Search your workspace" aria-label="Search your workspace">
+        </div>
+        <div class="dashboard-account">
+            <span class="account-name">{{ g.user.name or g.user.email }}</span>
+            <span class="account-avatar" aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
+        </div>
+    </header>
+
+    <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+            <a class="m3e-button m3e-button--filled dashboard-compose" href="{{ url_for('compose') }}">
+                <span class="material-symbols-rounded" aria-hidden="true">edit</span>
+                Compose
+            </a>
+            <nav aria-label="Workspace navigation" class="dashboard-nav">
+                <a class="dashboard-nav-link active" href="{{ url_for('dashboard') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview
+                </a>
+                <a class="dashboard-nav-link" href="{{ url_for('inbox') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox
+                    <strong>{{ stats.unread }}</strong>
+                </a>
+                <a class="dashboard-nav-link" href="{{ url_for('mail') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">mail</span>All mail
+                </a>
+                <a class="dashboard-nav-link" href="{{ url_for('settings') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings
+                </a>
+            </nav>
+            <div class="dashboard-sidebar-note">
+                <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
+                <p>CentroMail keeps your conversations close and your day moving.</p>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <section class="dashboard-welcome">
+                <div>
+                    <p class="dashboard-kicker">Your workspace</p>
+                    <h1>Good to see you, {{ (g.user.name or 'there').split(' ')[0] }}.</h1>
+                    <p>Here is a quick look at what is happening in CentroMail.</p>
+                </div>
+                <a class="m3e-button m3e-button--tonal" href="{{ url_for('inbox') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
+                    Open inbox
+                </a>
+            </section>
+
+            <section class="dashboard-stats" aria-label="Mailbox summary">
+                <article class="m3e-card m3e-card--elevated dashboard-stat dashboard-stat-primary">
+                    <span class="material-symbols-rounded stat-icon" aria-hidden="true">mail</span>
+                    <div><span>Total mail</span><strong>{{ stats.total }}</strong><small>Across your workspace</small></div>
+                </article>
+                <article class="m3e-card m3e-card--elevated dashboard-stat">
+                    <span class="material-symbols-rounded stat-icon" aria-hidden="true">mark_email_unread</span>
+                    <div><span>Unread</span><strong>{{ stats.unread }}</strong><small>Ready for your attention</small></div>
+                </article>
+                <article class="m3e-card m3e-card--elevated dashboard-stat">
+                    <span class="material-symbols-rounded stat-icon" aria-hidden="true">star</span>
+                    <div><span>Starred</span><strong>{{ stats.starred }}</strong><small>Important messages</small></div>
+                </article>
+                <article class="m3e-card m3e-card--elevated dashboard-stat">
+                    <span class="material-symbols-rounded stat-icon" aria-hidden="true">send</span>
+                    <div><span>Sent</span><strong>{{ stats.sent }}</strong><small>Messages sent</small></div>
+                </article>
+            </section>
+
+            <section class="dashboard-lower">
+                <article class="m3e-card m3e-card--outlined dashboard-panel">
+                    <div class="dashboard-panel-heading">
+                        <div><p class="dashboard-kicker">Start here</p><h2>Make your next move</h2></div>
+                        <span class="material-symbols-rounded panel-icon" aria-hidden="true">arrow_forward</span>
+                    </div>
+                    <div class="dashboard-actions">
+                        <a class="dashboard-action" href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit_square</span><span><strong>Write a message</strong><small>Start a new conversation</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">mark_email_unread</span><span><strong>Review unread mail</strong><small>See what needs your attention</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">tune</span><span><strong>Adjust your settings</strong><small>Make CentroMail feel like yours</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                    </div>
+                </article>
+                <article class="m3e-card dashboard-tip">
+                    <span class="material-symbols-rounded tip-icon" aria-hidden="true">lightbulb</span>
+                    <p class="dashboard-kicker">A small tip</p>
+                    <h2>Keep your inbox calm.</h2>
+                    <p>Use labels and stars to make important conversations easier to find later.</p>
+                    <a class="m3e-button m3e-button--text" href="{{ url_for('mail') }}">Explore your mail</a>
+                </article>
+            </section>
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -1,11 +1,11 @@
 .gmail-app {
     color: #202124;
     min-height: 100vh;
-    background: #f5f7f5;
+    background: #ffffff;
 }
 
 body:has(.gmail-app) {
-    background: #f5f7f5;
+    background: #ffffff;
 }
 
 body:has(.gmail-app) .site-header,
@@ -38,8 +38,8 @@ body:has(.gmail-app) .page-content {
 }
 
 .header-logo {
-    width: 32px;
-    height: 32px;
+    width: 104px;
+    height: 52px;
     object-fit: contain;
     display: block;
     flex-shrink: 0;
@@ -71,7 +71,7 @@ body:has(.gmail-app) .page-content {
     gap: 20px;
     height: 74px;
     padding: 0 28px;
-    background: #f8faf8;
+    background: #ffffff;
 }
 
 .gmail-logo {
@@ -81,7 +81,7 @@ body:has(.gmail-app) .page-content {
     font-size: 22px;
     gap: 8px;
     letter-spacing: -.05em;
-    min-width: 190px;
+    min-width: 112px;
     text-decoration: none;
 }
 
@@ -549,6 +549,7 @@ body:has(.gmail-app) .page-content {
 @media (max-width: 850px) {
     .gmail-header { gap: 10px; padding: 0 15px; }
     .gmail-logo { min-width: auto; }
+    .gmail-logo .header-logo { width: 88px; height: 46px; }
     .gmail-logo .brand-wordmark strong,
     .gmail-logo .brand-wordmark span { font-size: 18px; }
     .search-box { flex: 1; width: auto; }
@@ -577,4 +578,7 @@ body:has(.gmail-app) .page-content {
     .sender-avatar { height: 32px; width: 32px; }
     .message-details p { font-size: 11px; }
     .header-actions .icon-button:nth-child(3) { display: none; }
+}
+*, *::before, *::after {
+  box-shadow: none !important;
 }
