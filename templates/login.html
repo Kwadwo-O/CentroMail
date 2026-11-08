@@ -38,6 +38,17 @@
             <p class="eyebrow">CENTROMAIL</p>
             <h1 id="loginTitle">Welcome back</h1>
             <p class="subtitle">Sign in to stay on top of your inbox.</p>
+            <div class="auth-buttons">
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='google') }}">
+                    <img src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Google</span>
+                </a>
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                    <img src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Microsoft</span>
+                </a>
+            </div>
+            <p class="separator"><span>or sign in with email</span></p>
             <form class="auth-form" method="post" action="{{ url_for('login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="m3e-text-field m3e-text-field--outlined input-group">

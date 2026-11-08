@@ -18,8 +18,31 @@
             <input type="search" placeholder="Search your workspace" aria-label="Search your workspace">
         </div>
         <div class="dashboard-account">
-            <span class="account-name">{{ g.user.name or g.user.email }}</span>
-            <span class="account-avatar" aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
+            <button class="account-trigger" type="button" aria-expanded="false" aria-controls="account-menu">
+                <span class="account-name">{{ g.user.name or g.user.email }}</span>
+                {% if g.user.avatar_url %}
+                <img class="account-avatar" src="{{ g.user.avatar_url }}" alt="">
+                {% else %}
+                <span class="account-avatar" aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
+                {% endif %}
+            </button>
+            <div class="account-menu" id="account-menu" hidden>
+                <div class="account-menu-heading">
+                    <strong>{{ g.user.name or g.user.email }}</strong>
+                    <small>{{ g.user.email }}</small>
+                </div>
+                <button class="account-menu-item" type="button" data-theme-menu-toggle>
+                    <span class="material-symbols-rounded" aria-hidden="true" data-theme-menu-icon>dark_mode</span>
+                    <span data-theme-menu-label>Dark theme</span>
+                </button>
+                <form class="account-logout" action="{{ url_for('logout') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="account-menu-item account-menu-danger" type="submit">
+                        <span class="material-symbols-rounded" aria-hidden="true">logout</span>
+                        <span>Log out</span>
+                    </button>
+                </form>
+            </div>
         </div>
     </header>
 
@@ -137,4 +160,46 @@
         </main>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (() => {
+        const account = document.querySelector('.dashboard-account');
+        const trigger = document.querySelector('.account-trigger');
+        const menu = document.querySelector('#account-menu');
+        const themeButton = document.querySelector('[data-theme-menu-toggle]');
+        if (!account || !trigger || !menu || !themeButton) return;
+
+        const updateThemeControl = () => {
+            const savedTheme = localStorage.getItem('centromail-theme');
+            const dark = (document.documentElement.dataset.theme || savedTheme ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+            themeButton.querySelector('[data-theme-menu-icon]').textContent = dark ? 'light_mode' : 'dark_mode';
+            themeButton.querySelector('[data-theme-menu-label]').textContent = dark ? 'Light theme' : 'Dark theme';
+        };
+        const setMenuOpen = (open) => {
+            menu.hidden = !open;
+            trigger.setAttribute('aria-expanded', String(open));
+        };
+
+        updateThemeControl();
+        trigger.addEventListener('click', () => setMenuOpen(menu.hidden));
+        themeButton.addEventListener('click', () => {
+            const dark = document.documentElement.dataset.theme === 'dark';
+            document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+            localStorage.setItem('centromail-theme', dark ? 'light' : 'dark');
+            updateThemeControl();
+        });
+        document.addEventListener('click', (event) => {
+            if (!account.contains(event.target)) setMenuOpen(false);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                setMenuOpen(false);
+                trigger.focus();
+            }
+        });
+    })();
+</script>
 {% endblock %}

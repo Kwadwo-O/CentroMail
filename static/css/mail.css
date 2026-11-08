@@ -415,6 +415,86 @@ body:has(.gmail-app) .page-content {
     width: 34px;
 }
 
+.profile-button img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+}
+
+.quick-menu-wrap,
+.profile-menu-wrap {
+    position: relative;
+}
+
+.quick-menu,
+.profile-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    min-width: 190px;
+    padding: 8px;
+    border: 1px solid var(--m3e-sys-color-outline-variant);
+    border-radius: 16px;
+    background: var(--m3e-sys-color-surface);
+    color: var(--m3e-sys-color-on-surface);
+}
+
+.quick-menu[hidden],
+.profile-menu[hidden] {
+    display: none;
+}
+
+.quick-menu a,
+.profile-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.quick-menu a:hover,
+.profile-menu button:hover,
+.quick-menu a:focus-visible,
+.profile-menu button:focus-visible {
+    background: var(--m3e-sys-color-secondary-container);
+    color: var(--m3e-sys-color-on-secondary-container);
+}
+
+.profile-menu {
+    min-width: 230px;
+    gap: 3px;
+}
+
+.profile-menu strong,
+.profile-menu small {
+    overflow: hidden;
+    padding-inline: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-menu small {
+    margin-bottom: 6px;
+    color: var(--m3e-sys-color-on-surface-variant);
+}
+
+.profile-menu form {
+    margin: 0;
+}
+
 .gmail-body {
     display: flex;
     min-height: calc(100vh - 74px);

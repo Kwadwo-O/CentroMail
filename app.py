@@ -1,18 +1,25 @@
 import os
+import json
+import base64
 import re
 import secrets
 import sqlite3
+from email.message import EmailMessage
+from email.utils import parsedate_to_datetime
 from contextlib import closing
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import requests
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
+load_dotenv(Path(app.root_path) / ".env")
 DATABASE = os.path.join(app.root_path, "centro.db")
 app.config.update(
     DATABASE=os.environ.get("CENTROMAIL_DATABASE", DATABASE),
@@ -31,7 +38,7 @@ google = oauth.register(
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
+    client_kwargs={"scope": "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"},
 )
 
 
@@ -75,12 +82,18 @@ def init_db():
                 name TEXT NOT NULL,
                 email TEXT NOT NULL,
                 password TEXT NOT NULL,
+                avatar_url TEXT,
+                google_token TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )"""
         )
         columns = {column[1] for column in db.execute("PRAGMA table_info(users)")}
         if "name" not in columns:
             db.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''")
+        if "avatar_url" not in columns:
+            db.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+        if "google_token" not in columns:
+            db.execute("ALTER TABLE users ADD COLUMN google_token TEXT")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email))")
 
 
@@ -155,16 +168,166 @@ def render_auth(active_panel="login", email="", name="", remember=False):
     )
 
 
-messages = []
-
-
-def make_stats():
+def make_stats(messages):
     return {
         'total': len(messages),
         'unread': sum(1 for message in messages if message['unread']),
         'starred': sum(1 for message in messages if message['starred']),
         'sent': 12,
     }
+
+
+def store_google_token(user_id, token):
+    get_db().execute(
+        "UPDATE users SET google_token = ? WHERE id = ?",
+        (json.dumps(token), user_id),
+    )
+    get_db().commit()
+
+
+def get_google_token(user):
+    if not user["google_token"]:
+        return None
+    try:
+        token = json.loads(user["google_token"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return token if isinstance(token, dict) else None
+
+
+def get_gmail_access_token(user):
+    token = get_google_token(user)
+    if not token:
+        return None
+    expires_at = token.get("expires_at", 0)
+    if token.get("access_token") and expires_at > datetime.now(timezone.utc).timestamp() + 60:
+        return token["access_token"]
+    refresh_token = token.get("refresh_token")
+    if not refresh_token:
+        return None
+    response = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": app.config["GOOGLE_CLIENT_ID"],
+            "client_secret": app.config["GOOGLE_CLIENT_SECRET"],
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    refreshed = response.json()
+    token["access_token"] = refreshed["access_token"]
+    token["expires_at"] = datetime.now(timezone.utc).timestamp() + refreshed.get("expires_in", 3600)
+    store_google_token(user["id"], token)
+    return token["access_token"]
+
+
+def gmail_header(headers, name):
+    return next(
+        (header["value"] for header in headers if header.get("name", "").lower() == name.lower()),
+        "",
+    )
+
+
+def gmail_sender(value):
+    if "<" in value and value.endswith(">"):
+        return value.rsplit("<", 1)[0].strip().strip('"') or value
+    return value or "Unknown sender"
+
+
+def gmail_message_time(value):
+    try:
+        return parsedate_to_datetime(value).astimezone().strftime("%b %d").replace(" 0", " ")
+    except (TypeError, ValueError, OverflowError):
+        return ""
+
+
+def fetch_gmail_messages(user):
+    access_token = get_gmail_access_token(user)
+    if not access_token:
+        return []
+    headers = {"Authorization": "Bearer " + access_token}
+    message_ids = []
+    next_page_token = None
+    while True:
+        params = {
+            "userId": "me",
+            "labelIds": "INBOX",
+            "maxResults": 100,
+        }
+        if next_page_token:
+            params["pageToken"] = next_page_token
+        response = requests.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            headers=headers,
+            params=params,
+            timeout=10,
+        )
+        response.raise_for_status()
+        page = response.json()
+        message_ids.extend(item["id"] for item in page.get("messages", []) if item.get("id"))
+        next_page_token = page.get("nextPageToken")
+        if not next_page_token:
+            break
+
+    messages = []
+    for message_id in message_ids:
+        detail = requests.get(
+            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+            headers=headers,
+            params=[
+                ("userId", "me"),
+                ("format", "metadata"),
+                ("metadataHeaders", "From"),
+                ("metadataHeaders", "Subject"),
+                ("metadataHeaders", "Date"),
+            ],
+            timeout=10,
+        )
+        detail.raise_for_status()
+        payload = detail.json()
+        message_headers = payload.get("payload", {}).get("headers", [])
+        label_ids = set(payload.get("labelIds", []))
+        messages.append({
+            "id": payload.get("id", message_id),
+            "sender": gmail_sender(gmail_header(message_headers, "From")),
+            "subject": gmail_header(message_headers, "Subject") or "(No subject)",
+            "preview": payload.get("snippet", ""),
+            "time": gmail_message_time(gmail_header(message_headers, "Date")),
+            "unread": "UNREAD" in label_ids,
+            "starred": "STARRED" in label_ids,
+            "category": "social" if "CATEGORY_SOCIAL" in label_ids else (
+                "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
+            ),
+        })
+    return messages
+
+
+def send_gmail_message(user, recipient, subject, body):
+    access_token = get_gmail_access_token(user)
+    if not access_token:
+        raise RuntimeError("Google sign-in must be re-authorized before sending email.")
+    email = EmailMessage()
+    email["To"] = recipient
+    email["Subject"] = subject or "(No subject)"
+    email["From"] = user["email"]
+    email.set_content(body)
+    raw = base64.urlsafe_b64encode(email.as_bytes()).decode().rstrip("=")
+    response = requests.post(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+        json={"raw": raw},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
+def google_callback_uri():
+    return (
+        app.config["GOOGLE_REDIRECT_URI"]
+        or url_for("google_callback", _external=True)
+    )
 
 
 @app.route('/')
@@ -258,36 +421,71 @@ def home():
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html', stats=make_stats(), user_email=session.get('user_email'))
+    return render_template('dashboard.html', stats=make_stats([]), user_email=session.get('user_email'))
 
 
 @app.route('/inbox')
 def inbox():
-    return render_template('mail.html', messages=messages, stats=make_stats())
+    try:
+        messages = fetch_gmail_messages(g.user)
+    except requests.HTTPError as error:
+        if error.response is not None and error.response.status_code == 403:
+            flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
+        else:
+            flash("Gmail could not be loaded right now. Please try again.", "error")
+        messages = []
+    except (requests.RequestException, KeyError, ValueError):
+        flash("Gmail could not be loaded right now. Please try again.", "error")
+        messages = []
+    if not get_google_token(g.user):
+        flash("Connect Google again to load your Gmail inbox.", "info")
+    return render_template('mail.html', messages=messages, stats=make_stats(messages))
 
 
 @app.route('/mail')
 def mail():
-    return render_template('mail.html', messages=messages, stats=make_stats())
+    return inbox()
 
 
-@app.route('/message/<int:message_id>')
+@app.route('/message/<message_id>')
 def message_detail(message_id):
+    try:
+        messages = fetch_gmail_messages(g.user)
+    except requests.HTTPError as error:
+        if error.response is not None and error.response.status_code == 403:
+            flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
+        else:
+            flash("Gmail could not be loaded right now. Please try again.", "error")
+        messages = []
+    except (requests.RequestException, KeyError, ValueError):
+        flash("Gmail could not be loaded right now. Please try again.", "error")
+        messages = []
     for message in messages:
         if message['id'] == message_id:
             return render_template('message.html', message=message)
-    return render_template('mail.html', messages=messages, stats=make_stats())
+    return render_template('mail.html', messages=messages, stats=make_stats(messages))
 
 
 @app.route('/compose', methods=['GET', 'POST'])
 def compose():
     if request.method == 'POST':
-        recipient = request.form.get('to', 'unknown@example.com')
+        recipient = normalize_email(request.form.get('to', ''))
         subject = request.form.get('subject') or 'No subject'
         body = request.form.get('body') or ''
-        flash(f'Message sent to {recipient} successfully.', 'success')
-        print(f'Sent email to {recipient} | Subject: {subject} | Body: {body}')
-        return redirect(url_for('inbox'))
+        if not valid_email(recipient):
+            flash("Enter a valid recipient email address.", "error")
+        elif not body.strip():
+            flash("Write a message before sending.", "error")
+        else:
+            try:
+                send_gmail_message(g.user, recipient, subject, body)
+            except RuntimeError as error:
+                flash(str(error), "error")
+            except requests.RequestException:
+                flash("Gmail could not send the message. Please try again.", "error")
+            else:
+                flash(f"Message sent to {recipient} successfully.", "success")
+                return redirect(url_for('inbox'))
     return render_template('compose.html')
 
 
@@ -311,11 +509,7 @@ def authenticate(provider):
         if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
             flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
             return redirect(url_for('onboarding'))
-        callback_uri = (
-            app.config["GOOGLE_REDIRECT_URI"]
-            or url_for("google_callback", _external=True)
-        )
-        return google.authorize_redirect(callback_uri)
+        return google.authorize_redirect(google_callback_uri())
 
     flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
     return redirect(url_for('onboarding'))
@@ -327,10 +521,18 @@ def google_callback():
         flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
         return redirect(url_for('onboarding'))
 
+    if request.args.get("error"):
+        flash("Google sign-in was cancelled or denied. Please try again.", "error")
+        return redirect(url_for('onboarding'))
+
     try:
         token = google.authorize_access_token()
-    except OAuthError:
-        flash("Google sign-in was not completed. Please try again.", "error")
+    except OAuthError as error:
+        if error.error == "invalid_grant":
+            message = "Google rejected the authorization code. Start sign-in again and use the same browser address."
+        else:
+            message = "Google sign-in could not be completed. Check the OAuth callback URI and try again."
+        flash(message, "error")
         return redirect(url_for('onboarding'))
 
     profile = token.get("userinfo")
@@ -344,13 +546,16 @@ def google_callback():
         return redirect(url_for('onboarding'))
 
     user = find_user(email)
+    avatar_url = profile.get("picture")
+    if not isinstance(avatar_url, str) or not avatar_url.startswith("https://"):
+        avatar_url = None
     if user is None:
         name = (profile.get("name") or email.split("@", 1)[0]).strip()[:100]
         db = get_db()
         try:
             db.execute(
-                "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-                (name or email, email, generate_password_hash(secrets.token_urlsafe(32))),
+                "INSERT INTO users (name, email, password, avatar_url) VALUES (?, ?, ?, ?)",
+                (name or email, email, generate_password_hash(secrets.token_urlsafe(32)), avatar_url),
             )
             db.commit()
         except sqlite3.IntegrityError:
@@ -358,7 +563,18 @@ def google_callback():
         user = find_user(email)
     if user is None:
         abort(500, description="Could not create or find the Google account.")
+    elif avatar_url and user["avatar_url"] != avatar_url:
+        get_db().execute(
+            "UPDATE users SET avatar_url = ? WHERE id = ?",
+            (avatar_url, user["id"]),
+        )
+        get_db().commit()
+        user = find_user(email)
 
+    previous_token = get_google_token(user)
+    if previous_token and not token.get("refresh_token"):
+        token["refresh_token"] = previous_token.get("refresh_token")
+    store_google_token(user["id"], token)
     sign_in(user)
     return redirect(url_for('dashboard'))
 

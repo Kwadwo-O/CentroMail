@@ -35,7 +35,7 @@ and use a production WSGI server. `FLASK_DEBUG=1` enables local debug mode.
 ### Google sign-in
 
 In Google Cloud Console, configure an OAuth client ID for a Web application.
-Add `http://127.0.0.1:5000/auth/google/callback` as an authorized redirect URI.
+Add `http://localhost:5000/auth/google/callback` as an authorized redirect URI.
 Before starting Flask in PowerShell, provide the client credentials:
 
 ```powershell
@@ -46,7 +46,9 @@ $env:GOOGLE_CLIENT_SECRET = "your-client-secret"
 ```
 
 The callback URI can be overridden with `GOOGLE_REDIRECT_URI` if it differs
-from the local address above. Keep the client secret private. Google sign-in
+from the local address above. The URI must match exactly; `localhost` and
+`127.0.0.1` are different hosts, so add both callback URIs in Google Cloud if
+you use both addresses. Keep the client secret private. Google sign-in
 creates a CentroMail account for a new verified email or signs into an existing
 account with the same email, then opens the dashboard. Google sign-in does not
 connect Gmail; inbox messages and sending remain demo features.

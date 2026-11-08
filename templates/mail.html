@@ -28,8 +28,33 @@
         <div class="header-actions">
             <button class="icon-button" aria-label="Help"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Help" class="ui-icon"></button>
             <button class="icon-button" aria-label="Settings"><img src="{{ url_for('static', filename='images/icons/lock.svg') }}" alt="Settings" class="ui-icon"></button>
-            <button class="icon-button" aria-label="Google apps"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Apps" class="ui-icon"></button>
-            <button class="profile-button" aria-label="Account">A</button>
+            <div class="quick-menu-wrap">
+                <button class="icon-button" id="quick-menu-button" type="button" aria-label="Quick menu" aria-expanded="false" aria-controls="quick-menu"><span class="material-symbols-rounded" aria-hidden="true">apps</span></button>
+                <div class="quick-menu" id="quick-menu" hidden>
+                    <a href="{{ url_for('dashboard') }}"><span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview</a>
+                    <a href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox</a>
+                    <a href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</a>
+                    <a href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings</a>
+                </div>
+            </div>
+            <div class="profile-menu-wrap">
+            <button class="profile-button" id="profile-button" type="button" aria-label="Account" aria-expanded="false" aria-controls="profile-menu">
+                {% if g.user.avatar_url %}
+                <img src="{{ g.user.avatar_url }}" alt="">
+                {% else %}
+                <span aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
+                {% endif %}
+            </button>
+            <div class="profile-menu" id="profile-menu" hidden>
+                <strong>{{ g.user.name or g.user.email }}</strong>
+                <small>{{ g.user.email }}</small>
+                <button type="button" data-inbox-theme-toggle><span class="material-symbols-rounded" aria-hidden="true" data-inbox-theme-icon>dark_mode</span><span data-inbox-theme-label>Dark theme</span></button>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Log out</button>
+                </form>
+            </div>
+            </div>
         </div>
     </header>
 
@@ -146,11 +171,12 @@
         </main>
     </div>
 
-    <form class="compose-window" id="compose-window" hidden>
+    <form class="compose-window" id="compose-window" method="post" action="{{ url_for('compose') }}" hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Close" class="ui-icon"></button></div>
-        <input type="email" placeholder="Recipients" aria-label="Recipients" required>
-        <input type="text" placeholder="Subject" aria-label="Subject">
-        <textarea placeholder="Write a message..." aria-label="Message"></textarea>
+        <input type="email" name="to" placeholder="Recipients" aria-label="Recipients" required>
+        <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
+        <textarea name="body" placeholder="Write a message..." aria-label="Message" required></textarea>
         <div class="compose-footer"><button class="m3e-button m3e-button--filled send-button" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span>Send</button><button class="m3e-button m3e-button--outlined discard-button" type="button" id="discard-compose"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Discard</button></div>
     </form>
 </div>
@@ -159,6 +185,36 @@
 {% block scripts %}
 <script>
     const compose = document.querySelector("#compose-window");
+    const menus = [
+        {button: document.querySelector("#quick-menu-button"), menu: document.querySelector("#quick-menu")},
+        {button: document.querySelector("#profile-button"), menu: document.querySelector("#profile-menu")}
+    ];
+    const closeMenus = () => menus.forEach(({button, menu}) => {
+        if (button && menu) {
+            menu.hidden = true;
+            button.setAttribute("aria-expanded", "false");
+        }
+    });
+    menus.forEach(({button, menu}) => button?.addEventListener("click", () => {
+        const open = menu.hidden;
+        closeMenus();
+        menu.hidden = !open;
+        button.setAttribute("aria-expanded", String(open));
+    }));
+    document.addEventListener("click", (event) => {
+        if (!menus.some(({button, menu}) => button?.contains(event.target) || menu?.contains(event.target))) closeMenus();
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeMenus();
+    });
+    const themeMenuButton = document.querySelector("[data-inbox-theme-toggle]");
+    themeMenuButton?.addEventListener("click", () => {
+        const dark = document.documentElement.dataset.theme === "dark";
+        document.documentElement.dataset.theme = dark ? "light" : "dark";
+        localStorage.setItem("centromail-theme", dark ? "light" : "dark");
+        themeMenuButton.querySelector("[data-inbox-theme-icon]").textContent = dark ? "dark_mode" : "light_mode";
+        themeMenuButton.querySelector("[data-inbox-theme-label]").textContent = dark ? "Dark theme" : "Light theme";
+    });
     const showCompose = (show) => {
         compose.hidden = !show;
         if (show) compose.querySelector("input").focus();
@@ -166,8 +222,6 @@
     document.querySelector("#open-compose").addEventListener("click", () => showCompose(true));
     document.querySelector("#close-compose").addEventListener("click", () => showCompose(false));
     document.querySelector("#discard-compose").addEventListener("click", () => showCompose(false));
-    compose.addEventListener("submit", (event) => { event.preventDefault(); showCompose(false); });
-
     const messages = [...document.querySelectorAll(".message")];
     const filterMessages = () => {
         const query = document.querySelector("#mail-search").value.toLowerCase().trim();
