@@ -22,6 +22,251 @@ body:has(.gmail-app) .page-content {
     padding: 0;
 }
 
+.workspace-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 28px;
+    border-top: 1px solid #dfe5df;
+    border-bottom: 1px solid #dfe5df;
+    background: #fff;
+}
+
+.workspace-view[hidden] {
+    display: none !important;
+}
+
+.workspace-view:not([hidden]) {
+    display: flex;
+}
+
+.workspace-tab {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    min-width: 108px;
+    padding: 12px 18px;
+    border: 0;
+    border-right: 1px solid transparent;
+    border-bottom: 3px solid transparent;
+    border-left: 1px solid transparent;
+    background: transparent;
+    color: #647068;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    user-select: none;
+}
+
+.workspace-tab:hover,
+.workspace-tab.active {
+    border-color: #b7cbb2;
+    border-bottom-color: #537a5a;
+    background: #e0eec6;
+    color: #243e36;
+}
+
+.workspace-tab .material-symbols-rounded,
+.apps-workspace .material-symbols-rounded {
+    font-family: "Material Symbols Rounded";
+    font-size: 20px;
+    line-height: 1;
+}
+
+.gmail-body.workspace-view {
+    min-height: calc(100vh - 127px);
+}
+
+.gmail-body.workspace-view:not([hidden]) {
+    display: flex;
+}
+
+.apps-workspace {
+    display: flex;
+    min-height: calc(100vh - 127px);
+    background: #f7faf7;
+}
+
+.apps-workspace.workspace-view:not([hidden]) {
+    display: flex;
+}
+
+.apps-sidebar {
+    width: min(390px, 35vw);
+    flex: 0 0 min(390px, 35vw);
+    border-right: 1px solid #dfe5df;
+    background: #fff;
+}
+
+.apps-heading,
+.chat-header {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    padding: 24px 24px 18px;
+}
+
+.apps-heading {
+    justify-content: space-between;
+}
+
+.apps-heading h1,
+.chat-header h2 {
+    margin: 0;
+    color: #243e36;
+    letter-spacing: -.04em;
+}
+
+.apps-heading h1 { font-size: 25px; }
+.chat-header h2 { font-size: 18px; }
+
+.apps-search {
+    align-items: center;
+    display: flex;
+    gap: 9px;
+    height: 42px;
+    margin: 0 20px 14px;
+    padding: 0 13px;
+    border: 1px solid #c8d6c9;
+    border-radius: 12px;
+    background: #f7faf7;
+    color: #537a5a;
+}
+
+.apps-search input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #243e36;
+    font: inherit;
+    font-size: 13px;
+}
+
+.app-filter {
+    display: flex;
+    gap: 5px;
+    padding: 0 20px 14px;
+}
+
+.app-filter button {
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #647068;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    user-select: none;
+}
+
+.app-filter button:hover,
+.app-filter button.active {
+    background: #e0eec6;
+    color: #243e36;
+    font-weight: 700;
+}
+
+.conversation-list {
+    border-top: 1px solid #edf1ed;
+}
+
+.conversation-empty {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 60px 30px;
+    color: #647068;
+    text-align: center;
+}
+
+.conversation-empty > .material-symbols-rounded {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 8px;
+    place-items: center;
+    border-radius: 18px;
+    background: #e0eec6;
+    color: #50745c;
+}
+
+.conversation-empty strong { color: #243e36; font-size: 14px; }
+.conversation-empty p { max-width: 230px; margin: 0 0 8px; font-size: 12px; line-height: 1.5; }
+
+.chat-panel {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+}
+
+.chat-header {
+    border-bottom: 1px solid #dfe5df;
+    background: #fff;
+}
+
+.chat-header > :last-child { margin-left: auto; }
+.chat-app-icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border-radius: 15px;
+    background: #50745c;
+    color: #fff;
+}
+
+.chat-empty {
+    display: grid;
+    max-width: 430px;
+    margin: auto;
+    justify-items: center;
+    padding: 35px;
+    color: #647068;
+    text-align: center;
+}
+
+.chat-empty-icon {
+    display: grid;
+    width: 76px;
+    height: 76px;
+    margin-bottom: 16px;
+    place-items: center;
+    border: 1px solid #b7cbb2;
+    border-radius: 26px;
+    background: #e0eec6;
+    color: #50745c;
+}
+
+.chat-empty-icon .material-symbols-rounded { font-size: 34px; }
+.chat-empty h2 { margin: 0; color: #243e36; font-size: 23px; letter-spacing: -.04em; }
+.chat-empty p { margin: 10px 0 20px; font-size: 14px; line-height: 1.55; }
+
+.chat-composer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 24px 22px;
+    padding: 7px 10px;
+    border: 1px solid #c8d6c9;
+    border-radius: 20px;
+    background: #fff;
+}
+
+.chat-composer input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #647068;
+    font: inherit;
+    font-size: 13px;
+}
+
+.chat-composer input:disabled { opacity: .8; }
+
 .ui-icon {
     width: 18px;
     height: 18px;
@@ -31,6 +276,23 @@ body:has(.gmail-app) .page-content {
     stroke: currentColor;
     fill: none;
     flex-shrink: 0;
+}
+
+.material-symbols-rounded {
+    font-family: "Material Symbols Rounded";
+    font-style: normal;
+    font-weight: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24;
 }
 
 .rotate-left {
@@ -168,7 +430,6 @@ body:has(.gmail-app) .page-content {
     background: #b5e7b8;
     border: 0;
     border-radius: 16px;
-    box-shadow: 0 2px 6px rgba(83, 122, 90, 0.18);
     color: #2c302e;
     cursor: pointer;
     display: flex;
@@ -199,6 +460,7 @@ body:has(.gmail-app) .page-content {
     gap: 16px;
     padding: 10px 18px;
     text-decoration: none;
+    user-select: none;
 }
 
 .mail-nav-link b {
@@ -244,6 +506,7 @@ body:has(.gmail-app) .page-content {
     gap: 10px;
     padding: 7px 0;
     text-decoration: none;
+    user-select: none;
 }
 
 .label-colour {
@@ -260,7 +523,6 @@ body:has(.gmail-app) .page-content {
     background: #fff;
     border: 1px solid #dfe5df;
     border-radius: 18px;
-    box-shadow: 0 4px 18px rgba(44,48,46,.06);
     flex: 1;
     margin: 28px 30px 35px 0;
     max-width: 1400px;
@@ -357,6 +619,7 @@ body:has(.gmail-app) .page-content {
 
 .inbox-tabs {
     border-bottom: 1px solid #e5e9e5;
+    border-top: 1px solid #e5e9e5;
     display: flex;
     padding: 0 20px;
 }
@@ -365,17 +628,24 @@ body:has(.gmail-app) .page-content {
     align-items: center;
     background: none;
     border: 0;
+    border: 0;
+    border-right: 1px solid transparent;
     border-bottom: 3px solid transparent;
+    border-left: 1px solid transparent;
     color: #6f7870;
     cursor: pointer;
     display: flex;
     font-size: 13px;
     gap: 8px;
-    padding: 15px 26px;
+    min-width: 126px;
+    padding: 14px 20px;
+    user-select: none;
 }
 
 .inbox-tab.active {
+    border-color: #b7cbb2;
     border-bottom-color: #537a5a;
+    background: #e0eec6;
     color: #2c302e;
     font-weight: 700;
 }
@@ -472,7 +742,6 @@ body:has(.gmail-app) .page-content {
     background: #fff;
     border-radius: 10px 10px 0 0;
     bottom: 0;
-    box-shadow: 0 5px 25px rgba(44,48,46,.25);
     display: grid;
     gap: 0;
     max-width: 520px;
@@ -526,24 +795,11 @@ body:has(.gmail-app) .page-content {
 
 .send-button {
     align-items: center;
-    background: #537a5a;
-    border: 0;
-    border-radius: 18px;
-    color: #fff;
-    cursor: pointer;
-    display: flex;
-    font-size: 13px;
-    gap: 8px;
-    padding: 9px 18px;
+    min-width: 0;
 }
 
-.send-button:hover {
-    background: #2c302e;
-}
-
-.send-button .ui-icon {
-    width: 14px;
-    height: 14px;
+.discard-button {
+    min-width: 0;
 }
 
 @media (max-width: 850px) {
@@ -563,6 +819,8 @@ body:has(.gmail-app) .page-content {
 }
 
 @media (max-width: 620px) {
+    .workspace-tabs { padding: 8px 10px 0; }
+    .workspace-tab { flex: 1; justify-content: center; padding: 11px 8px; }
     .gmail-body { display: block; }
     .mail-sidebar { padding: 12px 10px; }
     .compose-button { height: 45px; margin-bottom: 10px; width: 135px; }
@@ -578,7 +836,426 @@ body:has(.gmail-app) .page-content {
     .sender-avatar { height: 32px; width: 32px; }
     .message-details p { font-size: 11px; }
     .header-actions .icon-button:nth-child(3) { display: none; }
+    .apps-workspace { display: block; }
+    .apps-sidebar { width: 100%; border-right: 0; }
+    .chat-panel { display: none; }
+    .gmail-header { height: auto; min-height: 64px; flex-wrap: wrap; padding-block: 8px; }
+    .mobile-menu { display: inline-flex; }
+    .gmail-logo { flex: 0 0 auto; }
+    .header-actions { gap: 0; }
+    .search-box { order: 4; flex: 1 0 100%; width: 100%; max-width: none; }
+    .inbox { margin: 8px; border-radius: 14px; }
+    .inbox-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .inbox-toolbar { overflow-x: auto; }
+    .inbox-tabs { overflow-x: auto; }
+    .inbox-tab { flex: 0 0 auto; min-width: 106px; }
+    .message { grid-template-columns: 24px 24px 34px minmax(0, 1fr); }
+    .message time { display: none; }
+    .message-details { grid-column: 4; }
+    .message-details p { max-width: 100%; }
+    .compose-window { right: 8px; bottom: 8px; width: calc(100% - 16px); max-width: none; border-radius: 16px; }
+    .compose-window textarea { min-height: 120px; }
+    .compose-footer { flex-wrap: wrap; }
+    .compose-footer .m3e-button { flex: 1; }
 }
 *, *::before, *::after {
   box-shadow: none !important;
+}
+
+/* Keep the legacy mail layout on the shared CentroMail light/dark roles. */
+body:has(.gmail-app) {
+    color: var(--m3e-sys-color-on-background);
+    background: var(--m3e-sys-color-background);
+}
+
+body:has(.gmail-app) .gmail-app,
+body:has(.gmail-app) .apps-workspace {
+    color: var(--m3e-sys-color-on-surface);
+    background: var(--m3e-sys-color-background);
+}
+
+body:has(.gmail-app) .gmail-header,
+body:has(.gmail-app) .workspace-tabs,
+body:has(.gmail-app) .mail-sidebar,
+body:has(.gmail-app) .inbox,
+body:has(.gmail-app) .apps-sidebar,
+body:has(.gmail-app) .chat-header,
+body:has(.gmail-app) .chat-composer,
+body:has(.gmail-app) .compose-window {
+    background: var(--m3e-sys-color-surface);
+    color: var(--m3e-sys-color-on-surface);
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .gmail-header,
+body:has(.gmail-app) .workspace-tabs {
+    border-color: var(--m3e-sys-color-outline);
+}
+
+body:has(.gmail-app) .inbox {
+    border: 2px solid var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .inbox-heading h1,
+body:has(.gmail-app) .apps-heading h1,
+body:has(.gmail-app) .chat-header h2 {
+    font-weight: 750;
+}
+
+body:has(.gmail-app) .eyebrow {
+    color: var(--m3e-sys-color-primary);
+}
+
+body:has(.gmail-app) .page-count,
+body:has(.gmail-app) .empty-state {
+    color: var(--m3e-sys-color-on-surface);
+    font-weight: 550;
+}
+
+body:has(.gmail-app) .message,
+body:has(.gmail-app) .inbox-toolbar,
+body:has(.gmail-app) .inbox-tabs {
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .search-box,
+body:has(.gmail-app) .apps-search {
+    background: var(--m3e-sys-color-surface-container);
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .search-box input,
+body:has(.gmail-app) .apps-search input,
+body:has(.gmail-app) .chat-composer input {
+    color: var(--m3e-sys-color-on-surface);
+}
+
+body:has(.gmail-app) .search-box input::placeholder,
+body:has(.gmail-app) .apps-search input::placeholder,
+body:has(.gmail-app) .chat-composer input::placeholder,
+body:has(.gmail-app) .page-count,
+body:has(.gmail-app) .message time,
+body:has(.gmail-app) .empty-state {
+    color: var(--m3e-sys-color-on-surface-variant);
+}
+
+body:has(.gmail-app) .workspace-tab,
+body:has(.gmail-app) .mail-nav-link,
+body:has(.gmail-app) .label-link,
+body:has(.gmail-app) .toolbar-button,
+body:has(.gmail-app) .icon-button,
+body:has(.gmail-app) .app-filter button {
+    color: var(--m3e-sys-color-on-surface-variant);
+}
+
+body:has(.gmail-app) .workspace-tab.active,
+body:has(.gmail-app) .inbox-tab.active,
+body:has(.gmail-app) .mail-nav-link.active,
+body:has(.gmail-app) .mail-nav-link:hover,
+body:has(.gmail-app) .app-filter button.active {
+    color: var(--m3e-sys-color-on-secondary-container);
+    background: var(--m3e-sys-color-secondary-container);
+    border-bottom-color: var(--m3e-sys-color-primary);
+}
+
+body:has(.gmail-app) .workspace-tab,
+body:has(.gmail-app) .inbox-tab {
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .workspace-tab:not(.active),
+body:has(.gmail-app) .inbox-tab:not(.active) {
+    background: var(--m3e-sys-color-surface);
+}
+
+/* Individual M3E-style tab buttons: separated, rounded, and easy to scan. */
+.workspace-tabs,
+.inbox-tabs {
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 0;
+    background: var(--m3e-sys-color-surface);
+}
+
+.workspace-tab,
+.inbox-tab {
+    min-width: 108px;
+    min-height: 44px;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 1px solid var(--m3e-sys-color-outline);
+    border-radius: 22px;
+    background: var(--m3e-sys-color-surface);
+    color: var(--m3e-sys-color-on-surface-variant);
+}
+
+.workspace-tab:hover,
+.inbox-tab:hover {
+    border-color: var(--m3e-sys-color-primary);
+    background: var(--m3e-sys-color-surface-container);
+}
+
+.workspace-tab.active,
+.inbox-tab.active {
+    border-color: var(--m3e-sys-color-primary);
+    border-bottom-color: var(--m3e-sys-color-primary);
+    background: var(--m3e-sys-color-primary-container);
+    color: var(--m3e-sys-color-on-primary-container);
+    font-weight: 700;
+}
+
+body:has(.gmail-app) .workspace-tab.active,
+body:has(.gmail-app) .inbox-tab.active {
+    border: 1px solid var(--m3e-sys-color-primary);
+    border-bottom-color: var(--m3e-sys-color-primary);
+    background: var(--m3e-sys-color-primary-container);
+    color: var(--m3e-sys-color-on-primary-container);
+}
+
+.workspace-tab.active::after,
+.inbox-tab.active::after {
+    display: none;
+}
+
+@media (max-width: 620px) {
+    .workspace-tabs,
+    .inbox-tabs {
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .workspace-tab,
+    .inbox-tab {
+        min-width: 0;
+        flex: 1;
+        padding-inline: 10px;
+    }
+}
+
+body:has(.gmail-app) .inbox-heading h1,
+body:has(.gmail-app) .apps-heading h1,
+body:has(.gmail-app) .chat-header h2,
+body:has(.gmail-app) .chat-empty h2,
+body:has(.gmail-app) .conversation-empty strong {
+    color: var(--m3e-sys-color-on-surface);
+}
+
+body:has(.gmail-app) .inbox-toolbar,
+body:has(.gmail-app) .inbox-tabs,
+body:has(.gmail-app) .message,
+body:has(.gmail-app) .sidebar-section,
+body:has(.gmail-app) .conversation-list {
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .message:hover,
+body:has(.gmail-app) .message.unread {
+    background: var(--m3e-sys-color-surface-container);
+}
+
+body:has(.gmail-app) .message-details p,
+body:has(.gmail-app) .message-details p b {
+    color: var(--m3e-sys-color-on-surface-variant);
+}
+
+body:has(.gmail-app) .compose-button,
+body:has(.gmail-app) .chat-app-icon,
+body:has(.gmail-app) .send-button,
+body:has(.gmail-app) .profile-button {
+    background: var(--m3e-sys-color-primary);
+    color: var(--m3e-sys-color-on-primary);
+}
+
+body:has(.gmail-app) .compose-button {
+    min-height: 48px;
+    background: var(--m3e-sys-color-primary);
+    color: var(--m3e-sys-color-on-primary);
+    font-weight: 700;
+}
+
+body:has(.gmail-app) .compose-button:hover,
+body:has(.gmail-app) .send-button:hover {
+    background: var(--m3e-sys-color-secondary);
+    color: var(--m3e-sys-color-on-secondary);
+}
+
+body:has(.gmail-app) .compose-window {
+    border: 2px solid var(--m3e-sys-color-outline);
+}
+
+body:has(.gmail-app) .compose-title {
+    min-height: 52px;
+    background: var(--m3e-sys-color-primary);
+    color: var(--m3e-sys-color-on-primary);
+}
+
+body:has(.gmail-app) .compose-window input,
+body:has(.gmail-app) .compose-window textarea {
+    background: var(--m3e-sys-color-surface);
+    border-color: var(--m3e-sys-color-outline-variant);
+    color: var(--m3e-sys-color-on-surface);
+}
+
+body:has(.gmail-app) .compose-window input::placeholder,
+body:has(.gmail-app) .compose-window textarea::placeholder {
+    color: var(--m3e-sys-color-on-surface-variant);
+    opacity: 1;
+}
+
+body:has(.gmail-app) .compose-footer {
+    border-top: 1px solid var(--m3e-sys-color-outline-variant);
+    background: var(--m3e-sys-color-surface-container);
+}
+
+body:has(.gmail-app) .discard-button {
+    color: var(--m3e-sys-color-on-surface);
+}
+
+body:has(.gmail-app) .sender-avatar {
+    background: var(--m3e-sys-color-secondary);
+    color: var(--m3e-sys-color-on-secondary);
+}
+
+body:has(.gmail-app) .checkbox-wrap input:checked + .checkmark {
+    background: var(--m3e-sys-color-primary);
+    border-color: var(--m3e-sys-color-primary);
+}
+
+body:has(.gmail-app) .star-button:hover,
+body:has(.gmail-app) .star-button.starred {
+    color: var(--m3e-sys-color-primary);
+}
+
+body:has(.gmail-app) .work {
+    background: var(--m3e-sys-color-primary);
+}
+
+body:has(.gmail-app) .personal {
+    background: var(--m3e-sys-color-secondary);
+}
+
+body:has(.gmail-app) .updates {
+    background: var(--m3e-sys-color-tertiary);
+}
+
+body:has(.gmail-app) .chat-empty-icon,
+body:has(.gmail-app) .conversation-empty > .material-symbols-rounded {
+    background: var(--m3e-sys-color-primary-container);
+    color: var(--m3e-sys-color-on-primary-container);
+    border-color: var(--m3e-sys-color-outline-variant);
+}
+
+body:has(.gmail-app) .compose-title {
+    background: var(--m3e-sys-color-inverse-surface, var(--m3e-sys-color-on-surface));
+    color: var(--m3e-sys-color-inverse-on-surface, var(--m3e-sys-color-surface));
+}
+
+/* Apply the same M3 Expressive interaction language to inbox controls. */
+body:has(.gmail-app) .workspace-tab,
+body:has(.gmail-app) .inbox-tab,
+body:has(.gmail-app) .mail-nav-link,
+body:has(.gmail-app) .label-link,
+body:has(.gmail-app) .app-filter button,
+body:has(.gmail-app) .icon-button,
+body:has(.gmail-app) .toolbar-button,
+body:has(.gmail-app) .compose-button,
+body:has(.gmail-app) .send-button,
+body:has(.gmail-app) .profile-button,
+body:has(.gmail-app) .m3e-button {
+    transition:
+        background-color 180ms ease,
+        color 180ms ease,
+        border-color 180ms ease,
+        border-radius 320ms cubic-bezier(.2, .8, .2, 1),
+        transform 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+body:has(.gmail-app) .workspace-tab:hover,
+body:has(.gmail-app) .inbox-tab:hover,
+body:has(.gmail-app) .mail-nav-link:hover,
+body:has(.gmail-app) .label-link:hover,
+body:has(.gmail-app) .app-filter button:hover,
+body:has(.gmail-app) .icon-button:hover,
+body:has(.gmail-app) .toolbar-button:hover,
+body:has(.gmail-app) .compose-button:hover,
+body:has(.gmail-app) .send-button:hover,
+body:has(.gmail-app) .m3e-button:hover {
+    border-radius: 18px;
+    transform: translateY(-1px);
+}
+
+body:has(.gmail-app) .workspace-tab:active,
+body:has(.gmail-app) .inbox-tab:active,
+body:has(.gmail-app) .mail-nav-link:active,
+body:has(.gmail-app) .app-filter button:active,
+body:has(.gmail-app) .icon-button:active,
+body:has(.gmail-app) .toolbar-button:active,
+body:has(.gmail-app) .compose-button:active,
+body:has(.gmail-app) .send-button:active,
+body:has(.gmail-app) .m3e-button:active {
+    border-radius: 12px;
+    transform: scale(.97);
+}
+
+body:has(.gmail-app) .workspace-tab:focus-visible,
+body:has(.gmail-app) .inbox-tab:focus-visible,
+body:has(.gmail-app) .mail-nav-link:focus-visible,
+body:has(.gmail-app) .label-link:focus-visible,
+body:has(.gmail-app) .app-filter button:focus-visible,
+body:has(.gmail-app) .icon-button:focus-visible,
+body:has(.gmail-app) .toolbar-button:focus-visible,
+body:has(.gmail-app) .compose-button:focus-visible,
+body:has(.gmail-app) .send-button:focus-visible,
+body:has(.gmail-app) .m3e-button:focus-visible {
+    outline: 3px solid var(--m3e-sys-color-secondary);
+    outline-offset: 3px;
+}
+
+body:has(.gmail-app) .message {
+    transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body:has(.gmail-app) .workspace-tab,
+    body:has(.gmail-app) .inbox-tab,
+    body:has(.gmail-app) .mail-nav-link,
+    body:has(.gmail-app) .label-link,
+    body:has(.gmail-app) .app-filter button,
+    body:has(.gmail-app) .icon-button,
+    body:has(.gmail-app) .toolbar-button,
+    body:has(.gmail-app) .compose-button,
+    body:has(.gmail-app) .send-button,
+    body:has(.gmail-app) .m3e-button,
+    body:has(.gmail-app) .message {
+        transition: none;
+    }
+}
+
+/* Final mobile overrides must follow the theme layer so display rules stay responsive. */
+@media (max-width: 620px) {
+    body:has(.gmail-app) .gmail-body.workspace-view:not([hidden]) {
+        display: block;
+    }
+
+    body:has(.gmail-app) .apps-workspace.workspace-view:not([hidden]) {
+        display: block;
+    }
+
+    body:has(.gmail-app) .workspace-tabs,
+    body:has(.gmail-app) .inbox-tabs {
+        padding-inline: 10px;
+        overflow-x: auto;
+    }
+
+    body:has(.gmail-app) .workspace-tab,
+    body:has(.gmail-app) .inbox-tab {
+        flex: 0 0 auto;
+    }
+
+    body:has(.gmail-app) .mail-sidebar {
+        width: 100%;
+        padding-inline: 10px;
+    }
 }

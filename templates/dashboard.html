@@ -53,14 +53,32 @@
         <main class="dashboard-main">
             <section class="dashboard-welcome">
                 <div>
-                    <p class="dashboard-kicker">Your workspace</p>
-                    <h1>Good to see you, {{ (g.user.name or 'there').split(' ')[0] }}.</h1>
-                    <p>Here is a quick look at what is happening in CentroMail.</p>
+                    <p class="dashboard-kicker">Communication, simplified</p>
+                    <h1>One place for every conversation.</h1>
+                    <p>Welcome back, {{ (g.user.name or 'there').split(' ')[0] }}. CentroMail brings your email and supported messaging services together.</p>
                 </div>
                 <a class="m3e-button m3e-button--tonal" href="{{ url_for('inbox') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
-                    Open inbox
+                    View conversations
                 </a>
+            </section>
+
+            <section class="dashboard-purpose">
+                <div class="purpose-copy">
+                    <p class="dashboard-kicker">Your communication centre</p>
+                    <h2>Less switching. More staying connected.</h2>
+                    <p>Keep accounts organised, find important conversations quickly, and reply from the right place as CentroMail grows.</p>
+                    <div class="purpose-actions">
+                        <a class="m3e-button m3e-button--filled" href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Start a conversation</a>
+                        <a class="m3e-button m3e-button--outlined" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">manage_accounts</span>Manage account</a>
+                    </div>
+                </div>
+                <div class="purpose-orbit" aria-hidden="true">
+                    <span class="orbit-node node-email material-symbols-rounded">mail</span>
+                    <span class="orbit-node node-chat material-symbols-rounded">chat</span>
+                    <span class="orbit-node node-work material-symbols-rounded">workspaces</span>
+                    <span class="orbit-center material-symbols-rounded">hub</span>
+                </div>
             </section>
 
             <section class="dashboard-stats" aria-label="Mailbox summary">
@@ -85,22 +103,36 @@
             <section class="dashboard-lower">
                 <article class="m3e-card m3e-card--outlined dashboard-panel">
                     <div class="dashboard-panel-heading">
-                        <div><p class="dashboard-kicker">Start here</p><h2>Make your next move</h2></div>
+                        <div><p class="dashboard-kicker">Built for your flow</p><h2>Everything in one space</h2></div>
                         <span class="material-symbols-rounded panel-icon" aria-hidden="true">arrow_forward</span>
                     </div>
                     <div class="dashboard-actions">
-                        <a class="dashboard-action" href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit_square</span><span><strong>Write a message</strong><small>Start a new conversation</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
-                        <a class="dashboard-action" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">mark_email_unread</span><span><strong>Review unread mail</strong><small>See what needs your attention</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
-                        <a class="dashboard-action" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">tune</span><span><strong>Adjust your settings</strong><small>Make CentroMail feel like yours</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">all_inbox</span><span><strong>Unified inbox</strong><small>Keep supported conversations together</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('mail') }}"><span class="material-symbols-rounded" aria-hidden="true">label</span><span><strong>Smart organisation</strong><small>Use stars and folders to find what matters</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">palette</span><span><strong>Your space, your style</strong><small>Make the experience feel personal</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
                     </div>
                 </article>
                 <article class="m3e-card dashboard-tip">
-                    <span class="material-symbols-rounded tip-icon" aria-hidden="true">lightbulb</span>
-                    <p class="dashboard-kicker">A small tip</p>
-                    <h2>Keep your inbox calm.</h2>
-                    <p>Use labels and stars to make important conversations easier to find later.</p>
-                    <a class="m3e-button m3e-button--text" href="{{ url_for('mail') }}">Explore your mail</a>
+                    <span class="material-symbols-rounded tip-icon" aria-hidden="true">shield_lock</span>
+                    <p class="dashboard-kicker">Privacy matters</p>
+                    <h2>Your conversations stay yours.</h2>
+                    <p>CentroMail is being designed with control, clear permissions, and privacy-conscious connections in mind.</p>
+                    <a class="m3e-button m3e-button--text" href="{{ url_for('settings') }}">Review account settings</a>
                 </article>
+            </section>
+
+            <section class="dashboard-integrations">
+                <div>
+                    <p class="dashboard-kicker">Growing with you</p>
+                    <h2>Connect the services you already use.</h2>
+                    <p>CentroMail is being built around an extensible integration system for email providers and supported messaging platforms.</p>
+                </div>
+                <div class="integration-list" aria-label="Planned integrations">
+                    <span><span class="material-symbols-rounded" aria-hidden="true">mail</span>Gmail</span>
+                    <span><span class="material-symbols-rounded" aria-hidden="true">outlook</span>Outlook</span>
+                    <span><span class="material-symbols-rounded" aria-hidden="true">dns</span>IMAP / SMTP</span>
+                    <span><span class="material-symbols-rounded" aria-hidden="true">forum</span>Messaging</span>
+                </div>
             </section>
         </main>
     </div>

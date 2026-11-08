@@ -61,8 +61,8 @@
   --m3e-sys-color-on-surface-variant: #d0e0cb;
   --m3e-sys-color-primary: #e0eec6;
   --m3e-sys-color-on-primary: #243e36;
-  --m3e-sys-color-primary-container: #50745c;
-  --m3e-sys-color-on-primary-container: #e0eec6;
+  --m3e-sys-color-primary-container: #e0eec6;
+  --m3e-sys-color-on-primary-container: #243e36;
   --m3e-sys-color-secondary: #a9d2ad;
   --m3e-sys-color-on-secondary: #243e36;
   --m3e-sys-color-secondary-container: #50745c;
@@ -74,4 +74,62 @@
   --m3e-sys-color-outline: #a9c5a5;
   --m3e-sys-color-outline-variant: #50745c;
   --m3e-sys-color-surface-tint: #e0eec6;
+}
+
+/* Keep the M3 Expressive spring feel while the app uses flat, shadow-free surfaces. */
+.m3e-button {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-radius 320ms cubic-bezier(.2, .8, .2, 1),
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.m3e-button::after {
+  pointer-events: none;
+}
+
+.m3e-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.m3e-button:hover {
+  border-radius: 18px;
+  transform: translateY(-1px);
+}
+
+.m3e-button:hover::before {
+  opacity: .08;
+}
+
+.m3e-button:focus-visible {
+  outline: 3px solid var(--m3e-sys-color-secondary);
+  outline-offset: 3px;
+}
+
+.m3e-button:active {
+  border-radius: 12px;
+  transform: scale(.97);
+}
+
+.m3e-button:active::before {
+  opacity: .14;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3e-button {
+    transition: none;
+  }
+  .m3e-button::before {
+    transition: none;
+  }
 }

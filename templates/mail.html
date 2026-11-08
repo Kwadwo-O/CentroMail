@@ -3,6 +3,8 @@
 {% block title %}Mail | Row Project{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">
 {% endblock %}
 
@@ -31,9 +33,18 @@
         </div>
     </header>
 
-    <div class="gmail-body">
+    <div class="workspace-tabs" role="tablist" aria-label="Communication type">
+        <button class="workspace-tab active" type="button" role="tab" aria-selected="true" data-workspace="email">
+            <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
+        </button>
+        <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-workspace="apps">
+            <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
+        </button>
+    </div>
+
+    <div class="gmail-body workspace-view" data-workspace-view="email">
         <aside class="mail-sidebar">
-            <button class="compose-button" id="open-compose"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Compose" class="ui-icon">Compose</button>
+            <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
                 <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>{{ stats.unread }}</b></a>
                 <a class="mail-nav-link" href="#starred"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Starred" class="ui-icon"><span>Starred</span></a>
@@ -69,9 +80,9 @@
                 <button class="toolbar-button" aria-label="Next page"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Next" class="ui-icon"></button>
             </div>
             <div class="inbox-tabs" role="tablist">
-                <button class="inbox-tab active" data-tab="primary" role="tab"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Primary" class="ui-icon">Primary</button>
-                <button class="inbox-tab" data-tab="updates" role="tab"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Updates" class="ui-icon">Updates</button>
-                <button class="inbox-tab" data-tab="social" role="tab"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Social" class="ui-icon">Social</button>
+                <button class="inbox-tab active" type="button" data-tab="primary" role="tab" aria-selected="true"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="" class="ui-icon">Primary</button>
+                <button class="inbox-tab" type="button" data-tab="updates" role="tab" aria-selected="false"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="" class="ui-icon">Updates</button>
+                <button class="inbox-tab" type="button" data-tab="social" role="tab" aria-selected="false"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="" class="ui-icon">Social</button>
             </div>
             <div class="message-list" id="message-list">
                 {% for message in messages %}
@@ -88,12 +99,59 @@
         </main>
     </div>
 
+    <div class="apps-workspace workspace-view" data-workspace-view="apps" hidden>
+        <aside class="apps-sidebar">
+            <div class="apps-heading">
+                <div>
+                    <p class="eyebrow">Connected services</p>
+                    <h1>Messages</h1>
+                </div>
+                <button class="icon-button" type="button" aria-label="New conversation"><span class="material-symbols-rounded" aria-hidden="true">edit_square</span></button>
+            </div>
+            <label class="apps-search">
+                <span class="material-symbols-rounded" aria-hidden="true">search</span>
+                <input type="search" placeholder="Search conversations" aria-label="Search conversations">
+            </label>
+            <div class="app-filter" role="tablist" aria-label="Message filters">
+                <button class="active" type="button">All</button>
+                <button type="button">Unread</button>
+                <button type="button">Groups</button>
+            </div>
+            <div class="conversation-list">
+                <div class="conversation-empty">
+                    <span class="material-symbols-rounded" aria-hidden="true">forum</span>
+                    <strong>No conversations yet</strong>
+                    <p>Messages from supported apps will appear here.</p>
+                    <button class="m3e-button m3e-button--tonal" type="button">Start a conversation</button>
+                </div>
+            </div>
+        </aside>
+        <main class="chat-panel">
+            <div class="chat-header">
+                <div class="chat-app-icon"><span class="material-symbols-rounded" aria-hidden="true">hub</span></div>
+                <div><p class="eyebrow">CentroMail apps</p><h2>One place for your chats</h2></div>
+                <button class="icon-button" type="button" aria-label="Conversation details"><span class="material-symbols-rounded" aria-hidden="true">info</span></button>
+            </div>
+            <div class="chat-empty">
+                <div class="chat-empty-icon"><span class="material-symbols-rounded" aria-hidden="true">forum</span></div>
+                <h2>Bring your conversations together</h2>
+                <p>Connect supported messaging services to keep chats, groups, and replies in one organised space.</p>
+                <button class="m3e-button m3e-button--filled" type="button"><span class="material-symbols-rounded" aria-hidden="true">add_link</span>Connect an app</button>
+            </div>
+            <div class="chat-composer" aria-label="Message composer">
+                <button class="icon-button" type="button" aria-label="Attach file"><span class="material-symbols-rounded" aria-hidden="true">add</span></button>
+                <input type="text" placeholder="Choose a conversation to message" disabled>
+                <button class="icon-button" type="button" aria-label="Send message" disabled><span class="material-symbols-rounded" aria-hidden="true">send</span></button>
+            </div>
+        </main>
+    </div>
+
     <form class="compose-window" id="compose-window" hidden>
         <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Close" class="ui-icon"></button></div>
         <input type="email" placeholder="Recipients" aria-label="Recipients" required>
         <input type="text" placeholder="Subject" aria-label="Subject">
         <textarea placeholder="Write a message..." aria-label="Message"></textarea>
-        <div class="compose-footer"><button class="send-button" type="submit">Send <img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Send" class="ui-icon send-icon"></button><button type="button" class="icon-button" id="discard-compose" aria-label="Discard draft"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Discard" class="ui-icon"></button></div>
+        <div class="compose-footer"><button class="m3e-button m3e-button--filled send-button" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span>Send</button><button class="m3e-button m3e-button--outlined discard-button" type="button" id="discard-compose"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Discard</button></div>
     </form>
 </div>
 {% endblock %}
@@ -124,8 +182,11 @@
     };
     document.querySelector("#mail-search").addEventListener("input", filterMessages);
     document.querySelectorAll(".inbox-tab").forEach((tab) => tab.addEventListener("click", () => {
-        document.querySelector(".inbox-tab.active").classList.remove("active");
+        const currentTab = document.querySelector(".inbox-tab.active");
+        currentTab.classList.remove("active");
+        currentTab.setAttribute("aria-selected", "false");
         tab.classList.add("active");
+        tab.setAttribute("aria-selected", "true");
         filterMessages();
     }));
     document.querySelector("#select-all").addEventListener("change", (event) => {
@@ -135,5 +196,18 @@
     document.querySelector("#refresh-mail").addEventListener("click", () => window.location.reload());
     document.querySelector("#mark-read").addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").classList.remove("unread")));
     document.querySelectorAll("#archive-mail, #delete-mail").forEach((button) => button.addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").remove())));
+
+    document.querySelectorAll(".workspace-tab").forEach((tab) => tab.addEventListener("click", () => {
+        const workspace = tab.dataset.workspace;
+        document.querySelectorAll(".workspace-tab").forEach((item) => {
+            const active = item === tab;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        document.querySelectorAll(".workspace-view").forEach((view) => {
+            view.hidden = view.dataset.workspaceView !== workspace;
+        });
+        document.querySelector("#mail-search").placeholder = workspace === "apps" ? "Search conversations" : "Search mail";
+    }));
 </script>
 {% endblock %}

@@ -47,6 +47,9 @@ body {
 .theme-toggle:hover {
   background: var(--m3e-sys-color-secondary-container);
 }
+:root[data-theme="dark"] .theme-toggle {
+  color: var(--m3e-sys-color-on-primary-container);
+}
 .theme-toggle-icon {
   font-family: "Material Symbols Rounded";
   font-size: 18px;
@@ -88,6 +91,7 @@ body {
 
 :root[data-theme="dark"] .logo {
   background: var(--m3e-sys-color-primary-container);
+  border: 1px solid var(--m3e-sys-color-outline);
 }
 
 .eyebrow {
@@ -136,7 +140,21 @@ h1 { margin: 0; color: var(--brand-dark); font-size: clamp(28px, 6vw, 38px); lin
 .main-btn { width: 100%; }
 .onboarding-card { text-align: center; }
 .auth-buttons { display: grid; gap: 12px; }
-.auth-button { width: 100%; text-decoration: none; }
+.auth-button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  padding-inline: 20px;
+  border: 1px solid var(--m3e-sys-color-outline);
+  background: var(--m3e-sys-color-surface);
+  color: var(--m3e-sys-color-on-surface);
+  text-decoration: none;
+}
+.auth-button:hover {
+  background: var(--m3e-sys-color-secondary-container);
+  color: var(--m3e-sys-color-on-secondary-container);
+}
+.auth-button span { font-weight: 650; }
 .auth-button img { flex: 0 0 auto; object-fit: contain; }
 .separator { display: flex; align-items: center; gap: 12px; margin: 24px 0 16px; color: var(--muted); font-size: 13px; }
 .separator::before, .separator::after { content: ""; flex: 1; height: 1px; background: var(--m3e-sys-color-outline-variant); }
@@ -153,6 +171,17 @@ h1 { margin: 0; color: var(--brand-dark); font-size: clamp(28px, 6vw, 38px); lin
 .flash-stack { margin-bottom: 16px; }
 .flash { margin: 0 0 10px; padding: 14px 16px; border-radius: 16px; background: var(--m3e-sys-color-primary-container); color: var(--m3e-sys-color-on-primary-container); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
 .flash-error { background: #ffdad6; color: var(--error); }
+
+:root[data-theme="dark"] .auth-button {
+  border-color: var(--m3e-sys-color-outline);
+  background: var(--m3e-sys-color-primary-container);
+  color: var(--m3e-sys-color-on-primary-container);
+}
+
+:root[data-theme="dark"] .auth-button:hover {
+  background: var(--m3e-sys-color-secondary);
+  color: var(--m3e-sys-color-on-secondary);
+}
 
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #6f9c68; outline-offset: 3px; }
 
