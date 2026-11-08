@@ -1,0 +1,29 @@
+{
+  "name": "centromail",
+  "version": "1.0.0",
+  "description": "From this folder in PowerShell:",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kwadwo-O/CentroMail.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Kwadwo-O/CentroMail/issues"
+  },
+  "homepage": "https://github.com/Kwadwo-O/CentroMail#readme",
+  "dependencies": {
+    "@kyralabs/m3e-tokens": "^1.8.0",
+    "@kyralabs/m3exp-web": "^1.8.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.6"
+  }
+}
