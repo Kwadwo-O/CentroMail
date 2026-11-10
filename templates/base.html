@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Row Project">
+    <script>
+        const savedTheme = localStorage.getItem('centromail-theme');
+        document.documentElement.dataset.theme = savedTheme === 'dark' || savedTheme === 'light'
+            ? savedTheme
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
     <title>{% block title %}Row Project{% endblock %}</title>
@@ -56,10 +62,5 @@
     </footer>
     {% endif %}
     {% block scripts %}{% endblock %}
-    <script>
-        const root = document.documentElement;
-        const savedTheme = localStorage.getItem('centromail-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        root.dataset.theme = savedTheme;
-    </script>
 </body>
 </html>
