@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sign in to CentroMail or create your account.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <title>{{ 'Create Account' if active_panel == 'signup' else 'Welcome Back' }} · CentroMail</title>
+</head>
+<body class="page-login">
+    <div class="bg-circle bg1" aria-hidden="true"></div>
+    <div class="bg-circle bg2" aria-hidden="true"></div>
+    <div class="bg-circle bg3" aria-hidden="true"></div>
+
+    <main class="auth-wrapper">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack" aria-live="polite">
+                    {% for category, message in messages %}
+                        <p class="flash flash-{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="auth-card{% if active_panel == 'signup' %} flipped{% endif %}" id="authCard">
+            <section class="form-panel login-panel" aria-labelledby="loginTitle" {% if active_panel == 'signup' %}inert aria-hidden="true"{% endif %}>
+                <a class="logo" href="{{ url_for('onboarding') }}" aria-label="Get started with CentroMail">
+                    <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+                </a>
+                <h1 id="loginTitle">Welcome back</h1>
+                <p class="subtitle">Login to CentroMail</p>
+
+                <form class="auth-form" method="post" action="{{ url_for('login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="email" id="loginEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="username" maxlength="254" required>
+                        <label for="loginEmail">Email Address</label>
+                    </div>
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="password" id="loginPassword" name="password" placeholder=" " autocomplete="current-password" maxlength="1024" required>
+                        <label for="loginPassword">Password</label>
+                        <button type="button" class="password-toggle" data-password="loginPassword" aria-controls="loginPassword" aria-label="Show password" aria-pressed="false">
+                            <span class="password-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="options">
+                        <label class="checkbox">
+                            <input type="checkbox" name="remember" value="on" {% if remember|default(false) %}checked{% endif %}>
+                            Remember me
+                        </label>
+                    </div>
+                    <button type="submit" class="main-btn">Login</button>
+                </form>
+
+                <div class="switch-area">
+                    <span>Don't have an account?</span>
+                    <a class="switch-circle" href="{{ url_for('register') }}" data-panel="signup" aria-label="Create an account"><span aria-hidden="true">+</span></a>
+                </div>
+                <p class="auth-footer"><a href="{{ url_for('onboarding') }}">Back to getting started</a></p>
+            </section>
+
+            <section class="form-panel signup-panel" aria-labelledby="signupTitle" {% if active_panel != 'signup' %}inert aria-hidden="true"{% endif %}>
+                <a class="logo" href="{{ url_for('onboarding') }}" aria-label="Get started with CentroMail">
+                    <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+                </a>
+                <h1 id="signupTitle">Create Account</h1>
+                <p class="subtitle">Start your journey with CentroMail</p>
+
+                <form class="auth-form" id="signupForm" method="post" action="{{ url_for('register') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="text" id="signupName" name="name" value="{{ name|default('', true) }}" placeholder=" " autocomplete="name" maxlength="100" required>
+                        <label for="signupName">Name</label>
+                    </div>
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="email" id="signupEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="username" maxlength="254" required>
+                        <label for="signupEmail">Email Address</label>
+                    </div>
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="password" id="signupPassword" name="password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" aria-describedby="passwordHelp" required>
+                        <label for="signupPassword">Password</label>
+                        <button type="button" class="password-toggle" data-password="signupPassword" aria-controls="signupPassword" aria-label="Show password" aria-pressed="false">
+                            <span class="password-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <p class="form-help" id="passwordHelp">Use at least 12 characters.</p>
+                    <div class="input-group">
+                        <div class="electric-glow" aria-hidden="true"></div>
+                        <div class="electric-border" aria-hidden="true"></div>
+                        <input type="password" id="signupConfirmPassword" name="confirm_password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" required>
+                        <label for="signupConfirmPassword">Confirm Password</label>
+                        <button type="button" class="password-toggle" data-password="signupConfirmPassword" aria-controls="signupConfirmPassword" aria-label="Show password" aria-pressed="false">
+                            <span class="password-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <button type="submit" class="main-btn">Join Us!</button>
+                </form>
+
+                <div class="switch-area">
+                    <span>Already have an account?</span>
+                    <a class="switch-circle" href="{{ url_for('login') }}" data-panel="login" aria-label="Back to login"><span aria-hidden="true">&larr;</span></a>
+                </div>
+                <p class="auth-footer"><a href="{{ url_for('onboarding') }}">Back to getting started</a></p>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const card = document.getElementById('authCard');
+        document.querySelectorAll('[data-panel]').forEach(link => {
+            link.addEventListener('click', event => {
+                event.preventDefault();
+                const signup = link.dataset.panel === 'signup';
+                const outgoing = card.querySelector(signup ? '.login-panel' : '.signup-panel');
+                const incoming = card.querySelector(signup ? '.signup-panel' : '.login-panel');
+                const sourceEmail = outgoing.querySelector('input[name="email"]');
+                const targetEmail = incoming.querySelector('input[name="email"]');
+                if (!targetEmail.value) targetEmail.value = sourceEmail.value;
+                outgoing.inert = true;
+                outgoing.setAttribute('aria-hidden', 'true');
+                incoming.inert = false;
+                incoming.removeAttribute('aria-hidden');
+                card.classList.toggle('flipped', signup);
+                incoming.querySelector('input:not([type="hidden"])').focus({preventScroll: true});
+            });
+        });
+
+        document.querySelectorAll('[data-password]').forEach(button => {
+            button.addEventListener('click', () => {
+                const input = document.getElementById(button.dataset.password);
+                const visible = input.type === 'password';
+                input.type = visible ? 'text' : 'password';
+                button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+                button.setAttribute('aria-pressed', String(visible));
+            });
+        });
+
+        const password = document.getElementById('signupPassword');
+        const confirmation = document.getElementById('signupConfirmPassword');
+        function checkConfirmation() {
+            confirmation.setCustomValidity(confirmation.value && confirmation.value !== password.value ? 'Passwords must match.' : '');
+        }
+        password.addEventListener('input', checkConfirmation);
+        confirmation.addEventListener('input', checkConfirmation);
+    </script>
+</body>
+</html>

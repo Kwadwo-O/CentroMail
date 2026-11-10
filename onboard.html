@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Get started with CentroMail.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <title>Get Started · CentroMail</title>
+</head>
+<body class="page-onboarding">
+    <div class="bg-circle bg1" aria-hidden="true"></div>
+    <div class="bg-circle bg2" aria-hidden="true"></div>
+    <div class="bg-circle bg3" aria-hidden="true"></div>
+
+    <main class="auth-wrapper">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack" aria-live="polite">
+                    {% for category, message in messages %}
+                        <p class="flash flash-{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="onboarding-card" aria-labelledby="onboardingTitle">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+            </div>
+            <h1 id="onboardingTitle">Get Started with CentroMail</h1>
+            <p class="subtitle">Your conversations. One place.</p>
+
+            <div class="auth-buttons">
+                <a class="auth-button" href="{{ url_for('authenticate', provider='google') }}">
+                    <img src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Google</span>
+                </a>
+                <a class="auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                    <img src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Microsoft</span>
+                </a>
+            </div>
+
+            <p class="separator"><span>or continue with email</span></p>
+            <form class="auth-form email-form" method="post" action="{{ url_for('continue_flow') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="input-group">
+                    <div class="electric-glow" aria-hidden="true"></div>
+                    <div class="electric-border" aria-hidden="true"></div>
+                    <input type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
+                    <label for="onboardingEmail">Email Address</label>
+                </div>
+                <button class="main-btn" type="submit">Continue with Email</button>
+            </form>
+
+            <p class="auth-footer">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+        </section>
+    </main>
+</body>
+</html>
