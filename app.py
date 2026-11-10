@@ -1,9 +1,11 @@
 import os
 import json
 import base64
+import logging
 import re
 import secrets
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 from contextlib import closing
@@ -19,6 +21,7 @@ from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
 load_dotenv(Path(app.root_path) / ".env")
 DATABASE = os.path.join(app.root_path, "centro.db")
 app.config.update(
@@ -39,6 +42,7 @@ google = oauth.register(
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"},
+    authorize_params={"access_type": "offline", "prompt": "consent"},
 )
 
 
@@ -213,7 +217,7 @@ def get_gmail_access_token(user):
             "refresh_token": refresh_token,
             "grant_type": "refresh_token",
         },
-        timeout=10,
+        timeout=(5, 15),
     )
     response.raise_for_status()
     refreshed = response.json()
@@ -244,17 +248,20 @@ def gmail_message_time(value):
 
 
 def fetch_gmail_messages(user):
+    app.logger.info("Starting Gmail inbox pull for user id=%s", user["id"])
     access_token = get_gmail_access_token(user)
     if not access_token:
+        app.logger.warning("Gmail inbox pull skipped: no usable token for user id=%s", user["id"])
         return []
     headers = {"Authorization": "Bearer " + access_token}
     message_ids = []
     next_page_token = None
+    page_count = 0
     while True:
         params = {
             "userId": "me",
             "labelIds": "INBOX",
-            "maxResults": 100,
+            "maxResults": 50,
         }
         if next_page_token:
             params["pageToken"] = next_page_token
@@ -266,13 +273,13 @@ def fetch_gmail_messages(user):
         )
         response.raise_for_status()
         page = response.json()
+        page_count += 1
         message_ids.extend(item["id"] for item in page.get("messages", []) if item.get("id"))
         next_page_token = page.get("nextPageToken")
         if not next_page_token:
             break
 
-    messages = []
-    for message_id in message_ids:
+    def fetch_message_detail(message_id):
         detail = requests.get(
             f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
             headers=headers,
@@ -283,13 +290,13 @@ def fetch_gmail_messages(user):
                 ("metadataHeaders", "Subject"),
                 ("metadataHeaders", "Date"),
             ],
-            timeout=10,
+            timeout=(5, 15),
         )
         detail.raise_for_status()
         payload = detail.json()
         message_headers = payload.get("payload", {}).get("headers", [])
         label_ids = set(payload.get("labelIds", []))
-        messages.append({
+        return {
             "id": payload.get("id", message_id),
             "sender": gmail_sender(gmail_header(message_headers, "From")),
             "subject": gmail_header(message_headers, "Subject") or "(No subject)",
@@ -300,7 +307,16 @@ def fetch_gmail_messages(user):
             "category": "social" if "CATEGORY_SOCIAL" in label_ids else (
                 "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
             ),
-        })
+        }
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        messages = list(executor.map(fetch_message_detail, message_ids))
+    app.logger.info(
+        "Completed Gmail inbox pull for user id=%s: pages=%s messages=%s",
+        user["id"],
+        page_count,
+        len(messages),
+    )
     return messages
 
 
@@ -338,7 +354,7 @@ def index():
 def onboarding():
     if g.user is not None:
         return redirect(url_for('dashboard'))
-    return render_template('onboard.html')
+    return render_template('login.html', email="", name="", remember=False)
 
 
 @app.post('/continue')
@@ -348,7 +364,7 @@ def continue_flow():
     email = normalize_email(request.form.get('email', ''))
     if not valid_email(email):
         flash("Please enter a valid email address.", "error")
-        return redirect(url_for('onboarding'))
+        return redirect(url_for('login'))
     session["pending_email"] = email
     return redirect(url_for('login' if find_user(email) else 'register'))
 
@@ -429,12 +445,19 @@ def inbox():
     try:
         messages = fetch_gmail_messages(g.user)
     except requests.HTTPError as error:
+        status = error.response.status_code if error.response is not None else "unknown"
+        app.logger.error("Gmail inbox pull failed with HTTP error: status=%s", status)
         if error.response is not None and error.response.status_code == 403:
             flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
         else:
             flash("Gmail could not be loaded right now. Please try again.", "error")
         messages = []
+    except requests.Timeout:
+        app.logger.error("Gmail inbox pull timed out")
+        flash("Gmail took too long to respond. Please try again.", "error")
+        messages = []
     except (requests.RequestException, KeyError, ValueError):
+        app.logger.exception("Gmail inbox pull failed")
         flash("Gmail could not be loaded right now. Please try again.", "error")
         messages = []
     if not get_google_token(g.user):
@@ -452,12 +475,14 @@ def message_detail(message_id):
     try:
         messages = fetch_gmail_messages(g.user)
     except requests.HTTPError as error:
+        app.logger.error("Gmail message pull failed with HTTP error: status=%s", error.response.status_code if error.response else "unknown")
         if error.response is not None and error.response.status_code == 403:
             flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
         else:
             flash("Gmail could not be loaded right now. Please try again.", "error")
         messages = []
     except (requests.RequestException, KeyError, ValueError):
+        app.logger.exception("Gmail message pull failed")
         flash("Gmail could not be loaded right now. Please try again.", "error")
         messages = []
     for message in messages:
@@ -508,22 +533,22 @@ def authenticate(provider):
     if provider == "google":
         if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
             flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
-            return redirect(url_for('onboarding'))
+            return redirect(url_for('login'))
         return google.authorize_redirect(google_callback_uri())
 
     flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
-    return redirect(url_for('onboarding'))
+    return redirect(url_for('login'))
 
 
 @app.get('/auth/google/callback')
 def google_callback():
     if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
         flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
-        return redirect(url_for('onboarding'))
+        return redirect(url_for('login'))
 
     if request.args.get("error"):
         flash("Google sign-in was cancelled or denied. Please try again.", "error")
-        return redirect(url_for('onboarding'))
+        return redirect(url_for('login'))
 
     try:
         token = google.authorize_access_token()
@@ -533,7 +558,7 @@ def google_callback():
         else:
             message = "Google sign-in could not be completed. Check the OAuth callback URI and try again."
         flash(message, "error")
-        return redirect(url_for('onboarding'))
+        return redirect(url_for('login'))
 
     profile = token.get("userinfo")
     if not profile or profile.get("email_verified") is not True:

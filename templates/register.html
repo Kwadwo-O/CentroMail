@@ -17,6 +17,22 @@
     <title>Create Account · CentroMail</title>
 </head>
 <body class="page-register">
+    <div class="auth-shapes" aria-hidden="true">
+        <span class="auth-shape auth-shape-one"></span>
+        <span class="auth-shape auth-shape-two"></span>
+        <svg class="auth-morph" viewBox="0 0 1 1" role="presentation">
+            <path d="M.5 0A.5.5 0 1 1 .5 1A.5.5 0 1 1 .5 0Z">
+                <animate attributeName="d" dur="8s" repeatCount="indefinite"
+                    values="M.5 0A.5.5 0 1 1 .5 1A.5.5 0 1 1 .5 0Z;M.5 0C.78 0 .99 .22 1 .5C.99 .78 .78 1 .5 1C.22 1 .01 .78 0 .5C.01 .22 .22 0 .5 0Z;M.5 0A.5.5 0 1 1 .5 1A.5.5 0 1 1 .5 0Z"/>
+            </path>
+        </svg>
+    </div>
+    <div class="auth-loading" hidden aria-live="polite">
+        <video class="loading-indicator" autoplay loop muted playsinline aria-hidden="true">
+            <source src="https://firebasestorage.googleapis.com/v0/b/design-spec/o/projects%2Fgoogle-material-3%2Fimages%2Fm0fd0ml7-Loading_Indicator-B.mp4?alt=media" type="video/mp4">
+        </video>
+        <span>Loading</span>
+    </div>
     <button class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
         <span class="theme-toggle-icon material-symbols-rounded" aria-hidden="true">dark_mode</span>
         <span class="theme-toggle-label">Dark theme</span>
@@ -32,12 +48,23 @@
             {% endif %}
         {% endwith %}
         <section class="form-panel m3e-card m3e-card--elevated" aria-labelledby="signupTitle">
-            <a class="logo" href="{{ url_for('onboarding') }}" aria-label="Get started with CentroMail">
+            <a class="logo" href="{{ url_for('login') }}" aria-label="CentroMail home">
                 <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
             </a>
             <p class="eyebrow">CENTROMAIL</p>
             <h1 id="signupTitle">Create account</h1>
             <p class="subtitle">Set up your space for better email.</p>
+            <div class="auth-buttons">
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='google') }}">
+                    <img src="{{ url_for('static', filename='images/Google_Favicon_2025.svg.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Google</span>
+                </a>
+                <a class="m3e-button m3e-button--outlined auth-button" href="{{ url_for('authenticate', provider='microsoft') }}">
+                    <img src="{{ url_for('static', filename='images/Microsoft_Favicon_2025.webp') }}" alt="" width="20" height="20">
+                    <span>Continue with Microsoft</span>
+                </a>
+            </div>
+            <p class="separator"><span>or create with email</span></p>
             <form class="auth-form" id="signupForm" method="post" action="{{ url_for('register') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="m3e-text-field m3e-text-field--outlined input-group">
@@ -89,10 +116,20 @@
                 <span>Already have an account?</span>
                 <a class="m3e-button m3e-button--tonal switch-link" href="{{ url_for('login') }}">Back to login</a>
             </div>
-            <p class="auth-footer"><a href="{{ url_for('onboarding') }}">Back to getting started</a></p>
         </section>
     </main>
     <script>
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!prefersReducedMotion) {
+            document.querySelectorAll('a[href="{{ url_for("register") }}"], a[href="{{ url_for("login") }}"]').forEach(link => {
+                link.addEventListener('click', event => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    document.body.classList.add('auth-page-exit');
+                    window.setTimeout(() => { window.location.href = link.href; }, 320);
+                });
+            });
+        }
         const themeToggle = document.querySelector('.theme-toggle');
         function updateThemeToggle() {
             const dark = document.documentElement.dataset.theme === 'dark';
@@ -126,6 +163,10 @@
         }
         password.addEventListener('input', checkConfirmation);
         confirmation.addEventListener('input', checkConfirmation);
+        const loading = document.querySelector('.auth-loading');
+        document.querySelectorAll('form, a[href*="/auth/"]').forEach(control => {
+            control.addEventListener('submit', () => loading.hidden = false);
+        });
     </script>
 </body>
 </html>
