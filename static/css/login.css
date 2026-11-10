@@ -123,10 +123,12 @@ body.auth-page-exit {
   width: 40px;
   height: 40px;
   margin: auto;
+  border: 4px solid var(--m3e-sys-color-secondary-container);
+  border-top-color: var(--m3e-sys-color-primary);
   border-radius: 50%;
-  object-fit: cover;
-  background: var(--m3e-sys-color-surface-container);
+  animation: loading-spin 800ms linear infinite;
 }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
 @keyframes shape-drift {
   to { transform: translate(22px, 18px) rotate(18deg); border-radius: 58% 42% 36% 64% / 61% 44% 56% 39%; }
 }
