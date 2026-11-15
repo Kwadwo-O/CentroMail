@@ -15,6 +15,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <title>Create Account · CentroMail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+    <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
 </head>
 <body class="page-register">
     <div class="auth-shapes" aria-hidden="true">
@@ -27,10 +30,7 @@
             </path>
         </svg>
     </div>
-    <div class="auth-loading" hidden aria-live="polite">
-        <span class="loading-indicator" aria-hidden="true"></span>
-        <span>Loading</span>
-    </div>
+    {% include '_auth_loading.html' %}
     <button class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
         <span class="theme-toggle-icon material-symbols-rounded" aria-hidden="true">dark_mode</span>
         <span class="theme-toggle-label">Dark theme</span>
@@ -117,17 +117,6 @@
         </section>
     </main>
     <script>
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (!prefersReducedMotion) {
-            document.querySelectorAll('a[href="{{ url_for("register") }}"], a[href="{{ url_for("login") }}"]').forEach(link => {
-                link.addEventListener('click', event => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    document.body.classList.add('auth-page-exit');
-                    window.setTimeout(() => { window.location.href = link.href; }, 320);
-                });
-            });
-        }
         const themeToggle = document.querySelector('.theme-toggle');
         function updateThemeToggle() {
             const dark = document.documentElement.dataset.theme === 'dark';
@@ -161,10 +150,6 @@
         }
         password.addEventListener('input', checkConfirmation);
         confirmation.addEventListener('input', checkConfirmation);
-        const loading = document.querySelector('.auth-loading');
-        document.querySelectorAll('form, a[href*="/auth/"]').forEach(control => {
-            control.addEventListener('submit', () => loading.hidden = false);
-        });
     </script>
 </body>
 </html>

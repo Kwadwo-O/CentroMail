@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import app as application
+import requests
 
 
 class AuthTests(unittest.TestCase):
@@ -186,7 +187,7 @@ class AuthTests(unittest.TestCase):
         response.json.return_value = {"messages": []}
         with (
             patch.object(application, "get_gmail_access_token", return_value="test-token"),
-            patch.object(application.requests, "get", return_value=response) as list_mail,
+            patch.object(application.google_requests, "get", return_value=response) as list_mail,
             patch.object(application, "_fetch_gmail_detail", return_value=message) as detail,
         ):
             self.assertEqual(self.client.get("/api/mail/messages").json["count"], 0)
@@ -226,7 +227,7 @@ class AuthTests(unittest.TestCase):
         response.json.return_value = {"messages": [{"id": "sample"}], "nextPageToken": "next-page", "resultSizeEstimate": 3370}
         with (
             patch.object(application, "get_gmail_access_token", return_value="test-token"),
-            patch.object(application.requests, "get", return_value=response) as list_mail,
+            patch.object(application.google_requests, "get", return_value=response) as list_mail,
             patch.object(application, "_fetch_gmail_detail", return_value=self.mail_metadata("sample")),
         ):
             for folder, config in application.GMAIL_FOLDERS.items():
@@ -254,7 +255,7 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/mail/action", data={"action": "read", "message_ids": "sample"}).status_code, 400)
         with (
             patch.object(application, "get_gmail_access_token", return_value="test-token"),
-            patch.object(application.requests, "post", return_value=Mock()) as modify,
+            patch.object(application.google_requests, "post", return_value=Mock()) as modify,
         ):
             for action, add, remove in (("star", ["STARRED"], []), ("read", [], ["UNREAD"]), ("archive", [], ["INBOX"]), ("trash", ["TRASH"], ["INBOX"]), ("restore", ["INBOX"], ["TRASH"])):
                 result = self.post("/api/mail/action", {"action": action, "message_ids": "sample"})
@@ -272,7 +273,7 @@ class AuthTests(unittest.TestCase):
         with application.app.app_context():
             application.gmail_cache_put(user_id, "sample", metadata=self.mail_metadata("sample"), body=body)
             self.assertEqual(application.gmail_cache_get(user_id, "sample", body=True), body)
-        with patch.object(application.requests, "get") as network:
+        with patch.object(application.google_requests, "get") as network:
             for path in ("/message/sample?folder=sent", "/message/sample?folder=sent&pane=1"):
                 result = self.client.get(path)
                 self.assertEqual(result.status_code, 200)
@@ -406,6 +407,44 @@ class AuthTests(unittest.TestCase):
         self.assertNotEqual(users[0]["password"], self.password)
         with self.client.session_transaction() as session:
             self.assertEqual(session["user_id"], users[0]["id"])
+
+    def test_google_redirect_does_not_wait_for_discovery(self):
+        application.app.config.update(GOOGLE_CLIENT_ID="test-client-id", GOOGLE_CLIENT_SECRET="test-client-secret")
+        with patch('requests.sessions.Session.request', side_effect=AssertionError('Sign-in must not fetch discovery metadata')):
+            response = self.client.get('/auth/google')
+        location = urlparse(response.location)
+        self.assertEqual(location.netloc, 'accounts.google.com')
+        self.assertEqual(location.path, '/o/oauth2/v2/auth')
+        self.assertIn('state=', location.query)
+        with application.google._get_session() as client:
+            self.assertEqual(client.default_timeout, (5, 15))
+
+    def test_google_starts_on_local_callback_host_before_saving_state(self):
+        application.app.config.update(GOOGLE_CLIENT_ID="test-client-id", GOOGLE_CLIENT_SECRET="test-client-secret",
+                                      GOOGLE_REDIRECT_URI="http://localhost:5000/auth/google/callback")
+        with patch.object(application.google, 'authorize_redirect') as authorize:
+            response = self.client.get('/auth/google', base_url='http://127.0.0.1:5000')
+        self.assertEqual(response.location, 'http://localhost:5000/auth/google')
+        authorize.assert_not_called()
+
+    def test_google_network_failure_returns_to_login_with_retry_message(self):
+        application.app.config.update(GOOGLE_CLIENT_ID="test-client-id", GOOGLE_CLIENT_SECRET="test-client-secret")
+        for path, method in (('/auth/google', 'authorize_redirect'), ('/auth/google/callback?code=test', 'authorize_access_token')):
+            with self.subTest(path=path), patch.object(application.google, method, side_effect=requests.Timeout('Network timeout')):
+                response = self.client.get(path, follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'try', response.data.lower())
+            with self.client.session_transaction() as session:
+                self.assertNotIn('user_id', session)
+
+    def test_google_token_and_signing_key_requests_use_ipv4_with_tls_verification(self):
+        for client in (application.google._get_session(), application.google._get_oauth_client()):
+            with client:
+                self.assertTrue(client.verify)
+                self.assertEqual(client.default_timeout, (5, 15))
+                for url in ('https://oauth2.googleapis.com/token', 'https://www.googleapis.com/oauth2/v3/certs'):
+                    adapter = client.get_adapter(url)
+                    self.assertEqual(adapter.poolmanager.connection_pool_kw['source_address'], ('0.0.0.0', 0))
 
     def test_google_callback_rejects_unverified_email(self):
         application.app.config.update(

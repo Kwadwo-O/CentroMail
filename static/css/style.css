@@ -43,8 +43,14 @@ body {
     line-height: 1.55;
 }
 
+/* Keep default link colour below M3E component styles in the cascade. */
+@layer m3e.base {
+    a {
+        color: var(--m3e-sys-color-primary);
+    }
+}
+
 a {
-    color: var(--m3e-sys-color-primary);
     text-underline-offset: 3px;
 }
 

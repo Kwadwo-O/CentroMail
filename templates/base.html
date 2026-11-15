@@ -36,6 +36,7 @@
                 'merriweather': 'Merriweather, Georgia, serif'
             };
             root.style.setProperty('--cm-font-family', fontStacks[font] || fontStacks['system']);
+            root.dataset.cmMotionStyle = localStorage.getItem('centromail-motion-style') || 'expressive';
             root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
         })();
     </script>
@@ -43,6 +44,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+    <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
     {% block head %}{% endblock %}
     <title>{% block title %}Row Project{% endblock %}</title>
 </head>

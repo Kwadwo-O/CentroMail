@@ -96,6 +96,10 @@
                 <input id="motion-preference" type="checkbox">
                 <span class="switch-track" aria-hidden="true"></span>
             </label>
+            <label class="settings-control">
+                <span><strong>Animation style</strong><small>Choose expressive entrances or quicker, subtle transitions.</small></span>
+                <select id="motion-style-preference" aria-label="Animation style"><option value="expressive">Expressive</option><option value="standard">Subtle</option></select>
+            </label>
             <label class="settings-switch">
                 <span><strong>Confirm destructive actions</strong><small>Ask before disconnecting integrations or deleting data.</small></span>
                 <input id="confirm-preference" type="checkbox">
@@ -152,11 +156,13 @@
         const textScale = document.querySelector('#text-scale-preference');
         const corner = document.querySelector('#corner-preference');
         const motion = document.querySelector('#motion-preference');
+        const motionStyle = document.querySelector('#motion-style-preference');
         const customAccent = document.querySelector('#custom-accent');
         const root = document.documentElement;
         textScale.value = localStorage.getItem('centromail-text-scale') || '1';
         corner.value = localStorage.getItem('centromail-corners') || 'soft';
         motion.checked = localStorage.getItem('centromail-reduce-motion') === 'true';
+        motionStyle.value = localStorage.getItem('centromail-motion-style') || 'expressive';
         customAccent.value = localStorage.getItem('centromail-accent') || '#50745c';
         font.value = localStorage.getItem('centromail-font') || 'system';
 
@@ -203,6 +209,7 @@
             root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
             root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
             root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
+            root.dataset.cmMotionStyle = localStorage.getItem('centromail-motion-style') || 'expressive';
             applyFont();
         };
         applyCustomization();
@@ -215,6 +222,7 @@
         textScale.addEventListener('change', () => { localStorage.setItem('centromail-text-scale', textScale.value); applyCustomization(); });
         corner.addEventListener('change', () => { localStorage.setItem('centromail-corners', corner.value); applyCustomization(); });
         motion.addEventListener('change', () => { localStorage.setItem('centromail-reduce-motion', motion.checked); applyCustomization(); });
+        motionStyle.addEventListener('change', () => { localStorage.setItem('centromail-motion-style', motionStyle.value); applyCustomization(); });
         font.addEventListener('change', () => { localStorage.setItem('centromail-font', font.value); applyCustomization(); });
 
         theme.addEventListener('change', () => {
@@ -233,13 +241,13 @@
             confirmActions.checked = true;
             document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             theme.checked = document.documentElement.dataset.theme === 'dark';
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font'].forEach((key) => localStorage.removeItem(key));
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font', 'centromail-motion-style'].forEach((key) => localStorage.removeItem(key));
             applyCustomization();
             feedback.textContent = 'Browser preferences cleared.';
         });
         document.querySelector('#reset-customization').addEventListener('click', () => {
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font'].forEach((key) => localStorage.removeItem(key));
-            textScale.value = '1'; corner.value = 'soft'; motion.checked = false; customAccent.value = '#50745c'; applyCustomization();
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font', 'centromail-motion-style'].forEach((key) => localStorage.removeItem(key));
+            textScale.value = '1'; corner.value = 'soft'; motion.checked = false; motionStyle.value = 'expressive'; customAccent.value = '#50745c'; applyCustomization();
             feedback.textContent = 'Customization reset to defaults.';
         });
     })();

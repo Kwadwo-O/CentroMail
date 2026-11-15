@@ -256,6 +256,11 @@
     display: none;
 }
 
+.auth-loading { max-width: calc(100% - 24px); width: max-content; }
+.auth-loading [data-auth-loading-label] { min-width: 0; }
+.auth-cancel { background: transparent; border: 0; border-radius: 999px; color: var(--m3e-sys-color-primary); cursor: pointer; font: inherit; font-weight: 600; padding: 8px 10px; }
+.auth-cancel:focus-visible { outline: 2px solid var(--m3e-sys-color-primary); }
+
 .loading-indicator {
     animation: auth-spin 0.9s linear infinite;
     border: 2px solid var(--m3e-sys-color-outline-variant);

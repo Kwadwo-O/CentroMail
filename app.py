@@ -15,6 +15,7 @@ from email.utils import parsedate_to_datetime
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 import bleach
@@ -26,6 +27,7 @@ from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+from google_transport import GoogleOAuthApp, google_requests
 
 try:
     from telethon import TelegramClient
@@ -64,10 +66,21 @@ app.config.update(
 oauth = OAuth(app)
 google = oauth.register(
     name="google",
+    client_cls=GoogleOAuthApp,
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile https://www.googleapis.com/auth/gmail.modify"},
+    # Google's stable OIDC endpoints let sign-in redirect immediately, without
+    # a discovery request before the browser can open the consent screen.
+    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
+    access_token_url="https://oauth2.googleapis.com/token",
+    jwks_uri="https://www.googleapis.com/oauth2/v3/certs",
+    issuer="https://accounts.google.com",
+    userinfo_endpoint="https://openidconnect.googleapis.com/v1/userinfo",
+    id_token_signing_alg_values_supported=["RS256"],
+    client_kwargs={
+        "scope": "openid email profile https://www.googleapis.com/auth/gmail.modify",
+        "default_timeout": (5, 15),
+    },
     authorize_params={"access_type": "offline", "prompt": "consent"},
 )
 
@@ -300,7 +313,7 @@ def get_gmail_access_token(user):
     refresh_token = token.get("refresh_token")
     if not refresh_token:
         return None
-    response = requests.post(
+    response = google_requests.post(
         "https://oauth2.googleapis.com/token",
         data={
             "client_id": app.config["GOOGLE_CLIENT_ID"],
@@ -642,7 +655,7 @@ def fetch_gmail_message_ids(user, headers):
         }
         if next_page_token:
             params["pageToken"] = next_page_token
-        response = requests.get(
+        response = google_requests.get(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
             headers=headers,
             params=params,
@@ -657,7 +670,7 @@ def fetch_gmail_message_ids(user, headers):
 
 
 def _fetch_gmail_detail(headers, message_id):
-    detail = requests.get(
+    detail = google_requests.get(
         f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
         headers=headers,
         params=[
@@ -807,7 +820,7 @@ def fetch_gmail_message(user, message_id):
     access_token = get_gmail_access_token(user)
     if not access_token:
         return None
-    response = requests.get(
+    response = google_requests.get(
         f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
         headers={"Authorization": "Bearer " + access_token},
         params={"userId": "me", "format": "full"},
@@ -831,7 +844,7 @@ def send_gmail_message(user, recipient, subject, body):
     email["From"] = user["email"]
     email.set_content(body)
     raw = base64.urlsafe_b64encode(email.as_bytes()).decode().rstrip("=")
-    response = requests.post(
+    response = google_requests.post(
         "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
         headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
         json={"raw": raw},
@@ -1948,7 +1961,7 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
             params["q"] = search
         if cursor:
             params["pageToken"] = cursor
-        response = requests.get(
+        response = google_requests.get(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
             headers=headers, params=params, timeout=(5, 15),
         )
@@ -2026,7 +2039,7 @@ def mailbox_counts():
             return jsonify({})
         counts = {}
         for folder, label in (("inbox", "INBOX"), ("drafts", "DRAFT")):
-            response = requests.get(
+            response = google_requests.get(
                 "https://gmail.googleapis.com/gmail/v1/users/me/labels/" + label,
                 headers={"Authorization": "Bearer " + token}, timeout=(5, 10),
             )
@@ -2061,7 +2074,7 @@ def mail_action():
         token = get_gmail_access_token(g.user)
         if not token:
             return jsonify(error="Connect Google to change your email.", reconnect=True), 409
-        response = requests.post(
+        response = google_requests.post(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
             headers={"Authorization": "Bearer " + token},
             json={"ids": ids, "addLabelIds": add, "removeLabelIds": remove}, timeout=(5, 20),
@@ -2569,7 +2582,21 @@ def authenticate(provider):
         if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
             flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
             return redirect(url_for('login'))
-        return google.authorize_redirect(google_callback_uri())
+        callback_uri = google_callback_uri()
+        callback = urlparse(callback_uri)
+        origin = urlparse(request.host_url)
+        loopback = {"localhost", "127.0.0.1", "::1"}
+        # OAuth state is stored in a host-specific cookie. Start sign-in on
+        # the configured local callback host before creating that state.
+        if (callback.hostname in loopback and origin.hostname in loopback
+                and callback.scheme == origin.scheme and callback.port == origin.port
+                and callback.netloc != origin.netloc):
+            return redirect(f"{callback.scheme}://{callback.netloc}{url_for('authenticate', provider='google')}")
+        try:
+            return google.authorize_redirect(callback_uri)
+        except (requests.RequestException, OAuthError, ValueError):
+            flash("Could not connect to Google. Please try signing in again.", "error")
+            return redirect(url_for('login'))
 
     flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
     return redirect(url_for('login'))
@@ -2593,6 +2620,9 @@ def google_callback():
         else:
             message = "Google sign-in could not be completed. Check the OAuth callback URI and try again."
         flash(message, "error")
+        return redirect(url_for('login'))
+    except (requests.RequestException, ValueError):
+        flash("Google sign-in took too long or could not connect. Please try again.", "error")
         return redirect(url_for('login'))
 
     profile = token.get("userinfo")
