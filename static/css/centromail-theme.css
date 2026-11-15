@@ -37,9 +37,9 @@
 :root[data-theme="light"],
 :root.palette-light {
     color-scheme: light;
-    --m3e-sys-color-background: #f1f7ed;
+    --m3e-sys-color-background: #ffffff;
     --m3e-sys-color-on-background: #243e36;
-    --m3e-sys-color-surface: #f1f7ed;
+    --m3e-sys-color-surface: #ffffff;
     --m3e-sys-color-surface-dim: #d5e4b8;
     --m3e-sys-color-surface-bright: #ffffff;
     --m3e-sys-color-surface-container-lowest: #ffffff;
@@ -76,9 +76,9 @@
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
         color-scheme: light;
-        --m3e-sys-color-background: #f1f7ed;
+        --m3e-sys-color-background: #ffffff;
         --m3e-sys-color-on-background: #243e36;
-        --m3e-sys-color-surface: #f1f7ed;
+        --m3e-sys-color-surface: #ffffff;
         --m3e-sys-color-surface-dim: #d5e4b8;
         --m3e-sys-color-surface-bright: #ffffff;
         --m3e-sys-color-surface-container-lowest: #ffffff;
