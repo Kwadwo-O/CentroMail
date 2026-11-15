@@ -18,6 +18,7 @@ from pathlib import Path
 
 import requests
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
@@ -492,6 +493,11 @@ def decode_gmail_body(payload):
                 "*": ["class", "style", "id"]
             },
             protocols=["http", "https", "mailto"],
+            css_sanitizer=CSSSanitizer(allowed_css_properties=[
+                "color", "background-color", "font-weight", "font-style",
+                "text-decoration", "text-align", "margin", "padding",
+                "border", "display", "width", "height"
+            ]),
             strip=True
         ).strip()
 
