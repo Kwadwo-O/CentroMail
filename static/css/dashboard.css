@@ -230,8 +230,7 @@ body:has(.dashboard-app) .page-content {
 
 .dashboard-welcome {
     align-items: center;
-    background:
-        linear-gradient(120deg, var(--m3e-sys-color-primary-container), var(--m3e-sys-color-surface-container-high));
+    background: var(--m3e-sys-color-primary-container);
     border-radius: 1.9rem;
     color: var(--m3e-sys-color-on-primary-container);
     display: flex;

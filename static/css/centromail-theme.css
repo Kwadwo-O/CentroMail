@@ -162,7 +162,7 @@ html {
 body {
     background: var(--m3e-sys-color-background);
     color: var(--m3e-sys-color-on-surface);
-    font-family: "Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--cm-font-family, "Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     transition: background-color 220ms ease, color 220ms ease;

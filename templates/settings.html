@@ -58,6 +58,22 @@
                 </select>
             </label>
             <label class="settings-control">
+                <span><strong>Font</strong><small>Choose any Google Font for the interface.</small></span>
+                <select id="font-preference" aria-label="Font preference">
+                    <option value="system" selected>Use system font</option>
+                    <option value="google-sans">Google Sans</option>
+                    <option value="roboto">Roboto</option>
+                    <option value="open-sans">Open Sans</option>
+                    <option value="lato">Lato</option>
+                    <option value="montserrat">Montserrat</option>
+                    <option value="inter">Inter</option>
+                    <option value="poppins">Poppins</option>
+                    <option value="nunito">Nunito</option>
+                    <option value="playfair-display">Playfair Display</option>
+                    <option value="merriweather">Merriweather</option>
+                </select>
+            </label>
+            <label class="settings-control">
                 <span><strong>Inbox density</strong><small>Change the spacing of message rows.</small></span>
                 <select id="density-preference" aria-label="Inbox density">
                     <option value="comfortable">Comfortable</option>
@@ -118,11 +134,13 @@
 {% block scripts %}
 <script>
     (() => {
+        const font = document.querySelector('#font-preference');
         const keys = {
             theme: 'centromail-theme',
             density: 'centromail-density',
             autoRefresh: 'centromail-auto-refresh',
-            confirm: 'centromail-confirm-actions'
+            confirm: 'centromail-confirm-actions',
+            font: 'centromail-font'
         };
         const theme = document.querySelector('#theme-preference');
         const density = document.querySelector('#density-preference');
@@ -143,6 +161,42 @@
         corner.value = localStorage.getItem('centromail-corners') || 'soft';
         motion.checked = localStorage.getItem('centromail-reduce-motion') === 'true';
         customAccent.value = localStorage.getItem('centromail-accent') || '#50745c';
+        font.value = localStorage.getItem('centromail-font') || 'system';
+
+        const fontStacks = {
+            'system': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
+            'google-sans': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
+            'roboto': 'Roboto, ui-sans-serif, system-ui, sans-serif',
+            'open-sans': '"Open Sans", ui-sans-serif, system-ui, sans-serif',
+            'lato': 'Lato, ui-sans-serif, system-ui, sans-serif',
+            'montserrat': 'Montserrat, ui-sans-serif, system-ui, sans-serif',
+            'inter': 'Inter, ui-sans-serif, system-ui, sans-serif',
+            'poppins': 'Poppins, ui-sans-serif, system-ui, sans-serif',
+            'nunito': 'Nunito, ui-sans-serif, system-ui, sans-serif',
+            'playfair-display': '"Playfair Display", Georgia, serif',
+            'merriweather': 'Merriweather, Georgia, serif'
+        };
+
+        const applyFont = () => {
+            const selectedFont = localStorage.getItem('centromail-font') || 'system';
+            const stack = fontStacks[selectedFont] || fontStacks['system'];
+            root.style.setProperty('--cm-font-family', stack);
+            // Load Google Font if not the system/Google Sans default
+            if (selectedFont !== 'system' && selectedFont !== 'google-sans') {
+                const fontName = selectedFont
+                    .split('-')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join('+');
+                if (!document.querySelector(`link[data-cm-font="${selectedFont}"]`)) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.dataset.cmFont = selectedFont;
+                    link.href = `https://fonts.googleapis.com/css2?family=${fontName}:wght@300;400;500;600;700;800&display=swap`;
+                    document.head.appendChild(link);
+                }
+            }
+        };
+        applyFont();
 
         const applyCustomization = () => {
             const accent = localStorage.getItem('centromail-accent') || '#50745c';
@@ -152,6 +206,7 @@
             root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
             root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
             root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
+            applyFont();
         };
         applyCustomization();
         document.querySelectorAll('[data-accent]').forEach((button) => button.addEventListener('click', () => {
@@ -163,6 +218,7 @@
         textScale.addEventListener('change', () => { localStorage.setItem('centromail-text-scale', textScale.value); applyCustomization(); });
         corner.addEventListener('change', () => { localStorage.setItem('centromail-corners', corner.value); applyCustomization(); });
         motion.addEventListener('change', () => { localStorage.setItem('centromail-reduce-motion', motion.checked); applyCustomization(); });
+        font.addEventListener('change', () => { localStorage.setItem('centromail-font', font.value); applyCustomization(); });
 
         theme.addEventListener('change', () => {
             if (theme.value === 'system') {
@@ -184,12 +240,12 @@
             autoRefresh.checked = true;
             confirmActions.checked = true;
             delete document.documentElement.dataset.theme;
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion'].forEach((key) => localStorage.removeItem(key));
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font'].forEach((key) => localStorage.removeItem(key));
             applyCustomization();
             feedback.textContent = 'Browser preferences cleared.';
         });
         document.querySelector('#reset-customization').addEventListener('click', () => {
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion'].forEach((key) => localStorage.removeItem(key));
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font'].forEach((key) => localStorage.removeItem(key));
             textScale.value = '1'; corner.value = 'soft'; motion.checked = false; customAccent.value = '#50745c'; applyCustomization();
             feedback.textContent = 'Customization reset to defaults.';
         });
