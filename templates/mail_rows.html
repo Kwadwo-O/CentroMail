@@ -1,0 +1,12 @@
+{% for message in messages %}
+<article class="message{% if message.unread %} unread{% endif %}" data-message-id="{{ message.id }}" data-category="{{ message.category }}" data-message-url="{{ url_for('message_detail', message_id=message.id, folder=folder) }}" tabindex="0" role="link" aria-label="Open {{ message.subject }} from {{ message.sender }}">
+    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select message from {{ message.sender }}"><span class="checkmark"></span></label>
+    <button class="star-button{% if message.starred %} starred{% endif %}" type="button" aria-label="{{ 'Unstar' if message.starred else 'Star' }} message" aria-pressed="{{ 'true' if message.starred else 'false' }}"><span class="material-symbols-rounded" aria-hidden="true">star</span></button>
+    <div class="sender-avatar" aria-hidden="true">{{ message.sender[:2]|upper }}</div>
+    <a class="message-details" href="{{ url_for('message_detail', message_id=message.id, folder=folder) }}">
+        <strong class="message-sender">{{ message.sender }}</strong>
+        <span class="message-summary"><b class="message-subject">{{ message.subject }}</b><span class="message-preview"> — {{ message.preview }}</span></span>
+    </a>
+    <time class="message-date" title="{{ message.date or message.time }}">{{ message.time }}</time>
+</article>
+{% endfor %}

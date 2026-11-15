@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Email | CentroMail{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">{% endblock %}
+{% block content %}
+<section class="message-page">
+    <header class="reader-toolbar"><a class="reader-back" href="{{ url_for('inbox', folder=folder) }}"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to {{ folder_title }}</a></header>
+    {% include 'message_error.html' %}
+</section>
+{% endblock %}

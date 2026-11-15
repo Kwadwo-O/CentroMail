@@ -54,6 +54,20 @@ account with the same email, then opens the dashboard. The same Google token
 is used by the Gmail inbox, message reader and composer; the Gmail API must be
 enabled for the Google Cloud project.
 
+The inbox opens from a small local preview and loads Gmail in batches of 25
+messages as you scroll. Refresh checks the current folder again; search and
+the Primary, Updates and Social tabs query Gmail across the mailbox. Sidebar
+links open Inbox, Starred, Snoozed, Sent and Drafts, with additional folders
+under More. Folder counts come from Gmail.
+
+On screens at least 1200 pixels wide, selecting an email opens a reading pane
+beside the inbox. Smaller screens open a full message page. HTML emails use an
+isolated reader that preserves safe typography and table formatting.
+
+Archiving, moving to Trash, changing read status and starring messages require
+Google's `gmail.modify` permission. Accounts connected before this permission
+was added must reconnect Google and accept the updated access request.
+
 Microsoft sign-in still requires OAuth integration.
 
 ### Local integrations

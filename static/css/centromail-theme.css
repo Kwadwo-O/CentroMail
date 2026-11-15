@@ -223,3 +223,7 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+/* Component display rules must respect native hidden states. */
+[hidden] {
+    display: none !important;
+}

@@ -1,30 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ message.subject }} | CentroMail{% endblock %}
-
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">{% endblock %}
 {% block content %}
-<section class="message-detail">
-    <a class="back-link" href="{{ url_for('inbox') }}">← Back to inbox</a>
-
-    <article class="mail-card">
-        <div class="mail-header">
-            <div>
-                <p class="eyebrow">From</p>
-                <h2>{{ message.sender }}</h2>
-                <p>{{ message.email }}</p>
-            </div>
-            <span class="mail-time">{{ message.date or message.time }}</span>
-        </div>
-
-        <h3>{{ message.subject }}</h3>
-        {% if message.body is mapping and message.body.html %}
-        <div class="mail-body mail-body-html">{{ message.body.html | safe }}</div>
-        {% else %}
-        <div class="mail-body">{{ message.body.text if message.body is mapping else message.body }}</div>
-        {% endif %}
-
-        <div class="message-actions">
-            <a class="button" href="{{ url_for('inbox') }}">Back to inbox</a>
-        </div>
-    </article>
+<section class="message-page">
+    <header class="reader-toolbar">
+        <a class="reader-back" href="{{ url_for('inbox', folder=folder) }}"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to {{ folder_title }}</a>
+    </header>
+    {% include 'message_pane.html' %}
 </section>
 {% endblock %}

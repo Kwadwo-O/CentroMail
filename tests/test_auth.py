@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import urlparse
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -181,41 +181,104 @@ class AuthTests(unittest.TestCase):
 
     def test_manual_inbox_refresh_finds_new_mail_with_a_fresh_cached_list(self):
         self.register()
-        user_id = self.users()[0]["id"]
-        with application.app.app_context():
-            application.save_gmail_message_ids(user_id, [])
-        message = {
-            "id": "new-message",
-            "sender": "Sender",
-            "subject": "New mail after refreshing",
-            "preview": "Just arrived",
-            "time": "12:00",
-            "internal_date": 123,
-            "unread": True,
-            "starred": False,
-            "category": "primary",
-        }
+        message = self.mail_metadata("new-message")
+        response = Mock()
+        response.json.return_value = {"messages": []}
         with (
             patch.object(application, "get_gmail_access_token", return_value="test-token"),
-            patch.object(application, "fetch_gmail_message_ids", return_value=[message["id"]]) as list_mail,
-            patch.object(application, "_fetch_gmail_detail", return_value=message) as get_detail,
+            patch.object(application.requests, "get", return_value=response) as list_mail,
+            patch.object(application, "_fetch_gmail_detail", return_value=message) as detail,
         ):
-            response = self.client.get("/inbox")
-            self.assertEqual(response.status_code, 200)
-            self.assertNotIn(message["subject"].encode(), response.data)
-            list_mail.assert_not_called()
-
-            response = self.client.get("/inbox?refresh=1&page=1")
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(message["subject"].encode(), response.data)
-            list_mail.assert_called_once()
-            get_detail.assert_called_once()
-
-            # Normal navigation reuses the list saved by the manual refresh.
-            response = self.client.get("/inbox")
-            self.assertIn(message["subject"].encode(), response.data)
+            self.assertEqual(self.client.get("/api/mail/messages").json["count"], 0)
+            response.json.return_value = {"messages": [{"id": message["id"]}]}
+            self.assertEqual(self.client.get("/api/mail/messages").json["count"], 0)
             self.assertEqual(list_mail.call_count, 1)
-            self.assertEqual(get_detail.call_count, 1)
+            refreshed = self.client.get("/api/mail/messages?refresh=1")
+            self.assertEqual(refreshed.status_code, 200)
+            self.assertIn(message["subject"], refreshed.json["html"])
+            self.assertEqual(list_mail.call_count, 2)
+            detail.assert_called_once()
+            self.assertEqual(self.client.get("/api/mail/messages").json["count"], 1)
+            self.assertEqual(list_mail.call_count, 2)
+
+    @staticmethod
+    def mail_metadata(message_id, labels=None):
+        labels = labels if labels is not None else ["INBOX", "UNREAD"]
+        return {"id": message_id, "sender": "Test Sender", "email": "sender@example.com",
+                "subject": "Subject " + message_id, "preview": "Message preview", "time": "Nov 15",
+                "date": "Nov 15, 2026", "internal_date": 123, "label_ids": labels,
+                "unread": "UNREAD" in labels, "starred": "STARRED" in labels, "category": "primary"}
+
+    def test_inbox_renders_only_a_small_cached_preview_without_network(self):
+        self.register()
+        with application.app.app_context():
+            for index in range(40):
+                application.gmail_cache_put(self.users()[0]["id"], str(index), metadata=self.mail_metadata(str(index)))
+        with patch.object(application, "get_gmail_access_token") as token:
+            response = self.client.get("/inbox")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data.count(b'class="message unread"'), application.MAIL_BATCH_SIZE)
+            token.assert_not_called()
+
+    def test_mail_folders_and_cursor_load_only_the_requested_gmail_page(self):
+        self.register()
+        response = Mock()
+        response.json.return_value = {"messages": [{"id": "sample"}], "nextPageToken": "next-page", "resultSizeEstimate": 3370}
+        with (
+            patch.object(application, "get_gmail_access_token", return_value="test-token"),
+            patch.object(application.requests, "get", return_value=response) as list_mail,
+            patch.object(application, "_fetch_gmail_detail", return_value=self.mail_metadata("sample")),
+        ):
+            for folder, config in application.GMAIL_FOLDERS.items():
+                with self.subTest(folder=folder):
+                    shell = self.client.get("/inbox?folder=" + folder)
+                    self.assertEqual(shell.status_code, 200)
+                    result = self.client.get("/api/mail/messages?folder=" + folder)
+                    self.assertEqual(result.status_code, 200)
+                    self.assertEqual(result.json["next_cursor"], "next-page")
+                    params = list_mail.call_args.kwargs["params"]
+                    self.assertEqual(params["maxResults"], application.MAIL_BATCH_SIZE)
+                    self.assertNotIn("pageToken", params)
+                    self.assertEqual(params.get("labelIds"), config.get("label"))
+                    self.assertEqual(params.get("q", ""), config.get("query", ""))
+            self.assertEqual(list_mail.call_count, len(application.GMAIL_FOLDERS))
+            self.client.get("/api/mail/messages?cursor=next-page")
+            self.assertEqual(list_mail.call_args.kwargs["params"]["pageToken"], "next-page")
+            self.assertEqual(self.client.get("/api/mail/messages?folder=unknown").status_code, 404)
+
+    def test_message_actions_require_csrf_and_update_gmail_and_local_metadata(self):
+        self.register()
+        user_id = self.users()[0]["id"]
+        with application.app.app_context():
+            application.gmail_cache_put(user_id, "sample", metadata=self.mail_metadata("sample"))
+        self.assertEqual(self.client.post("/api/mail/action", data={"action": "read", "message_ids": "sample"}).status_code, 400)
+        with (
+            patch.object(application, "get_gmail_access_token", return_value="test-token"),
+            patch.object(application.requests, "post", return_value=Mock()) as modify,
+        ):
+            for action, add, remove in (("star", ["STARRED"], []), ("read", [], ["UNREAD"]), ("archive", [], ["INBOX"]), ("trash", ["TRASH"], ["INBOX"]), ("restore", ["INBOX"], ["TRASH"])):
+                result = self.post("/api/mail/action", {"action": action, "message_ids": "sample"})
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(modify.call_args.kwargs["json"], {"ids": ["sample"], "addLabelIds": add, "removeLabelIds": remove})
+                with application.app.app_context():
+                    labels = application.gmail_cache_get(user_id, "sample")["label_ids"]
+                    for label in add: self.assertIn(label, labels)
+                    for label in remove: self.assertNotIn(label, labels)
+
+    def test_formatted_message_body_survives_cache_and_renders_in_isolated_reader(self):
+        self.register()
+        user_id = self.users()[0]["id"]
+        body = {"text": "Hello", "html": '<p style="font-size:20px">Hello</p>'}
+        with application.app.app_context():
+            application.gmail_cache_put(user_id, "sample", metadata=self.mail_metadata("sample"), body=body)
+            self.assertEqual(application.gmail_cache_get(user_id, "sample", body=True), body)
+        with patch.object(application.requests, "get") as network:
+            for path in ("/message/sample?folder=sent", "/message/sample?folder=sent&pane=1"):
+                result = self.client.get(path)
+                self.assertEqual(result.status_code, 200)
+                self.assertIn(b'class="email-body-frame"', result.data)
+                self.assertIn(b'sandbox="allow-popups allow-popups-to-escape-sandbox"', result.data)
+            network.assert_not_called()
 
     def test_legal_pages_are_public_and_linked(self):
         for route, heading in (("/privacy", b"Privacy Notice"), ("/terms", b"Terms of Use")):

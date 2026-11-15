@@ -10,8 +10,7 @@
 }
 
 /* The workspace has its own top bar and navigation rail. */
-body:has(.dashboard-app) .site-header,
-body:has(.dashboard-app) .site-footer {
+body:has(.dashboard-app) .site-header {
     display: none;
 }
 

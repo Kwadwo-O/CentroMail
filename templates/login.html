@@ -7,9 +7,8 @@
     <meta name="description" content="Sign in to CentroMail.">
     <script>
         const savedTheme = localStorage.getItem('centromail-theme');
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            document.documentElement.dataset.theme = savedTheme;
-        }
+        document.documentElement.dataset.theme = savedTheme === 'light' || savedTheme === 'dark'
+            ? savedTheme : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
@@ -97,7 +96,7 @@
                     <span class="m3e-checkbox__state" aria-hidden="true"></span>
                     <span class="m3e-checkbox__label">Remember me</span>
                 </label>
-                <button type="submit" class="m3e-button m3e-button--filled m3e-button--size-l main-btn">Login</button>
+                <button type="submit" class="m3e-button m3e-button--filled m3e-button--size-m main-btn">Login</button>
             </form>
             <div class="switch-area">
                 <span>Don't have an account?</span>
@@ -141,11 +140,15 @@
                 button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
                 button.setAttribute('aria-pressed', String(visible));
             });
-            const loading = document.querySelector('.auth-loading');
-            document.querySelectorAll('form, a[href*="/auth/"]').forEach(control => {
-                control.addEventListener('submit', () => loading.hidden = false);
+        });
+        const loading = document.querySelector('.auth-loading');
+        document.querySelector('.auth-form').addEventListener('submit', () => loading.hidden = false);
+        document.querySelectorAll('a[href*="/auth/"]').forEach(link => {
+            link.addEventListener('click', event => {
+                if (!event.ctrlKey && !event.metaKey && !event.shiftKey) loading.hidden = false;
             });
         });
+        window.addEventListener('pageshow', () => loading.hidden = true);
     </script>
 </body>
 </html>

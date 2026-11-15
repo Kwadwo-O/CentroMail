@@ -18,6 +18,7 @@ from pathlib import Path
 
 import requests
 import bleach
+import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
                    session, url_for)
@@ -502,7 +503,29 @@ def decode_gmail_body(payload):
     safe_html = ""
     if html_parts:
         combined_html = "\n".join(html_parts)
-        # Strip script/style and sanitize remaining HTML to prevent XSS.
+        email_css = CSSSanitizer(allowed_css_properties=[
+            "color", "background-color", "font", "font-family", "font-size", "font-weight",
+            "font-style", "line-height", "letter-spacing", "text-decoration", "text-align",
+            "vertical-align", "white-space", "word-break", "overflow-wrap", "margin",
+            "margin-top", "margin-bottom", "margin-left", "margin-right", "padding",
+            "padding-top", "padding-bottom", "padding-left", "padding-right", "border",
+            "border-top", "border-bottom", "border-left", "border-right", "border-color",
+            "border-width", "border-style", "border-radius", "border-collapse", "border-spacing",
+            "display", "width", "height", "min-width", "max-width", "min-height", "max-height",
+            "table-layout", "list-style-type",
+        ])
+        def clean_rules(css):
+            rules = []
+            for rule in tinycss2.parse_stylesheet(css, skip_comments=True, skip_whitespace=True):
+                if rule.type == "qualified-rule":
+                    declarations = email_css.sanitize_css(tinycss2.serialize(rule.content))
+                    if declarations:
+                        rules.append(tinycss2.serialize(rule.prelude) + "{" + declarations + "}")
+                elif rule.type == "at-rule" and rule.lower_at_keyword == "media" and rule.content:
+                    rules.append("@media " + tinycss2.serialize(rule.prelude) + "{" + clean_rules(tinycss2.serialize(rule.content)) + "}")
+            return "".join(rules)
+        styles = "".join(clean_rules(css) for css in re.findall(r"(?is)<style[^>]*>(.*?)</style>", combined_html))
+        # Preserve safe email typography and tables inside the isolated reader.
         combined_html = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", combined_html)
         safe_html = bleach.clean(
             combined_html,
@@ -510,21 +533,22 @@ def decode_gmail_body(payload):
                 "p", "br", "div", "span", "strong", "b", "em", "i", "u", "s", "strike",
                 "a", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table",
                 "thead", "tbody", "tr", "td", "th", "blockquote", "pre", "code", "hr",
-                "img", "sub", "sup", "small", "mark", "del", "ins"
+                "img", "sub", "sup", "small", "mark", "del", "ins", "center", "caption", "colgroup", "col"
             ],
             attributes={
-                "a": ["href", "title", "target"],
+                "a": ["href", "title"],
                 "img": ["src", "alt", "title", "width", "height"],
+                "table": ["width", "align", "cellpadding", "cellspacing", "border"],
+                "td": ["colspan", "rowspan", "width", "height", "align", "valign"],
+                "th": ["colspan", "rowspan", "width", "align", "valign"],
                 "*": ["class", "style", "id"]
             },
             protocols=["http", "https", "mailto"],
-            css_sanitizer=CSSSanitizer(allowed_css_properties=[
-                "color", "background-color", "font-weight", "font-style",
-                "text-decoration", "text-align", "margin", "padding",
-                "border", "display", "width", "height"
-            ]),
+            css_sanitizer=email_css,
             strip=True
         ).strip()
+        if styles:
+            safe_html = "<style>" + styles.replace("<", "\\3c ") + "</style>" + safe_html
 
     return {"text": plain_text, "html": safe_html}
 
@@ -2101,8 +2125,10 @@ def message_detail(message_id):
     except (RuntimeError, requests.RequestException, KeyError, ValueError) as error:
         if request.args.get("pane") == "1":
             return render_template('message_error.html', error="Could not open this email. Reconnect Google or try again."), 502
-        flash(str(error) if isinstance(error, RuntimeError) else "Could not open this email. Please try again.", "error")
-        return redirect(url_for('inbox', folder=folder))
+        return render_template(
+            'message_unavailable.html', folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"],
+            error=str(error) if isinstance(error, RuntimeError) else "Could not open this email. Please try again.",
+        )
     return render_template(
         'message_pane.html' if request.args.get("pane") == "1" else 'message.html',
         message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"],

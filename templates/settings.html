@@ -228,11 +228,11 @@
 
         document.querySelector('#clear-settings-storage').addEventListener('click', () => {
             Object.values(keys).forEach((key) => localStorage.removeItem(key));
-            theme.value = 'system';
             density.value = 'comfortable';
             autoRefresh.checked = true;
             confirmActions.checked = true;
-            delete document.documentElement.dataset.theme;
+            document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            theme.checked = document.documentElement.dataset.theme === 'dark';
             ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font'].forEach((key) => localStorage.removeItem(key));
             applyCustomization();
             feedback.textContent = 'Browser preferences cleared.';

@@ -12,20 +12,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="gmail-app">
+<div class="gmail-app" data-folder="{{ folder }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" data-google-url="{{ url_for('authenticate', provider='google') }}" data-csrf="{{ csrf_token() }}">
     <header class="gmail-header">
-        <button class="icon-button mobile-menu" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Menu" class="ui-icon"></button>
+        <button class="icon-button mobile-menu" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><span class="material-symbols-rounded ui-icon" aria-hidden="true">menu</span></button>
         <a class="gmail-logo" href="{{ url_for('mail') }}">
             <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo">
         </a>
         <label class="search-box">
-            <img src="{{ url_for('static', filename='images/icons/search.svg') }}" alt="Search" class="ui-icon search-icon">
+            <span class="material-symbols-rounded ui-icon" aria-hidden="true">search</span>
             <input id="mail-search" type="search" placeholder="Search mail" aria-label="Search mail">
-            <button type="button" class="icon-button" aria-label="Search options"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Options" class="ui-icon"></button>
+            <span class="material-symbols-rounded search-hint" aria-hidden="true">search</span>
         </label>
         <div class="header-actions">
-            <button class="icon-button" aria-label="Help"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Help" class="ui-icon"></button>
-            <button class="icon-button" aria-label="Settings"><img src="{{ url_for('static', filename='images/icons/lock.svg') }}" alt="Settings" class="ui-icon"></button>
+            <button class="icon-button" id="mail-help-button" type="button" aria-label="Help" title="Inbox help"><span class="material-symbols-rounded" aria-hidden="true">help</span></button>
+            <a class="icon-button" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings"><span class="material-symbols-rounded" aria-hidden="true">settings</span></a>
             <div class="quick-menu-wrap">
                 <button class="icon-button" id="quick-menu-button" type="button" aria-label="Quick menu" aria-expanded="false" aria-controls="quick-menu"><span class="material-symbols-rounded" aria-hidden="true">apps</span></button>
                 <div class="quick-menu" id="quick-menu" hidden>
@@ -38,7 +38,7 @@
             <div class="profile-menu-wrap">
             <button class="profile-button" id="profile-button" type="button" aria-label="Account" aria-expanded="false" aria-controls="profile-menu">
                 {% if g.user.avatar_url %}
-                <img src="{{ g.user.avatar_url }}" alt="">
+                <img src="{{ g.user.avatar_url }}" alt="" referrerpolicy="no-referrer" width="36" height="36">
                 {% else %}
                 <span aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
                 {% endif %}
@@ -69,15 +69,23 @@
         <aside class="mail-sidebar" id="mail-sidebar">
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
-                <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>{{ stats.unread }}</b></a>
-                <a class="mail-nav-link" href="#starred"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Starred" class="ui-icon"><span>Starred</span></a>
-                <a class="mail-nav-link" href="#snoozed"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Snoozed" class="ui-icon"><span>Snoozed</span></a>
-                <a class="mail-nav-link" href="#sent"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Sent" class="ui-icon"><span>Sent</span></a>
-                <a class="mail-nav-link" href="#drafts"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="Drafts" class="ui-icon"><span>Drafts</span><b>3</b></a>
-                <a class="mail-nav-link" href="#more"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="More" class="ui-icon"><span>More</span></a>
+                {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] %}
+                <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key) }}" {% if folder == key %}aria-current="page"{% endif %}>
+                    <span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span>
+                    {% if key in ['inbox', 'drafts'] %}<b data-folder-count="{{ key }}" hidden></b>{% endif %}
+                </a>
+                {% endfor %}
+                <details class="mail-more" {% if folder in ['all', 'important', 'spam', 'trash'] %}open{% endif %}>
+                    <summary class="mail-nav-link"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
+                    <div class="mail-more-folders">
+                        {% for key in ['all', 'important', 'spam', 'trash'] %}
+                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
+                        {% endfor %}
+                    </div>
+                </details>
             </nav>
             <div class="sidebar-section">
-                <div class="section-title"><strong>Labels</strong><button class="icon-button" aria-label="Add label"><img src="{{ url_for('static', filename='images/icons/plus.svg') }}" alt="Add" class="ui-icon"></button></div>
+                <div class="section-title"><strong>Labels</strong><button class="icon-button" aria-label="Add label"><span class="material-symbols-rounded ui-icon" aria-hidden="true">add</span></button></div>
                 <a class="label-link" id="work" href="#work"><i class="label-colour work"></i>Work</a>
                 <a class="label-link" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
                 <a class="label-link" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
@@ -89,61 +97,51 @@
             <div class="inbox-heading">
                 <div>
                     <p class="eyebrow">Main menu</p>
-                    <h1>Inbox</h1>
+                    <h1>{{ folder_title }}</h1>
                 </div>
-                <span class="page-count">{% if stats.total %}{{ page.first }}–{{ page.last }} of {{ stats.total }}{% else %}0–0{% endif %}</span>
+                <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
             </div>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
                 <form class="inbox-refresh-form" id="refresh-mail-form" method="get" action="{{ url_for('inbox') }}">
-                    <input type="hidden" name="page" value="{{ page.page }}">
+                    <input type="hidden" name="folder" value="{{ folder }}">
                     <input type="hidden" name="refresh" value="1">
                     <button class="toolbar-button refresh-button" id="refresh-mail" type="submit" aria-label="Refresh inbox" title="Check for new mail">
                         <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
                         <span data-refresh-label aria-live="polite">Refresh</span>
                     </button>
                 </form>
-                <button class="toolbar-button" id="archive-mail" aria-label="Archive selected"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Archive" class="ui-icon"></button>
-                <button class="toolbar-button" id="delete-mail" aria-label="Delete selected"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Delete" class="ui-icon"></button>
-                <button class="toolbar-button" id="mark-read" aria-label="Mark selected as read"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Read" class="ui-icon"></button>
-                <span class="toolbar-spacer"></span>
-                <a class="toolbar-button{% if page.page <= 1 %} is-disabled{% endif %}" href="{{ url_for('inbox', page=page.page - 1) if page.page > 1 else url_for('inbox') }}" aria-label="Previous page" {% if page.page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Previous" class="ui-icon rotate-left"></a>
-                <a class="toolbar-button{% if page.page >= page.pages %} is-disabled{% endif %}" href="{{ url_for('inbox', page=page.page + 1) if page.page < page.pages else url_for('inbox', page=page.pages) }}" aria-label="Next page" {% if page.page >= page.pages %}aria-disabled="true" tabindex="-1"{% endif %}><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Next" class="ui-icon"></a>
-            </div>
-            {% if gmail_sync and (gmail_sync.remaining or gmail_sync.busy or (gmail_sync.error and gmail_sync.error != 'no_token')) %}
-            <div class="gmail-sync-banner" id="gmail-sync" data-url="{{ url_for('inbox', page=page.page) }}" data-delay="{{ gmail_sync.retry_after or 5 }}">
-                <span class="gmail-sync-spinner" aria-hidden="true"></span>
-                <div>
-                    <strong>{% if gmail_sync.busy %}Waiting for the current sync{% elif gmail_sync.error %}Gmail sync paused{% else %}Syncing your inbox{% endif %}</strong>
-                    {% if gmail_sync.total is not none and gmail_sync.remaining is not none %}
-                    <span>{{ gmail_sync.total - gmail_sync.remaining }} of {{ gmail_sync.total }} messages loaded{% if gmail_sync.remaining %} · {{ gmail_sync.remaining }} remaining{% endif %}</span>
-                    {% elif gmail_sync.busy %}
-                    <span>Another sync is already running. This page will retry automatically.</span>
-                    {% else %}
-                    <span>Showing messages saved on this device.</span>
-                    {% endif %}
-                    {% if gmail_sync.error %}<small>{{ gmail_sync.error }}</small>{% endif %}
+                <div class="mail-selection-actions" role="group" aria-label="Selected message actions">
+                    <button class="toolbar-button" type="button" data-mail-action="{{ 'restore' if folder == 'trash' else 'archive' }}" aria-label="{{ 'Restore' if folder == 'trash' else 'Archive' }} selected messages" title="{{ 'Restore to inbox' if folder == 'trash' else 'Archive selected' }}" disabled><span class="material-symbols-rounded" aria-hidden="true">{{ 'restore_from_trash' if folder == 'trash' else 'archive' }}</span></button>
+                    <button class="toolbar-button" type="button" data-mail-action="trash" aria-label="Move selected messages to Trash" title="Move to Trash" disabled {% if folder == 'trash' %}hidden{% endif %}><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
+                    <button class="toolbar-button" type="button" data-mail-action="read" aria-label="Mark selected messages as read" title="Mark as read" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_read</span></button>
+                    <button class="toolbar-button" type="button" data-mail-action="unread" aria-label="Mark selected messages as unread" title="Mark as unread" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_unread</span></button>
                 </div>
+                <span class="toolbar-spacer"></span>
+                <span class="mail-selection-count" id="mail-selection-count" aria-live="polite"></span>
+            </div>
+            <p class="mail-feedback" id="mail-feedback" role="status" aria-live="polite" hidden></p>
+            {% if folder == 'inbox' %}
+            <div class="inbox-tabs" role="tablist" aria-label="Inbox category">
+                <button class="inbox-tab active" id="mail-tab-primary" type="button" data-tab="primary" role="tab" aria-selected="true" aria-controls="message-list"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Primary</button>
+                <button class="inbox-tab" id="mail-tab-updates" type="button" data-tab="updates" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">notifications</span>Updates</button>
+                <button class="inbox-tab" id="mail-tab-social" type="button" data-tab="social" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">group</span>Social</button>
             </div>
             {% endif %}
-            <div class="inbox-tabs" role="tablist">
-                <button class="inbox-tab active" type="button" data-tab="primary" role="tab" aria-selected="true"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="" class="ui-icon">Primary</button>
-                <button class="inbox-tab" type="button" data-tab="updates" role="tab" aria-selected="false"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="" class="ui-icon">Updates</button>
-                <button class="inbox-tab" type="button" data-tab="social" role="tab" aria-selected="false"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="" class="ui-icon">Social</button>
+            <div class="message-list" id="message-list" {% if folder == 'inbox' %}role="tabpanel" aria-labelledby="mail-tab-primary"{% endif %}>
+                {% include 'mail_rows.html' %}
             </div>
-            <div class="message-list" id="message-list">
-                {% for message in messages %}
-                <article class="message{% if message.unread %} unread{% endif %}" data-category="{{ message.category }}" data-search="{{ message.sender }} {{ message.subject }} {{ message.preview }}" data-message-url="{{ url_for('message_detail', message_id=message.id) }}" tabindex="0" role="link" aria-label="Open {{ message.subject }} from {{ message.sender }}">
-                    <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select {{ message.sender }} message"><span class="checkmark"></span></label>
-                    <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
-                    <div class="sender-avatar">{{ message.sender[:2]|upper }}</div>
-                    <a class="message-details" href="{{ url_for('message_detail', message_id=message.id) }}" aria-label="Open {{ message.subject }} from {{ message.sender }}"><strong>{{ message.sender }}</strong><p><b>{{ message.subject }}</b> — {{ message.preview }}</p></a>
-                    <time>{{ message.time }}</time>
-                </article>
-                {% endfor %}
+            <p class="empty-state" id="empty-state" hidden>No messages in this folder.</p>
+            <div class="mail-load-footer">
+                <p id="mail-load-status" role="status" aria-live="polite">Loading messages…</p>
+                <button class="m3e-button m3e-button--tonal" id="load-more-mail" type="button" hidden>Load more</button>
+                <div id="mail-load-sentinel" aria-hidden="true"></div>
             </div>
-            <p class="empty-state" id="empty-state" {% if messages %}hidden{% endif %}>No messages match your search.</p>
         </main>
+        <aside class="mail-reader" id="mail-reader" aria-label="Email reading pane" hidden>
+            <header class="reader-toolbar"><strong>Email</strong><div><a class="icon-button" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
+            <div class="reader-content" id="reader-content" aria-live="polite"></div>
+        </aside>
     </div>
 
     <div class="apps-workspace workspace-view" data-workspace-view="apps" hidden>
@@ -193,9 +191,16 @@
         </main>
     </div>
 
+    <dialog class="mail-help-dialog" id="mail-help-dialog" aria-labelledby="mail-help-title">
+        <div class="reader-toolbar"><h2 id="mail-help-title">Inbox help</h2><button class="icon-button" id="close-mail-help" type="button" aria-label="Close help"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+        <p>Choose a folder on the left. Messages load as you scroll; use Refresh to check for new mail.</p>
+        <p>Select messages to archive, move to Trash, or change read status. Use the star beside a message to save it to Starred.</p>
+        <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page.</p>
+        <a class="button button-secondary" href="{{ url_for('integrations') }}">Manage connected accounts</a>
+    </dialog>
     <form class="compose-window" id="compose-window" method="post" action="{{ url_for('compose') }}" hidden>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Close" class="ui-icon"></button></div>
+        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
         <input type="email" name="to" placeholder="Recipients" aria-label="Recipients" required>
         <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
         <textarea name="body" placeholder="Write a message..." aria-label="Message" required></textarea>
@@ -207,19 +212,6 @@
 {% block scripts %}
 <script>
     const compose = document.querySelector("#compose-window");
-    document.querySelectorAll(".message[data-message-url]").forEach((row) => {
-        const openMessage = (event) => {
-            if (event.target.closest("a, button, input, label")) return;
-            window.location.href = row.dataset.messageUrl;
-        };
-        row.addEventListener("click", openMessage);
-        row.addEventListener("keydown", (event) => {
-            if ((event.key === "Enter" || event.key === " ") && event.target === row) {
-                event.preventDefault();
-                window.location.href = row.dataset.messageUrl;
-            }
-        });
-    });
     const menus = [
         {button: document.querySelector("#quick-menu-button"), menu: document.querySelector("#quick-menu")},
         {button: document.querySelector("#profile-button"), menu: document.querySelector("#profile-menu")}
@@ -276,50 +268,6 @@
     document.querySelector("#open-compose").addEventListener("click", () => showCompose(true));
     document.querySelector("#close-compose").addEventListener("click", () => showCompose(false));
     document.querySelector("#discard-compose").addEventListener("click", () => showCompose(false));
-    const messages = [...document.querySelectorAll(".message")];
-    const filterMessages = () => {
-        const query = document.querySelector("#mail-search").value.toLowerCase().trim();
-        const tab = document.querySelector(".inbox-tab.active").dataset.tab;
-        let visible = 0;
-        messages.forEach((message) => {
-            const matches = (!query || message.dataset.search.includes(query)) && (tab === "primary" || message.dataset.category === tab);
-            message.hidden = !matches;
-            if (matches) visible += 1;
-        });
-        document.querySelector("#empty-state").hidden = visible > 0;
-    };
-    document.querySelector("#mail-search").addEventListener("input", filterMessages);
-    document.querySelectorAll(".inbox-tab").forEach((tab) => tab.addEventListener("click", () => {
-        const currentTab = document.querySelector(".inbox-tab.active");
-        currentTab.classList.remove("active");
-        currentTab.setAttribute("aria-selected", "false");
-        tab.classList.add("active");
-        tab.setAttribute("aria-selected", "true");
-        filterMessages();
-    }));
-    document.querySelector("#select-all").addEventListener("change", (event) => {
-        document.querySelectorAll(".message:not([hidden]) .message-check").forEach((check) => { check.checked = event.target.checked; });
-    });
-    document.querySelectorAll(".star-button").forEach((button) => button.addEventListener("click", () => button.classList.toggle("starred")));
-    document.querySelector("#refresh-mail-form").addEventListener("submit", () => {
-        window.clearTimeout(gmailSyncTimer);
-        const button = document.querySelector("#refresh-mail");
-        button.disabled = true;
-        button.setAttribute("aria-busy", "true");
-        button.setAttribute("aria-label", "Refreshing inbox");
-        button.querySelector("[data-refresh-label]").textContent = "Refreshing…";
-    });
-    document.querySelector("#mark-read").addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").classList.remove("unread")));
-    document.querySelectorAll("#archive-mail, #delete-mail").forEach((button) => button.addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").remove())));
-
-    const gmailSync = document.querySelector("#gmail-sync");
-    let gmailSyncTimer;
-    if (gmailSync) {
-        gmailSyncTimer = window.setTimeout(() => {
-            window.location.replace(gmailSync.dataset.url);
-        }, Math.max(3, Number(gmailSync.dataset.delay) || 5) * 1000);
-    }
-
     document.querySelectorAll(".workspace-tab").forEach((tab) => tab.addEventListener("click", () => {
         const workspace = tab.dataset.workspace;
         document.querySelectorAll(".workspace-tab").forEach((item) => {
@@ -333,4 +281,5 @@
         document.querySelector("#mail-search").placeholder = workspace === "apps" ? "Search conversations" : "Search mail";
     }));
 </script>
+<script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
 {% endblock %}
