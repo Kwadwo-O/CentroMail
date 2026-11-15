@@ -10,6 +10,20 @@
             ? savedTheme
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     </script>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const accent = localStorage.getItem('centromail-accent');
+            if (accent) {
+                root.style.setProperty('--m3e-sys-color-primary', accent);
+                root.style.setProperty('--m3e-sys-color-primary-dim', accent);
+                root.style.setProperty('--m3e-sys-color-surface-tint', accent);
+            }
+            root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
+            root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
+            root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">

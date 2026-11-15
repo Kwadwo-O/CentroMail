@@ -20,6 +20,89 @@
                 <strong>Password sign-in</strong>
             </div>
         </div>
+        <section class="settings-section" aria-labelledby="appearance-heading">
+            <div class="settings-section-heading">
+                <div>
+                    <p class="eyebrow">Personalize</p>
+                    <h2 id="appearance-heading">Appearance</h2>
+                </div>
+            </div>
+            <label class="settings-control">
+                <span><strong>Theme</strong><small>Choose how CentroMail looks on this device.</small></span>
+                <select id="theme-preference" aria-label="Theme preference">
+                    <option value="system">Use device setting</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </label>
+            <div class="settings-control settings-color-control">
+                <span><strong>Accent color</strong><small>Choose a brand accent for buttons and highlights.</small></span>
+                <div class="color-options">
+                    <button class="color-swatch" type="button" data-accent="#50745c" style="--swatch:#50745c" aria-label="Green accent"></button>
+                    <button class="color-swatch" type="button" data-accent="#456b8a" style="--swatch:#456b8a" aria-label="Blue accent"></button>
+                    <button class="color-swatch" type="button" data-accent="#805a78" style="--swatch:#805a78" aria-label="Plum accent"></button>
+                    <button class="color-swatch" type="button" data-accent="#9a6337" style="--swatch:#9a6337" aria-label="Amber accent"></button>
+                    <label class="custom-color"><span class="sr-only">Custom accent color</span><input id="custom-accent" type="color" value="#50745c"></label>
+                </div>
+            </div>
+            <label class="settings-control">
+                <span><strong>Text size</strong><small>Adjust reading size across the workspace.</small></span>
+                <select id="text-scale-preference" aria-label="Text size">
+                    <option value="0.9">Small</option><option value="1" selected>Default</option><option value="1.1">Large</option><option value="1.2">Extra large</option>
+                </select>
+            </label>
+            <label class="settings-control">
+                <span><strong>Corner style</strong><small>Choose softer or sharper surfaces.</small></span>
+                <select id="corner-preference" aria-label="Corner style">
+                    <option value="soft">Soft</option><option value="balanced">Balanced</option><option value="sharp">Sharp</option>
+                </select>
+            </label>
+            <label class="settings-control">
+                <span><strong>Inbox density</strong><small>Change the spacing of message rows.</small></span>
+                <select id="density-preference" aria-label="Inbox density">
+                    <option value="comfortable">Comfortable</option>
+                    <option value="compact">Compact</option>
+                </select>
+            </label>
+        </section>
+
+        <section class="settings-section" aria-labelledby="behavior-heading">
+            <div class="settings-section-heading">
+                <div>
+                    <p class="eyebrow">Behavior</p>
+                    <h2 id="behavior-heading">Inbox and actions</h2>
+                </div>
+            </div>
+            <label class="settings-switch">
+                <span><strong>Refresh inbox automatically</strong><small>Let the inbox check for new messages while open.</small></span>
+                <input id="auto-refresh-preference" type="checkbox">
+                <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <label class="settings-switch">
+                <span><strong>Reduce motion</strong><small>Use simpler transitions and animations.</small></span>
+                <input id="motion-preference" type="checkbox">
+                <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <label class="settings-switch">
+                <span><strong>Confirm destructive actions</strong><small>Ask before disconnecting integrations or deleting data.</small></span>
+                <input id="confirm-preference" type="checkbox">
+                <span class="switch-track" aria-hidden="true"></span>
+            </label>
+        </section>
+
+        <section class="settings-section" aria-labelledby="data-heading">
+            <div class="settings-section-heading">
+                <div>
+                    <p class="eyebrow">Your data</p>
+                    <h2 id="data-heading">Browser storage</h2>
+                </div>
+            </div>
+            <p class="settings-help">CentroMail stores only theme, display and non-secret integration preferences in this browser. Connection secrets remain in the local database.</p>
+            <button class="button button-secondary" id="clear-settings-storage" type="button">Clear browser preferences</button>
+            <button class="button button-secondary" id="reset-customization" type="button">Reset customization</button>
+            <p class="settings-feedback" id="settings-feedback" role="status" aria-live="polite"></p>
+        </section>
+
         <section class="settings-danger" aria-labelledby="delete-account-heading">
             <h2 id="delete-account-heading">Delete account</h2>
             <p>Delete your CentroMail account and all data stored locally, including cached email, integration credentials, and messaging records. Removing an integration deletes its locally stored connection data.</p>
@@ -30,4 +113,86 @@
         </section>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (() => {
+        const keys = {
+            theme: 'centromail-theme',
+            density: 'centromail-density',
+            autoRefresh: 'centromail-auto-refresh',
+            confirm: 'centromail-confirm-actions'
+        };
+        const theme = document.querySelector('#theme-preference');
+        const density = document.querySelector('#density-preference');
+        const autoRefresh = document.querySelector('#auto-refresh-preference');
+        const confirmActions = document.querySelector('#confirm-preference');
+        const feedback = document.querySelector('#settings-feedback');
+
+        theme.value = localStorage.getItem(keys.theme) || 'system';
+        density.value = localStorage.getItem(keys.density) || 'comfortable';
+        autoRefresh.checked = localStorage.getItem(keys.autoRefresh) !== 'false';
+            confirmActions.checked = localStorage.getItem(keys.confirm) !== 'false';
+        const textScale = document.querySelector('#text-scale-preference');
+        const corner = document.querySelector('#corner-preference');
+        const motion = document.querySelector('#motion-preference');
+        const customAccent = document.querySelector('#custom-accent');
+        const root = document.documentElement;
+        textScale.value = localStorage.getItem('centromail-text-scale') || '1';
+        corner.value = localStorage.getItem('centromail-corners') || 'soft';
+        motion.checked = localStorage.getItem('centromail-reduce-motion') === 'true';
+        customAccent.value = localStorage.getItem('centromail-accent') || '#50745c';
+
+        const applyCustomization = () => {
+            const accent = localStorage.getItem('centromail-accent') || '#50745c';
+            root.style.setProperty('--m3e-sys-color-primary', accent);
+            root.style.setProperty('--m3e-sys-color-primary-dim', accent);
+            root.style.setProperty('--m3e-sys-color-surface-tint', accent);
+            root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
+            root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
+            root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
+        };
+        applyCustomization();
+        document.querySelectorAll('[data-accent]').forEach((button) => button.addEventListener('click', () => {
+            localStorage.setItem('centromail-accent', button.dataset.accent);
+            customAccent.value = button.dataset.accent;
+            applyCustomization();
+        }));
+        customAccent.addEventListener('input', () => { localStorage.setItem('centromail-accent', customAccent.value); applyCustomization(); });
+        textScale.addEventListener('change', () => { localStorage.setItem('centromail-text-scale', textScale.value); applyCustomization(); });
+        corner.addEventListener('change', () => { localStorage.setItem('centromail-corners', corner.value); applyCustomization(); });
+        motion.addEventListener('change', () => { localStorage.setItem('centromail-reduce-motion', motion.checked); applyCustomization(); });
+
+        theme.addEventListener('change', () => {
+            if (theme.value === 'system') {
+                delete document.documentElement.dataset.theme;
+                localStorage.removeItem(keys.theme);
+            } else {
+                document.documentElement.dataset.theme = theme.value;
+                localStorage.setItem(keys.theme, theme.value);
+            }
+        });
+        density.addEventListener('change', () => localStorage.setItem(keys.density, density.value));
+        autoRefresh.addEventListener('change', () => localStorage.setItem(keys.autoRefresh, autoRefresh.checked));
+        confirmActions.addEventListener('change', () => localStorage.setItem(keys.confirm, confirmActions.checked));
+
+        document.querySelector('#clear-settings-storage').addEventListener('click', () => {
+            Object.values(keys).forEach((key) => localStorage.removeItem(key));
+            theme.value = 'system';
+            density.value = 'comfortable';
+            autoRefresh.checked = true;
+            confirmActions.checked = true;
+            delete document.documentElement.dataset.theme;
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion'].forEach((key) => localStorage.removeItem(key));
+            applyCustomization();
+            feedback.textContent = 'Browser preferences cleared.';
+        });
+        document.querySelector('#reset-customization').addEventListener('click', () => {
+            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion'].forEach((key) => localStorage.removeItem(key));
+            textScale.value = '1'; corner.value = 'soft'; motion.checked = false; customAccent.value = '#50745c'; applyCustomization();
+            feedback.textContent = 'Customization reset to defaults.';
+        });
+    })();
+</script>
 {% endblock %}
