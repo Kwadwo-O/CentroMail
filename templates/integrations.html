@@ -16,7 +16,15 @@
     {% set telegram_connected = telegram_stage == 'connected' %}
     {% set telegram_pending = telegram_stage in ('code', 'password') %}
 
-    <div class="integration-grid">
+    <section class="integration-group" aria-labelledby="email-integrations-heading">
+        <div class="integration-group-heading">
+            <div>
+                <p class="eyebrow">Email</p>
+                <h2 id="email-integrations-heading">Email accounts</h2>
+            </div>
+            <span>1 service</span>
+        </div>
+        <div class="integration-grid">
         <article class="integration-card">
             <div class="integration-card-top">
                 <div class="integration-mark integration-mark-google"><img src="{{ url_for('static', filename='images/integrations/gmail.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
@@ -38,13 +46,28 @@
                 <a class="button button-secondary" href="{{ url_for('inbox') }}">Open inbox</a>
             </div>
             {% else %}
-            <p class="integration-copy">Sign in with Google to let CentroMail read your inbox and send messages through Gmail.</p>
+            <details class="integration-guide">
+                <summary>How to connect Gmail</summary>
+                <p class="integration-copy">Sign in with Google to let CentroMail read your inbox and send messages through Gmail.</p>
+            </details>
             <div class="integration-actions">
                 <a class="button" href="{{ url_for('authenticate', provider='google') }}">Connect Google</a>
             </div>
             {% endif %}
         </article>
 
+        </article>
+    </section>
+
+    <section class="integration-group" aria-labelledby="messaging-integrations-heading">
+        <div class="integration-group-heading">
+            <div>
+                <p class="eyebrow">Messaging</p>
+                <h2 id="messaging-integrations-heading">Chats and communities</h2>
+            </div>
+            <span>3 services</span>
+        </div>
+        <div class="integration-grid">
         <article class="integration-card">
             <div class="integration-card-top">
                 <div class="integration-mark integration-mark-telegram"><img src="{{ url_for('static', filename='images/integrations/telegram.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
@@ -145,7 +168,10 @@
             <div class="telegram-step">
                 <span class="telegram-step-label">Step 1 of 2</span>
                 <h3>Connect your Telegram account</h3>
-                <p class="integration-copy">Create an app at <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">my.telegram.org/apps</a> to get an API ID and API hash. CentroMail then signs in as your account, not as a bot.</p>
+                <details class="integration-guide">
+                    <summary>How to connect Telegram</summary>
+                    <p class="integration-copy">Create an app at <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">my.telegram.org/apps</a> to get an API ID and API hash. CentroMail then signs in as your account, not as a bot.</p>
+                </details>
                 <form class="telegram-form" method="post" action="{{ url_for('telegram_start_route') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="telegram-form-row">
@@ -248,7 +274,10 @@
             </div>
 
             {% else %}
-            <p class="integration-copy">Personal WhatsApp accounts do not have an official API. CentroMail connects through <strong>Meta's WhatsApp Cloud API</strong> instead. Create an app at <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>, add WhatsApp, then copy the phone number ID and access token from API Setup.</p>
+            <details class="integration-guide">
+                <summary>How to connect WhatsApp</summary>
+                <p class="integration-copy">Personal WhatsApp accounts do not have an official API. CentroMail connects through <strong>Meta's WhatsApp Cloud API</strong> instead. Create an app at <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>, add WhatsApp, then copy the phone number ID and access token from API Setup.</p>
+            </details>
             <form class="integration-form" method="post" action="{{ url_for('connect_whatsapp_route') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="telegram-form-row">
@@ -332,7 +361,10 @@
             </div>
 
             {% else %}
-            <p class="integration-copy">Create an application at <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">discord.com/developers/applications</a>, add a bot, reset its token, and invite it to your server with <strong>View Channels</strong>, <strong>Read Message History</strong> and <strong>Send Messages</strong>. Then enable Developer Mode in Discord to copy the channel ID.</p>
+            <details class="integration-guide">
+                <summary>How to connect Discord</summary>
+                <p class="integration-copy">Create an application at <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">discord.com/developers/applications</a>, add a bot, reset its token, and invite it to your server with <strong>View Channels</strong>, <strong>Read Message History</strong> and <strong>Send Messages</strong>. Then enable Developer Mode in Discord to copy the channel ID.</p>
+            </details>
             <form class="integration-form" method="post" action="{{ url_for('connect_discord_route') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Bot token
@@ -349,6 +381,18 @@
             {% endif %}
         </article>
 
+        </div>
+    </section>
+
+    <section class="integration-group" aria-labelledby="social-integrations-heading">
+        <div class="integration-group-heading">
+            <div>
+                <p class="eyebrow">Social</p>
+                <h2 id="social-integrations-heading">Social networks and workspaces</h2>
+            </div>
+            <span>{{ social_cards|length }} services</span>
+        </div>
+        <div class="integration-grid">
         {% set social_logos = {
             'x': 'x', 'facebook': 'facebook', 'instagram': 'instagram', 'threads': 'threads',
             'linkedin': 'linkedin', 'reddit': 'reddit', 'mastodon': 'mastodon',
@@ -396,7 +440,10 @@
             </div>
 
             {% else %}
-            <p class="integration-copy">{{ item.spec.help }}</p>
+            <details class="integration-guide">
+                <summary>How to connect {{ item.spec.name }}</summary>
+                <p class="integration-copy">{{ item.spec.help }}</p>
+            </details>
             <form class="integration-form" method="post" action="{{ url_for('connect_social_route', provider=item.spec.key) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for field in item.spec.fields %}
@@ -412,7 +459,8 @@
             {% endif %}
         </article>
         {% endfor %}
-    </div>
+        </div>
+    </section>
 
     <article class="browser-storage-card" aria-labelledby="browser-storage-heading">
         <div>

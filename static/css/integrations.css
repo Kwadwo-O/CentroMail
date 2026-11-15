@@ -27,6 +27,29 @@
     max-width: 66ch;
 }
 
+.integration-group {
+    margin-top: 2rem;
+}
+
+.integration-group-heading {
+    align-items: end;
+    display: flex;
+    justify-content: space-between;
+    margin: 0 0 0.8rem;
+}
+
+.integration-group-heading h2 {
+    font-size: 1.35rem;
+    letter-spacing: -0.035em;
+    margin: 0;
+}
+
+.integration-group-heading > span {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
 .integration-grid {
     display: grid;
     gap: 1rem;
@@ -191,6 +214,28 @@
     color: var(--m3e-sys-color-on-surface-variant);
     font-size: 0.78rem;
     margin: 0;
+}
+
+.integration-guide {
+    background: var(--m3e-sys-color-surface-container);
+    border-radius: 0.9rem;
+    padding: 0.7rem 0.8rem;
+}
+
+.integration-guide summary {
+    color: var(--m3e-sys-color-primary);
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 750;
+    list-style-position: inside;
+}
+
+.integration-guide[open] summary {
+    margin-bottom: 0.45rem;
+}
+
+.integration-guide .integration-copy {
+    font-size: 0.76rem;
 }
 
 .integration-alert {
@@ -447,6 +492,12 @@
 
     .integration-card {
         border-radius: 1.25rem;
+    }
+
+    .integration-group-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.2rem;
     }
 
     .telegram-form-row {
