@@ -80,12 +80,15 @@
     justify-content: center;
     letter-spacing: -0.03em;
     width: 44px;
+    user-select: none;
 }
 
 .integration-mark img {
     display: block;
     height: 24px;
     object-fit: contain;
+    pointer-events: none;
+    user-select: none;
     width: 24px;
 }
 
