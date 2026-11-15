@@ -19,7 +19,7 @@
     <div class="integration-grid">
         <article class="integration-card">
             <div class="integration-card-top">
-                <div class="integration-mark integration-mark-google"><span class="material-symbols-rounded" aria-hidden="true">mail</span><span class="sr-only">Gmail</span></div>
+                <div class="integration-mark integration-mark-google"><img src="{{ url_for('static', filename='images/integrations/gmail.svg') }}" alt="Gmail logo"></div>
                 <div>
                     <h2>Gmail</h2>
                     <p class="integration-subtitle">Email inbox, reading and sending</p>
@@ -47,7 +47,7 @@
 
         <article class="integration-card">
             <div class="integration-card-top">
-                <div class="integration-mark integration-mark-telegram"><span class="material-symbols-rounded" aria-hidden="true">send</span><span class="sr-only">Telegram</span></div>
+                <div class="integration-mark integration-mark-telegram"><img src="{{ url_for('static', filename='images/integrations/telegram.svg') }}" alt="Telegram logo"></div>
                 <div>
                     <h2>Telegram</h2>
                     <p class="integration-subtitle">Your own account, chats and messages</p>
@@ -170,7 +170,7 @@
 
         <article class="integration-card">
             <div class="integration-card-top">
-                <div class="integration-mark integration-mark-whatsapp"><span class="material-symbols-rounded" aria-hidden="true">chat</span><span class="sr-only">WhatsApp</span></div>
+                <div class="integration-mark integration-mark-whatsapp"><img src="{{ url_for('static', filename='images/integrations/whatsapp.svg') }}" alt="WhatsApp logo"></div>
                 <div>
                     <h2>WhatsApp</h2>
                     <p class="integration-subtitle">Cloud API messaging and replies</p>
@@ -272,7 +272,7 @@
 
         <article class="integration-card">
             <div class="integration-card-top">
-                <div class="integration-mark integration-mark-discord"><span class="material-symbols-rounded" aria-hidden="true">forum</span><span class="sr-only">Discord</span></div>
+                <div class="integration-mark integration-mark-discord"><img src="{{ url_for('static', filename='images/integrations/discord.svg') }}" alt="Discord logo"></div>
                 <div>
                     <h2>Discord</h2>
                     <p class="integration-subtitle">Server channels, messages and replies</p>
@@ -349,17 +349,16 @@
             {% endif %}
         </article>
 
-        {% set social_icons = {
-            'x': 'alternate_email', 'facebook': 'thumb_up', 'instagram': 'photo_camera',
-            'threads': 'forum', 'linkedin': 'work', 'reddit': 'campaign',
-            'mastodon': 'public', 'bluesky': 'cloud', 'tiktok': 'music_note',
-            'pinterest': 'push_pin', 'tumblr': 'article', 'twitch': 'live_tv',
-            'slack': 'tag'
+        {% set social_logos = {
+            'x': 'x', 'facebook': 'facebook', 'instagram': 'instagram', 'threads': 'threads',
+            'linkedin': 'linkedin', 'reddit': 'reddit', 'mastodon': 'mastodon',
+            'bluesky': 'bluesky', 'tiktok': 'tiktok', 'pinterest': 'pinterest',
+            'tumblr': 'tumblr', 'twitch': 'twitch', 'slack': 'slack'
         } %}
         {% for item in social_cards %}
         <article class="integration-card">
             <div class="integration-card-top">
-                <div class="integration-mark integration-mark-social integration-mark-{{ item.spec.key }}"><span class="material-symbols-rounded" aria-hidden="true">{{ social_icons.get(item.spec.key, 'apps') }}</span><span class="sr-only">{{ item.spec.name }}</span></div>
+                <div class="integration-mark integration-mark-social integration-mark-{{ item.spec.key }}"><img src="{{ url_for('static', filename='images/integrations/' ~ social_logos.get(item.spec.key, item.spec.key) ~ '.svg') }}" alt="{{ item.spec.name }} logo"></div>
                 <div>
                     <h2>{{ item.spec.name }}</h2>
                     <p class="integration-subtitle">{{ item.spec.subtitle }}</p>

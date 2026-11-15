@@ -82,8 +82,11 @@
     width: 44px;
 }
 
-.integration-mark .material-symbols-rounded {
-    font-size: 23px;
+.integration-mark img {
+    display: block;
+    height: 24px;
+    object-fit: contain;
+    width: 24px;
 }
 
 .integration-mark-google { background: #e8f0fe; color: #1a73e8; }
