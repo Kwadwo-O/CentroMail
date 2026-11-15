@@ -7,6 +7,17 @@
 
 {% block content %}
 <section class="integrations-page">
+    <div class="integration-skeleton" id="integration-skeleton" aria-hidden="true">
+        <div class="skeleton-line skeleton-kicker"></div>
+        <div class="skeleton-line skeleton-title"></div>
+        <div class="skeleton-line skeleton-intro"></div>
+        <div class="skeleton-section-heading"></div>
+        <div class="skeleton-grid">
+            {% for _ in range(4) %}
+            <div class="skeleton-card"><div class="skeleton-avatar"></div><div class="skeleton-copy"><div></div><div></div></div><div class="skeleton-block"></div><div class="skeleton-block short"></div></div>
+            {% endfor %}
+        </div>
+    </div>
     <header class="integrations-heading">
         <p class="eyebrow">Connected services</p>
         <h1>Integrations</h1>
@@ -475,6 +486,12 @@
 
 {% block scripts %}
 <script>
+    window.addEventListener('load', () => {
+        const skeleton = document.querySelector('#integration-skeleton');
+        skeleton?.classList.add('is-hidden');
+        window.setTimeout(() => skeleton?.remove(), 260);
+    }, { once: true });
+
     const storageKey = "centromail-integrations";
     const telegramAccount = {{ (telegram_account or {})|tojson }};
     const browserState = {

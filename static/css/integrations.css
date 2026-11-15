@@ -8,6 +8,66 @@
     margin: 0 auto;
     max-width: 1180px;
     padding: 2rem 1.5rem 3.5rem;
+    position: relative;
+}
+
+.integration-skeleton {
+    background: var(--m3e-sys-color-background);
+    inset: 0;
+    min-height: 70vh;
+    opacity: 1;
+    padding-top: 0.1rem;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity 220ms ease;
+    z-index: 5;
+}
+
+.integration-skeleton.is-hidden {
+    opacity: 0;
+}
+
+.skeleton-line,
+.skeleton-section-heading,
+.skeleton-block,
+.skeleton-avatar,
+.skeleton-copy div {
+    animation: integration-skeleton-pulse 1.25s ease-in-out infinite;
+    background: var(--m3e-sys-color-surface-container-high);
+    border-radius: 0.5rem;
+}
+
+.skeleton-kicker { height: 0.7rem; margin-bottom: 0.8rem; width: 7rem; }
+.skeleton-title { height: 3rem; margin-bottom: 0.8rem; width: min(24rem, 70%); }
+.skeleton-intro { height: 1rem; margin-bottom: 2.8rem; width: min(38rem, 90%); }
+.skeleton-section-heading { height: 1.7rem; margin-bottom: 0.8rem; width: 13rem; }
+
+.skeleton-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.skeleton-card {
+    background: var(--m3e-sys-color-surface-container-low);
+    border: 1px solid var(--m3e-sys-color-outline-variant);
+    border-radius: 1.5rem;
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: 2.8rem 1fr;
+    padding: 1.3rem;
+}
+
+.skeleton-avatar { height: 2.8rem; width: 2.8rem; }
+.skeleton-copy { display: grid; gap: 0.45rem; }
+.skeleton-copy div:first-child { height: 1rem; width: 55%; }
+.skeleton-copy div:last-child { height: 0.7rem; width: 90%; }
+.skeleton-block { grid-column: 1 / -1; height: 4.5rem; }
+.skeleton-block.short { height: 2.2rem; width: 45%; }
+
+@keyframes integration-skeleton-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
 }
 
 .integrations-heading {
@@ -511,6 +571,10 @@
         grid-template-columns: 1fr;
     }
 
+    .skeleton-grid {
+        grid-template-columns: 1fr;
+    }
+
     .integration-card {
         border-radius: 1.25rem;
     }
@@ -527,8 +591,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .integration-skeleton,
     .integration-guide summary {
         transition: none;
+    }
+
+    .skeleton-line,
+    .skeleton-section-heading,
+    .skeleton-block,
+    .skeleton-avatar,
+    .skeleton-copy div {
+        animation: none;
     }
 
     .integration-guide[open] > .integration-copy {
