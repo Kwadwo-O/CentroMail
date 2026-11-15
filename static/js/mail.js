@@ -32,6 +32,9 @@
             window.location.assign(response.url);
             throw new Error('Please sign in again.');
         }
+        if (response.headers && !response.headers.get('Content-Type')?.includes('application/json')) {
+            throw new Error('Could not complete the request. Reload the page and try again.');
+        }
         const data = await response.json();
         if (!response.ok) throw Object.assign(new Error(data.error || 'Please try again.'), {reconnect: data.reconnect});
         return data;
@@ -41,9 +44,9 @@
         selectAll.checked = rows().length > 0 && count === rows().length;
         selectAll.indeterminate = count > 0 && count < rows().length;
         selectAll.disabled = rows().length === 0 || actionPending;
-        document.querySelector('#mail-selection-count').textContent = count ? `${count} selected` : '';
+        document.querySelector('#mail-selection-count').textContent = count > 1000 ? 'Select up to 1,000 messages' : (count ? `${count} selected` : '');
         document.querySelectorAll('[data-mail-action]').forEach(button => {
-            button.disabled = count === 0 || count > 50 || actionPending;
+            button.disabled = count === 0 || count > 1000 || actionPending;
         });
     };
     const setRefreshBusy = busy => {

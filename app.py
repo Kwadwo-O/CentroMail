@@ -2052,7 +2052,7 @@ def mail_action():
     }
     action = request.form.get("action")
     ids = list(dict.fromkeys(request.form.getlist("message_ids")))
-    if action not in changes or not 1 <= len(ids) <= 50 or any(
+    if action not in changes or not 1 <= len(ids) <= 1000 or any(
         not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", item) for item in ids
     ):
         return jsonify(error="Select messages and choose a valid action."), 400
