@@ -145,17 +145,40 @@ A privacy-conscious approach to account connections, permissions and personal co
 
 CentroMail is being designed around an extensible integration system.
 
-Some of the services and technologies being explored include:
+### Categorised integration groups
 
-| Service | Planned integration |
+Integrations are organised into three logical groups for easier navigation:
+
+| Group | Services |
 |---|---|
-| Gmail | Google Gmail API |
-| Outlook | Microsoft Graph |
-| Other email providers | IMAP / SMTP |
-| Messaging platforms | Supported official APIs and protocols |
-| CentroMail | Native messaging between users |
+| **Email accounts** | Gmail |
+| **Chats and communities** | Telegram, WhatsApp, Discord |
+| **Social networks and workspaces** | X (Twitter), Facebook, Instagram, Threads, LinkedIn, Reddit, Mastodon, Bluesky, TikTok, Pinterest, Tumblr, Twitch, Slack |
 
-**Our goal:** make it possible to manage more of your communications without needing a separate application for every service.
+Each group has a collapsible "How to connect" guide accessible via the disclosure marker next to the service name. The guides walk through the required setup steps for each provider.
+
+### Adding new integration categories
+
+The integration system is extensible. New categories can be added by:
+
+1. Defining a new group heading in `templates/integrations.html`
+2. Adding service cards with provider logo SVGs from `static/images/integrations/`
+3. Including connection guide markup using native `<details>` elements
+4. Updating `static/css/integrations.css` for any new layout needs
+
+Provider logo SVGs should be named consistently (e.g., `<service-name>.svg`) and placed in `static/images/integrations/`.
+
+### Integration connection guides
+
+Each unconnected integration shows a native accessible dropdown with setup instructions:
+
+- **Gmail** – Google OAuth with Gmail API enabled
+- **Telegram** – API ID/API hash from `my.telegram.org/apps`, optional two-step verification
+- **WhatsApp** – Meta WhatsApp Cloud API phone number ID and access token
+- **Discord** – Application bot token, channel ID, and required permissions
+- **All social integrations** – Platform-specific app creation and setup links
+
+These guides use `<details>`/`<summary>` for accessibility and respect `prefers-reduced-motion`.
 
 Third-party integrations are subject to provider APIs, permissions and restrictions. Not every platform allows external applications to access or send messages.
 
