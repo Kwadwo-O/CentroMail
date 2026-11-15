@@ -228,10 +228,31 @@
     font-size: 0.76rem;
     font-weight: 750;
     list-style-position: inside;
+    transition: color 160ms ease, padding 220ms ease;
 }
 
 .integration-guide[open] summary {
     margin-bottom: 0.45rem;
+}
+
+.integration-guide summary::marker {
+    color: var(--m3e-sys-color-primary);
+}
+
+.integration-guide[open] > .integration-copy {
+    animation: integration-guide-enter 220ms cubic-bezier(.2, .8, .2, 1) both;
+    transform-origin: top center;
+}
+
+@keyframes integration-guide-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-0.35rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .integration-guide .integration-copy {
@@ -502,5 +523,15 @@
 
     .telegram-form-row {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .integration-guide summary {
+        transition: none;
+    }
+
+    .integration-guide[open] > .integration-copy {
+        animation: none;
     }
 }
