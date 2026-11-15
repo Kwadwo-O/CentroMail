@@ -152,7 +152,7 @@ class AuthTests(unittest.TestCase):
             client=fresh_browser,
         )
         self.assert_redirect_path(response, "/dashboard")
-        for route in ("/dashboard", "/inbox", "/mail", "/message/1", "/compose", "/settings"):
+        for route in ("/dashboard", "/inbox", "/mail", "/message/1", "/settings"):
             with self.subTest(route=route):
                 self.assertEqual(fresh_browser.get(route).status_code, 200)
 
@@ -169,7 +169,7 @@ class AuthTests(unittest.TestCase):
                     self.assertEqual(session.permanent, bool(remember))
 
     def test_private_pages_require_login_and_logout_revokes_access(self):
-        routes = ("/dashboard", "/inbox", "/mail", "/message/1", "/compose", "/settings")
+        routes = ("/dashboard", "/inbox", "/mail", "/message/1", "/settings")
         for route in routes:
             with self.subTest(route=route):
                 self.assert_redirect_path(self.client.get(route), "/login")
@@ -178,6 +178,32 @@ class AuthTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             self.assertNotIn("user_id", session)
         self.assert_redirect_path(self.client.get("/dashboard"), "/login")
+
+    def test_legal_pages_are_public_and_linked(self):
+        for route, heading in (("/privacy", b"Privacy Notice"), ("/terms", b"Terms of Use")):
+            with self.subTest(route=route):
+                response = self.client.get(route)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(heading, response.data)
+                self.assertIn(b"support@centromail.net", response.data)
+
+    def test_account_delete_removes_local_account_data(self):
+        self.register()
+        with application.app.app_context():
+            db = application.get_db()
+            user_id = db.execute("SELECT id FROM users WHERE email = ?", ("person@example.com",)).fetchone()["id"]
+            db.execute("INSERT INTO integrations(user_id, provider, config, updated_at) VALUES (?, ?, ?, ?)",
+                       (user_id, "telegram", "{}", 1))
+            db.execute("INSERT INTO whatsapp_messages(user_id, message_id, body, received_at) VALUES (?, ?, ?, ?)",
+                       (user_id, "message-1", "private", 1))
+            db.commit()
+        response = self.post("/account/delete", {})
+        self.assert_redirect_path(response, "/login")
+        with application.app.app_context():
+            db = application.get_db()
+            self.assertIsNone(db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone())
+            self.assertIsNone(db.execute("SELECT user_id FROM integrations WHERE user_id = ?", (user_id,)).fetchone())
+            self.assertIsNone(db.execute("SELECT user_id FROM whatsapp_messages WHERE user_id = ?", (user_id,)).fetchone())
 
     def test_onboarding_selects_login_or_registration(self):
         self.register()
@@ -224,7 +250,7 @@ class AuthTests(unittest.TestCase):
             db.commit()
         self.assert_redirect_path(self.client.get("/dashboard"), "/login")
 
-    def test_logout_and_compose_require_csrf_without_revoking_valid_session(self):
+    def test_logout_and_send_require_csrf_without_revoking_valid_session(self):
         self.register()
         for route in ("/logout", "/compose"):
             with self.subTest(route=route):

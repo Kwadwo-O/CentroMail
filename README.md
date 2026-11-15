@@ -50,10 +50,25 @@ from the local address above. The URI must match exactly; `localhost` and
 `127.0.0.1` are different hosts, so add both callback URIs in Google Cloud if
 you use both addresses. Keep the client secret private. Google sign-in
 creates a CentroMail account for a new verified email or signs into an existing
-account with the same email, then opens the dashboard. Google sign-in does not
-connect Gmail; inbox messages and sending remain demo features.
+account with the same email, then opens the dashboard. The same Google token
+is used by the Gmail inbox, message reader and composer; the Gmail API must be
+enabled for the Google Cloud project.
 
 Microsoft sign-in still requires OAuth integration.
+
+### Local integrations
+
+Open **Integrations** after signing in. Connections are stored in `centro.db`
+on this machine, and non-secret UI state is mirrored to browser `localStorage`.
+
+| Service | What is needed |
+|---|---|
+| Gmail | Google OAuth with the Gmail API enabled. |
+| Telegram | A Telegram account plus an API ID/API hash from `my.telegram.org/apps`. CentroMail signs in to your own account and stores the session locally; a login code and, if enabled, a two-step verification password are required. |
+| WhatsApp | A Meta WhatsApp Cloud API phone number ID and access token. Personal WhatsApp accounts do not have an official API. Inbound messages require a publicly reachable webhook URL, for example through a tunnel. |
+| Discord | A Discord application bot token plus a channel ID. Invite the bot with View Channels, Read Message History and Send Messages. Discord does not permit automating personal user accounts. |
+
+Telegram account support uses the `telethon` package from `requirements.txt`.
 
 Run the authentication integration tests with:
 

@@ -2,8 +2,6 @@
 {% block title %}Dashboard | CentroMail{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
@@ -48,10 +46,6 @@
 
     <div class="dashboard-layout">
         <aside class="dashboard-sidebar">
-            <a class="m3e-button m3e-button--filled dashboard-compose" href="{{ url_for('compose') }}">
-                <span class="material-symbols-rounded" aria-hidden="true">edit</span>
-                Compose
-            </a>
             <nav aria-label="Workspace navigation" class="dashboard-nav">
                 <a class="dashboard-nav-link active" href="{{ url_for('dashboard') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview
@@ -62,6 +56,9 @@
                 </a>
                 <a class="dashboard-nav-link" href="{{ url_for('mail') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">mail</span>All mail
+                </a>
+                <a class="dashboard-nav-link" href="{{ url_for('integrations') }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">extension</span>Integrations
                 </a>
                 <a class="dashboard-nav-link" href="{{ url_for('settings') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings
@@ -92,7 +89,7 @@
                     <h2>Less switching. More staying connected.</h2>
                     <p>Keep accounts organised, find important conversations quickly, and reply from the right place as CentroMail grows.</p>
                     <div class="purpose-actions">
-                        <a class="m3e-button m3e-button--filled" href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Start a conversation</a>
+                        <a class="m3e-button m3e-button--filled" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Open inbox</a>
                         <a class="m3e-button m3e-button--outlined" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">manage_accounts</span>Manage account</a>
                     </div>
                 </div>
@@ -152,7 +149,7 @@
                 </div>
                 <div class="integration-list" aria-label="Planned integrations">
                     <span><span class="material-symbols-rounded" aria-hidden="true">mail</span>Gmail</span>
-                    <span><span class="material-symbols-rounded" aria-hidden="true">outlook</span>Outlook</span>
+                    <span><span class="material-symbols-rounded" aria-hidden="true">mail</span>Outlook</span>
                     <span><span class="material-symbols-rounded" aria-hidden="true">dns</span>IMAP / SMTP</span>
                     <span><span class="material-symbols-rounded" aria-hidden="true">forum</span>Messaging</span>
                 </div>

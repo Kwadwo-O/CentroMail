@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "skills": {
+    "contract-review": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/contract-review/SKILL.md",
+      "computedHash": "6e0ead8c30825eb83811d28eb21dffb486a39594068747049b666bd59acbf92e",
+      "installMode": "copy"
+    },
+    "data-breach-response": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/data-breach-response/SKILL.md",
+      "computedHash": "d6b11611083b95e281d0ddc589aa211f7f714d5ce958d47d5b6e017842328a37",
+      "installMode": "copy"
+    },
+    "dpia-assessment": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/dpia-assessment/SKILL.md",
+      "computedHash": "04d3a9557437cedc0ce0df9115252d30a8939eb82d6f230894333b70a57ee217",
+      "installMode": "copy"
+    },
+    "legal-canned-responses": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/legal-canned-responses/SKILL.md",
+      "computedHash": "f65dcfc4ff68a28f8d4980cab1339dd95ae9abf82238844852eec70e7de2e6d9",
+      "installMode": "copy"
+    },
+    "legal-meeting-briefing": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/legal-meeting-briefing/SKILL.md",
+      "computedHash": "7bc2899e9dc2644489a98e95b356ed432e9e4fe0a44499aab304f7d894b24fda",
+      "installMode": "copy"
+    },
+    "legal-red-team": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/legal-red-team/SKILL.md",
+      "computedHash": "30b69c642fad5ad37d563b6b6a65ada18c67471f1181546163155cdf83fb39be",
+      "installMode": "copy"
+    },
+    "legal-risk-assessment": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/legal-risk-assessment/SKILL.md",
+      "computedHash": "b8907cb9cf813398173d98470b145aedb67a2bce5088a3795538aeb875dc2667",
+      "installMode": "copy"
+    },
+    "mediation-analysis": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/mediation-analysis/SKILL.md",
+      "computedHash": "d024bc336c59171633b688351c175cec9a1acb9a48259d69f25fa7aea32334b0",
+      "installMode": "copy"
+    },
+    "nda-review": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/nda-review/SKILL.md",
+      "computedHash": "b856819f75eb41581f66577924fec9cb43a83d73ed81feb95da4b2da4b985a2b",
+      "installMode": "copy"
+    },
+    "nda-triage": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/nda-triage/SKILL.md",
+      "computedHash": "b6927f3060896d0e58f6e0de7f1ebd0672b17ab9208b848feb6554edd5dec575",
+      "installMode": "copy"
+    },
+    "privacy-compliance": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/privacy-compliance/SKILL.md",
+      "computedHash": "af8b9e06fc5754e5c2fd5bdcb2b276b4e9a294c43f5acdcf626164fe7d462df5",
+      "installMode": "copy"
+    },
+    "privacy-notice-generator": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/privacy-notice-generator/SKILL.md",
+      "computedHash": "0dea134d0d781977e89d1c2de9430fc78ec852115236ce71dc458b12a5c039cb",
+      "installMode": "copy"
+    },
+    "statute-analysis": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/statute-analysis/SKILL.md",
+      "computedHash": "055f5f958c70b38e10e7e8658845a2f501ceed4ee72a5f0d79b7d2fae5e3188f",
+      "installMode": "copy"
+    },
+    "tabular-document-review": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/tabular-document-review/SKILL.md",
+      "computedHash": "25f392e3831484f3f3a665a0c8490d758e72c3ff8a8d313ab43e37cf6c0a2109",
+      "installMode": "copy"
+    },
+    "tech-contract-negotiation": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/tech-contract-negotiation/SKILL.md",
+      "computedHash": "98a5484e3b9c8d8f8ff41c97a3d30f442b8260462424b7b2fc8f824586708541",
+      "installMode": "copy"
+    },
+    "vendor-due-diligence": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/vendor-due-diligence/SKILL.md",
+      "computedHash": "fc26005ae5583e9f2030ece0981c621ee4fd30929740eb62e82fef36cb6e5c15",
+      "installMode": "copy"
+    },
+    "whistleblower-compliance": {
+      "source": "borghei/Claude-Skills",
+      "sourceType": "github",
+      "skillPath": "legal/whistleblower-compliance/SKILL.md",
+      "computedHash": "145b3bb413fc977657cf3d0109ab0c5a7a99bfb0721190b838b8b82020fbb57c",
+      "installMode": "copy"
+    }
+  }
+}

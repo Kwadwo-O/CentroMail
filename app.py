@@ -1,11 +1,15 @@
 import os
+import asyncio
 import json
 import base64
+import html
 import logging
 import re
 import secrets
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor
+import threading
+import time
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 from contextlib import closing
@@ -19,6 +23,25 @@ from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    from telethon import TelegramClient
+    from telethon.errors import (
+        ApiIdInvalidError,
+        FloodWaitError,
+        PasswordHashInvalidError,
+        PhoneCodeExpiredError,
+        PhoneCodeInvalidError,
+        PhoneNumberInvalidError,
+        SessionPasswordNeededError,
+    )
+    from telethon.sessions import StringSession
+
+    TELETHON_AVAILABLE = True
+except ImportError:  # Keep the rest of CentroMail usable without Telethon.
+    TelegramClient = None
+    StringSession = None
+    TELETHON_AVAILABLE = False
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -99,6 +122,43 @@ def init_db():
         if "google_token" not in columns:
             db.execute("ALTER TABLE users ADD COLUMN google_token TEXT")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email))")
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS gmail_cache (
+                user_id INTEGER NOT NULL,
+                message_id TEXT NOT NULL,
+                metadata TEXT,
+                metadata_at REAL,
+                body TEXT,
+                body_at REAL,
+                PRIMARY KEY (user_id, message_id)
+            )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS integrations (
+                user_id INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                config TEXT NOT NULL,
+                updated_at REAL NOT NULL,
+                PRIMARY KEY (user_id, provider)
+            )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS gmail_sync_state (
+                user_id INTEGER PRIMARY KEY,
+                message_ids TEXT NOT NULL,
+                listed_at REAL NOT NULL
+            )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS whatsapp_messages (
+                user_id INTEGER NOT NULL,
+                message_id TEXT NOT NULL,
+                sender TEXT,
+                body TEXT,
+                received_at REAL NOT NULL,
+                PRIMARY KEY (user_id, message_id)
+            )"""
+        )
 
 
 with app.app_context():
@@ -128,6 +188,13 @@ def csrf_token():
 
 PROTECTED_ENDPOINTS = {
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
+    "delete_account",
+    "integrations", "telegram_start_route", "telegram_verify_route",
+    "telegram_password_route", "telegram_restart_route", "test_telegram_route",
+    "disconnect_telegram_route", "connect_whatsapp_route", "test_whatsapp_route",
+    "disconnect_whatsapp_route", "connect_discord_route", "test_discord_route",
+    "disconnect_discord_route", "connect_social_route", "test_social_route",
+    "disconnect_social_route",
 }
 
 
@@ -142,7 +209,7 @@ def load_user_and_check_forms():
         session.clear()
     if request.endpoint in PROTECTED_ENDPOINTS and g.user is None:
         return redirect(url_for("login"))
-    if request.method == "POST":
+    if request.method == "POST" and request.endpoint != "whatsapp_webhook":
         expected = session.get("csrf_token", "")
         submitted = request.form.get("csrf_token", "")
         if not expected or not secrets.compare_digest(expected.encode('utf-8'), submitted.encode('utf-8')):
@@ -227,6 +294,100 @@ def get_gmail_access_token(user):
     return token["access_token"]
 
 
+GMAIL_METADATA_TTL = 12 * 60 * 60
+GMAIL_BODY_TTL = 24 * 60 * 60
+
+
+def gmail_cache_get(user_id, message_id, *, body=False):
+    row = get_db().execute(
+        "SELECT metadata, metadata_at, body, body_at FROM gmail_cache "
+        "WHERE user_id = ? AND message_id = ?",
+        (user_id, message_id),
+    ).fetchone()
+    if row is None:
+        return None
+    now = time.time()
+    if body:
+        if row["body"] is None or now - (row["body_at"] or 0) > GMAIL_BODY_TTL:
+            return None
+        return row["body"]
+    if row["metadata"] is None or now - (row["metadata_at"] or 0) > GMAIL_METADATA_TTL:
+        return None
+    try:
+        return json.loads(row["metadata"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+
+
+def gmail_cache_put(user_id, message_id, metadata=None, body=None):
+    get_db().execute(
+        """INSERT INTO gmail_cache
+               (user_id, message_id, metadata, metadata_at, body, body_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, message_id) DO UPDATE SET
+               metadata = COALESCE(excluded.metadata, gmail_cache.metadata),
+               metadata_at = COALESCE(excluded.metadata_at, gmail_cache.metadata_at),
+               body = COALESCE(excluded.body, gmail_cache.body),
+               body_at = COALESCE(excluded.body_at, gmail_cache.body_at)""",
+        (
+            user_id,
+            message_id,
+            json.dumps(metadata) if metadata is not None else None,
+            time.time() if metadata is not None else None,
+            body,
+            time.time() if body is not None else None,
+        ),
+    )
+    get_db().commit()
+
+
+def gmail_error_status(error):
+    response = getattr(error, "response", None)
+    return response.status_code if response is not None else None
+
+
+def gmail_error_reason(error):
+    """Extract Google's machine-readable reason from an HTTP error."""
+    response = getattr(error, "response", None)
+    if response is None:
+        return ""
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    error_body = payload.get("error", {}) if isinstance(payload, dict) else {}
+    reasons = [
+        item.get("reason", "")
+        for item in error_body.get("errors", [])
+        if isinstance(item, dict)
+    ]
+    if error_body.get("status"):
+        reasons.append(error_body["status"])
+    if error_body.get("message"):
+        reasons.append(error_body["message"])
+    return " ".join(reasons).lower()
+
+
+def gmail_error_message(error):
+    reason = gmail_error_reason(error)
+    if "quota" in reason or "ratelimit" in reason or "limit exceeded" in reason:
+        return (
+            "Gmail's API quota is temporarily exhausted. Wait about a minute, "
+            "then refresh the page. CentroMail has cached messages it already loaded."
+        )
+    if "accessnotconfigured" in reason or "service_disabled" in reason or "disabled" in reason:
+        return (
+            "The Gmail API is disabled for this Google project. Enable it in Google Cloud "
+            "Console, then sign in with Google again."
+        )
+    if "insufficient" in reason or "forbidden" in reason or "unauthorized" in reason:
+        return (
+            "Gmail access has expired or is missing permission. Sign in with Google again "
+            "and allow access to Gmail."
+        )
+    return "Gmail could not be loaded right now. Please try again."
+
+
 def gmail_header(headers, name):
     return next(
         (header["value"] for header in headers if header.get("name", "").lower() == name.lower()),
@@ -240,6 +401,11 @@ def gmail_sender(value):
     return value or "Unknown sender"
 
 
+def gmail_sender_email(value):
+    match = re.search(r"<([^>]+)>", value or "")
+    return match.group(1).strip() if match else (value or "")
+
+
 def gmail_message_time(value):
     try:
         return parsedate_to_datetime(value).astimezone().strftime("%b %d").replace(" 0", " ")
@@ -247,21 +413,149 @@ def gmail_message_time(value):
         return ""
 
 
-def fetch_gmail_messages(user):
-    app.logger.info("Starting Gmail inbox pull for user id=%s", user["id"])
-    access_token = get_gmail_access_token(user)
-    if not access_token:
-        app.logger.warning("Gmail inbox pull skipped: no usable token for user id=%s", user["id"])
-        return []
-    headers = {"Authorization": "Bearer " + access_token}
+def gmail_message_full_time(value):
+    try:
+        when = parsedate_to_datetime(value).astimezone()
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    return when.strftime("%a, %b %d, %Y at %I:%M %p").replace(" 0", " ")
+
+
+def gmail_message_date(metadata):
+    """Return a full readable date for the message detail view."""
+    if metadata.get("date"):
+        return metadata["date"]
+    internal_date = metadata.get("internal_date") or 0
+    if internal_date:
+        try:
+            when = datetime.fromtimestamp(internal_date / 1000, tz=timezone.utc).astimezone()
+        except (ValueError, OSError, OverflowError):
+            pass
+        else:
+            return when.strftime("%a, %b %d, %Y at %I:%M %p").replace(" 0", " ")
+    return metadata.get("time", "")
+
+
+def decode_gmail_body(payload):
+    """Return readable text from Gmail's nested MIME payload."""
+    plain_parts = []
+    html_parts = []
+
+    def visit(part):
+        mime_type = part.get("mimeType", "")
+        data = part.get("body", {}).get("data")
+        if data and mime_type in {"text/plain", "text/html"}:
+            try:
+                decoded = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode(
+                    "utf-8", errors="replace"
+                )
+            except (ValueError, UnicodeDecodeError):
+                decoded = ""
+            if mime_type == "text/plain":
+                plain_parts.append(decoded)
+            else:
+                html_parts.append(decoded)
+        for child in part.get("parts", []):
+            visit(child)
+
+    visit(payload or {})
+    if plain_parts:
+        return "\n\n".join(part.strip() for part in plain_parts if part.strip()).strip()
+    if html_parts:
+        # Do not render remote HTML directly in the application.  The detail
+        # view displays a readable, escaped text version instead.
+        text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", "\n".join(html_parts))
+        text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+        text = re.sub(r"(?i)</p\s*>|</div\s*>|</tr\s*>", "\n", text)
+        return html.unescape(re.sub(r"<[^>]+>", " ", text)).strip()
+    return "(This email has no readable message body.)"
+
+
+def gmail_metadata_from_payload(payload, fallback_id):
+    message_headers = payload.get("payload", {}).get("headers", [])
+    label_ids = set(payload.get("labelIds", []))
+    sender = gmail_header(message_headers, "From")
+    return {
+        "id": payload.get("id", fallback_id),
+        "sender": gmail_sender(sender),
+        "email": gmail_sender_email(sender),
+        "subject": gmail_header(message_headers, "Subject") or "(No subject)",
+        "preview": payload.get("snippet", ""),
+        "time": gmail_message_time(gmail_header(message_headers, "Date")),
+        "date": gmail_message_full_time(gmail_header(message_headers, "Date")),
+        "internal_date": int(payload.get("internalDate", 0) or 0),
+        "unread": "UNREAD" in label_ids,
+        "starred": "STARRED" in label_ids,
+        "category": "social" if "CATEGORY_SOCIAL" in label_ids else (
+            "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
+        ),
+    }
+
+
+def load_cached_gmail_messages(user):
+    """Return the last known inbox when Gmail cannot be reached."""
+    rows = get_db().execute(
+        "SELECT metadata FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL",
+        (user["id"],),
+    ).fetchall()
+    messages = []
+    for row in rows:
+        try:
+            metadata = json.loads(row["metadata"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(metadata, dict):
+            messages.append(metadata)
+    messages.sort(key=lambda message: message.get("internal_date", 0), reverse=True)
+    return messages
+
+
+GMAIL_LIST_TTL = 5 * 60
+GMAIL_BATCH_SIZE = 50
+_gmail_sync_locks = {}
+_gmail_sync_locks_guard = threading.Lock()
+
+
+def _gmail_sync_lock(user_id):
+    with _gmail_sync_locks_guard:
+        return _gmail_sync_locks.setdefault(user_id, threading.Lock())
+
+
+def load_gmail_message_ids(user_id):
+    row = get_db().execute(
+        "SELECT message_ids, listed_at FROM gmail_sync_state WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row is None or time.time() - row["listed_at"] > GMAIL_LIST_TTL:
+        return None
+    try:
+        message_ids = json.loads(row["message_ids"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return message_ids if isinstance(message_ids, list) else None
+
+
+def save_gmail_message_ids(user_id, message_ids):
+    get_db().execute(
+        """INSERT INTO gmail_sync_state (user_id, message_ids, listed_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_id) DO UPDATE SET
+               message_ids = excluded.message_ids,
+               listed_at = excluded.listed_at""",
+        (user_id, json.dumps(message_ids), time.time()),
+    )
+    get_db().commit()
+
+
+def fetch_gmail_message_ids(user, headers):
     message_ids = []
     next_page_token = None
-    page_count = 0
     while True:
         params = {
             "userId": "me",
             "labelIds": "INBOX",
-            "maxResults": 50,
+            "maxResults": 100,
+            "includeSpamTrash": "false",
         }
         if next_page_token:
             params["pageToken"] = next_page_token
@@ -269,55 +563,179 @@ def fetch_gmail_messages(user):
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
             headers=headers,
             params=params,
-            timeout=10,
+            timeout=(5, 15),
         )
         response.raise_for_status()
         page = response.json()
-        page_count += 1
         message_ids.extend(item["id"] for item in page.get("messages", []) if item.get("id"))
         next_page_token = page.get("nextPageToken")
         if not next_page_token:
-            break
+            return message_ids
 
-    def fetch_message_detail(message_id):
-        detail = requests.get(
-            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
-            headers=headers,
-            params=[
-                ("userId", "me"),
-                ("format", "metadata"),
-                ("metadataHeaders", "From"),
-                ("metadataHeaders", "Subject"),
-                ("metadataHeaders", "Date"),
-            ],
-            timeout=(5, 15),
-        )
-        detail.raise_for_status()
-        payload = detail.json()
-        message_headers = payload.get("payload", {}).get("headers", [])
-        label_ids = set(payload.get("labelIds", []))
-        return {
-            "id": payload.get("id", message_id),
-            "sender": gmail_sender(gmail_header(message_headers, "From")),
-            "subject": gmail_header(message_headers, "Subject") or "(No subject)",
-            "preview": payload.get("snippet", ""),
-            "time": gmail_message_time(gmail_header(message_headers, "Date")),
-            "unread": "UNREAD" in label_ids,
-            "starred": "STARRED" in label_ids,
-            "category": "social" if "CATEGORY_SOCIAL" in label_ids else (
-                "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
-            ),
-        }
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        messages = list(executor.map(fetch_message_detail, message_ids))
-    app.logger.info(
-        "Completed Gmail inbox pull for user id=%s: pages=%s messages=%s",
-        user["id"],
-        page_count,
-        len(messages),
+def _fetch_gmail_detail(headers, message_id):
+    detail = requests.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+        headers=headers,
+        params=[
+            ("userId", "me"),
+            ("format", "metadata"),
+            ("metadataHeaders", "From"),
+            ("metadataHeaders", "Subject"),
+            ("metadataHeaders", "Date"),
+        ],
+        timeout=(5, 15),
     )
-    return messages
+    detail.raise_for_status()
+    return gmail_metadata_from_payload(detail.json(), message_id)
+
+
+def sync_gmail_inbox(user, batch_size=GMAIL_BATCH_SIZE):
+    """Load a bounded batch and let the page continue the sync.
+
+    A large inbox cannot be fetched in one request: Gmail's per-user quota
+    rejects thousands of metadata requests in a burst.  Each call therefore
+    lists the inbox (cached for a minute), fills at most ``batch_size``
+    missing messages, and reports how many are left.  The inbox page reloads
+    itself until ``remaining`` reaches zero.
+    """
+    result = {
+        "messages": load_cached_gmail_messages(user),
+        "total": None,
+        "remaining": None,
+        "busy": False,
+        "error": None,
+        "retry_after": 0,
+    }
+    access_token = get_gmail_access_token(user)
+    if not access_token:
+        result["error"] = "no_token"
+        return result
+
+    lock = _gmail_sync_lock(user["id"])
+    if not lock.acquire(blocking=False):
+        result["busy"] = True
+        result["retry_after"] = 3
+        return result
+    try:
+        headers = {"Authorization": "Bearer " + access_token}
+        message_ids = load_gmail_message_ids(user["id"])
+        if message_ids is None:
+            message_ids = fetch_gmail_message_ids(user, headers)
+            save_gmail_message_ids(user["id"], message_ids)
+
+        messages_by_id = {}
+        missing_ids = []
+        for message_id in message_ids:
+            cached = gmail_cache_get(user["id"], message_id)
+            if cached is not None:
+                messages_by_id[message_id] = cached
+            else:
+                missing_ids.append(message_id)
+
+        batch = missing_ids[:batch_size]
+        errors = []
+        dropped_ids = set()
+        fetched = 0
+        if batch:
+            executor = ThreadPoolExecutor(max_workers=3)
+            futures = {
+                executor.submit(_fetch_gmail_detail, headers, message_id): message_id
+                for message_id in batch
+            }
+            try:
+                for future in as_completed(futures):
+                    message_id = futures[future]
+                    try:
+                        metadata = future.result()
+                    except CancelledError:
+                        continue
+                    except (requests.RequestException, KeyError, ValueError) as error:
+                        if gmail_error_status(error) in (404, 410):
+                            # The message was deleted between listing and
+                            # fetching; stop retrying it forever.
+                            dropped_ids.add(message_id)
+                            app.logger.info(
+                                "Dropping deleted Gmail message %s for user id=%s",
+                                message_id,
+                                user["id"],
+                            )
+                            continue
+                        errors.append(error)
+                        if "quota" in gmail_error_reason(error):
+                            # Stop the round instead of burning the remaining
+                            # quota on requests Google will reject anyway.
+                            for pending in futures:
+                                pending.cancel()
+                            break
+                    else:
+                        gmail_cache_put(user["id"], message_id, metadata=metadata)
+                        messages_by_id[message_id] = metadata
+                        fetched += 1
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        if dropped_ids:
+            message_ids = [item for item in message_ids if item not in dropped_ids]
+            save_gmail_message_ids(user["id"], message_ids)
+        remaining = len(missing_ids) - fetched - len(dropped_ids)
+        result["messages"] = [
+            messages_by_id[message_id]
+            for message_id in message_ids
+            if message_id in messages_by_id
+        ]
+        result["total"] = len(message_ids)
+        result["remaining"] = remaining
+        if errors:
+            result["error"] = gmail_error_message(errors[0])
+            result["retry_after"] = 60
+            app.logger.warning(
+                "Gmail sync paused for user id=%s: loaded=%s remaining=%s reason=%s",
+                user["id"],
+                len(messages_by_id),
+                remaining,
+                gmail_error_reason(errors[0]) or errors[0],
+            )
+        else:
+            app.logger.info(
+                "Gmail sync for user id=%s: total=%s loaded=%s remaining=%s",
+                user["id"],
+                len(message_ids),
+                len(messages_by_id),
+                remaining,
+            )
+        return result
+    finally:
+        lock.release()
+
+
+def fetch_gmail_messages(user):
+    """Compatibility wrapper used by callers that need the cached inbox."""
+    return sync_gmail_inbox(user, batch_size=10 ** 9)["messages"]
+
+
+def fetch_gmail_message(user, message_id):
+    """Fetch and decode one complete Gmail message for the detail view."""
+    metadata = gmail_cache_get(user["id"], message_id)
+    body = gmail_cache_get(user["id"], message_id, body=True)
+    if metadata is not None and body is not None:
+        return {**metadata, "date": gmail_message_date(metadata), "body": body}
+
+    access_token = get_gmail_access_token(user)
+    if not access_token:
+        return None
+    response = requests.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+        headers={"Authorization": "Bearer " + access_token},
+        params={"userId": "me", "format": "full"},
+        timeout=(5, 20),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    metadata = gmail_metadata_from_payload(payload, message_id)
+    body = decode_gmail_body(payload.get("payload", {}))
+    gmail_cache_put(user["id"], message_id, metadata=metadata, body=body)
+    return {**metadata, "date": gmail_message_date(metadata), "body": body}
 
 
 def send_gmail_message(user, recipient, subject, body):
@@ -337,6 +755,910 @@ def send_gmail_message(user, recipient, subject, body):
         timeout=10,
     )
     response.raise_for_status()
+
+
+TELEGRAM_PHONE_RE = re.compile(r"^\+?[0-9]{6,20}$")
+TELEGRAM_API_HASH_RE = re.compile(r"^[0-9a-fA-F]{32}$")
+_telegram_locks = {}
+_telegram_locks_guard = threading.Lock()
+
+
+def get_integration(user_id, provider):
+    row = get_db().execute(
+        "SELECT config FROM integrations WHERE user_id = ? AND provider = ?",
+        (user_id, provider),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        config = json.loads(row["config"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return config if isinstance(config, dict) else None
+
+
+def save_integration(user_id, provider, config):
+    get_db().execute(
+        """INSERT INTO integrations (user_id, provider, config, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id, provider) DO UPDATE SET
+               config = excluded.config,
+               updated_at = excluded.updated_at""",
+        (user_id, provider, json.dumps(config), time.time()),
+    )
+    get_db().commit()
+
+
+def delete_integration(user_id, provider):
+    get_db().execute(
+        "DELETE FROM integrations WHERE user_id = ? AND provider = ?",
+        (user_id, provider),
+    )
+    get_db().commit()
+
+
+def _telegram_lock(user_id):
+    with _telegram_locks_guard:
+        return _telegram_locks.setdefault(user_id, threading.Lock())
+
+
+def telegram_available():
+    return TELETHON_AVAILABLE and TelegramClient is not None
+
+
+def _telegram_client(config, session=None):
+    if not telegram_available():
+        raise RuntimeError(
+            "Telegram account support is not installed. Run pip install telethon."
+        )
+    session_text = config.get("session", "") if session is None else session
+    return TelegramClient(
+        StringSession(session_text),
+        int(config["api_id"]),
+        config["api_hash"],
+    )
+
+
+def _telegram_account(me):
+    name = " ".join(
+        part for part in (getattr(me, "first_name", ""), getattr(me, "last_name", "")) if part
+    )
+    return {
+        "id": getattr(me, "id", None),
+        "name": name or getattr(me, "username", "") or "Telegram account",
+        "username": getattr(me, "username", "") or "",
+        "phone": getattr(me, "phone", "") or "",
+    }
+
+
+def telegram_error_text(error):
+    if TELETHON_AVAILABLE:
+        if isinstance(error, FloodWaitError):
+            return f"Telegram asked to wait {error.seconds} seconds before trying again."
+        if isinstance(error, PhoneCodeInvalidError):
+            return "That login code is not correct. Check Telegram and try again."
+        if isinstance(error, PhoneCodeExpiredError):
+            return "That login code has expired. Start over to request a new code."
+        if isinstance(error, PasswordHashInvalidError):
+            return "That two-step verification password is not correct."
+        if isinstance(error, SessionPasswordNeededError):
+            return "This account uses two-step verification. Enter your password to finish signing in."
+        if isinstance(error, ApiIdInvalidError):
+            return "The API ID or API hash is not valid. Copy both from my.telegram.org."
+        if isinstance(error, PhoneNumberInvalidError):
+            return "Enter the phone number in international format, for example +233201234567."
+    return str(error) or type(error).__name__
+
+
+def telegram_send_code(user, api_id, api_hash, phone):
+    config = {"api_id": api_id, "api_hash": api_hash, "phone": phone, "stage": "code"}
+
+    async def run():
+        client = _telegram_client(config, session="")
+        await client.connect()
+        try:
+            sent = await client.send_code_request(phone)
+            return sent.phone_code_hash, client.session.save()
+        finally:
+            await client.disconnect()
+
+    with _telegram_lock(user["id"]):
+        phone_code_hash, session_text = asyncio.run(run())
+    config.update(phone_code_hash=phone_code_hash, session=session_text)
+    save_integration(user["id"], "telegram", config)
+    return config
+
+
+def telegram_verify(user, value, mode):
+    config = get_integration(user["id"], "telegram")
+    if config is None or config.get("stage") not in {"code", "password"}:
+        raise RuntimeError("Start Telegram sign-in again.")
+    expected = "password" if mode == "password" else "code"
+    if config.get("stage") != expected:
+        raise RuntimeError("Finish the current Telegram sign-in step first.")
+
+    async def run():
+        client = _telegram_client(config)
+        await client.connect()
+        try:
+            if mode == "password":
+                await client.sign_in(password=value)
+            else:
+                await client.sign_in(
+                    phone=config["phone"],
+                    code=value,
+                    phone_code_hash=config.get("phone_code_hash"),
+                )
+            me = await client.get_me()
+            return {
+                "stage": "connected",
+                "session": client.session.save(),
+                "account": _telegram_account(me),
+            }
+        except SessionPasswordNeededError:
+            return {"stage": "password", "session": client.session.save()}
+        finally:
+            await client.disconnect()
+
+    with _telegram_lock(user["id"]):
+        update = asyncio.run(run())
+    config.update(update)
+    config.pop("phone_code_hash", None)
+    save_integration(user["id"], "telegram", config)
+    return config
+
+
+def telegram_snapshot(config, user_id, limit=8):
+    async def run():
+        client = _telegram_client(config)
+        await client.connect()
+        try:
+            if not await client.is_user_authorized():
+                raise RuntimeError(
+                    "This Telegram session is no longer signed in. Connect your account again."
+                )
+            me = await client.get_me()
+            dialogs = await client.get_dialogs(limit=limit)
+            messages = []
+            for dialog in dialogs:
+                message = dialog.message
+                if message is None:
+                    continue
+                messages.append(
+                    {
+                        "id": message.id,
+                        "sender": getattr(dialog, "name", "") or "Telegram",
+                        "text": message.message or "(No text content)",
+                        "time": message.date.astimezone().strftime("%b %d, %H:%M"),
+                    }
+                )
+            return _telegram_account(me), messages
+        finally:
+            await client.disconnect()
+
+    with _telegram_lock(user_id):
+        return asyncio.run(run())
+
+
+def telegram_send_test(config, user_id):
+    async def run():
+        client = _telegram_client(config)
+        await client.connect()
+        try:
+            if not await client.is_user_authorized():
+                raise RuntimeError(
+                    "This Telegram session is no longer signed in. Connect your account again."
+                )
+            await client.send_message(
+                "me",
+                "CentroMail connection test: your Telegram account is connected.",
+            )
+        finally:
+            await client.disconnect()
+
+    with _telegram_lock(user_id):
+        asyncio.run(run())
+
+
+def telegram_disconnect(config, user_id):
+    if not telegram_available() or not config or not config.get("session"):
+        return
+
+    async def run():
+        client = _telegram_client(config)
+        await client.connect()
+        try:
+            if await client.is_user_authorized():
+                await client.log_out()
+        finally:
+            await client.disconnect()
+
+    try:
+        with _telegram_lock(user_id):
+            asyncio.run(run())
+    except Exception as error:  # The local connection is removed regardless.
+        app.logger.warning(
+            "Telegram logout failed for user id=%s: %s", user_id, telegram_error_text(error)
+        )
+
+
+WHATSAPP_API_VERSION = "v22.0"
+WHATSAPP_GRAPH = "https://graph.facebook.com/{version}/{phone_number_id}"
+WHATSAPP_FIELDS = "verified_name,display_phone_number,quality_rating"
+
+
+def whatsapp_response_error(response):
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    error = payload.get("error", {}) if isinstance(payload, dict) else {}
+    message = error.get("message") if isinstance(error, dict) else None
+    return message or f"WhatsApp returned HTTP {response.status_code}."
+
+
+def whatsapp_request(config, method, path="", params=None, payload=None):
+    token = config.get("access_token", "")
+    if not token:
+        raise RuntimeError("Connect WhatsApp again to refresh the access token.")
+    response = requests.request(
+        method,
+        WHATSAPP_GRAPH.format(
+            version=WHATSAPP_API_VERSION,
+            phone_number_id=config["phone_number_id"],
+        )
+        + path,
+        headers={"Authorization": "Bearer " + token},
+        params=params,
+        json=payload,
+        timeout=(5, 20),
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(whatsapp_response_error(response))
+    return response.json() if response.content else {}
+
+
+def connect_whatsapp(user, phone_number_id, access_token, verify_token):
+    config = {
+        "phone_number_id": phone_number_id,
+        "access_token": access_token,
+        "verify_token": verify_token or secrets.token_urlsafe(24),
+    }
+    profile = whatsapp_request(config, "GET", params={"fields": WHATSAPP_FIELDS})
+    config.update(
+        {
+            "verified_name": profile.get("verified_name", ""),
+            "display_phone_number": profile.get("display_phone_number", ""),
+            "quality_rating": profile.get("quality_rating", ""),
+        }
+    )
+    save_integration(user["id"], "whatsapp", config)
+    return config
+
+
+def whatsapp_send_message(config, recipient, text):
+    return whatsapp_request(
+        config,
+        "POST",
+        "/messages",
+        payload={
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": recipient,
+            "type": "text",
+            "text": {"preview_url": False, "body": text},
+        },
+    )
+
+
+def store_whatsapp_message(user_id, message):
+    text = message.get("text") or {}
+    body = text.get("body") if isinstance(text, dict) else None
+    if not body:
+        body = message.get("caption") or "(Non-text WhatsApp message)"
+    message_id = str(message.get("id") or f"{time.time():.6f}")
+    sender = str(message.get("from") or "WhatsApp")
+    try:
+        received_at = float(message.get("timestamp") or time.time())
+    except (TypeError, ValueError):
+        received_at = time.time()
+    get_db().execute(
+        """INSERT INTO whatsapp_messages (user_id, message_id, sender, body, received_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, message_id) DO NOTHING""",
+        (user_id, message_id, sender, body[:2000], received_at),
+    )
+    get_db().commit()
+
+
+def whatsapp_recent_messages(user_id, limit=8):
+    rows = get_db().execute(
+        """SELECT sender, body, received_at FROM whatsapp_messages
+           WHERE user_id = ? ORDER BY received_at DESC LIMIT ?""",
+        (user_id, limit),
+    ).fetchall()
+    return [
+        {
+            "sender": row["sender"],
+            "text": row["body"],
+            "time": datetime.fromtimestamp(row["received_at"], timezone.utc)
+            .astimezone()
+            .strftime("%b %d, %H:%M"),
+        }
+        for row in rows
+    ]
+
+
+def find_whatsapp_integration(phone_number_id=None, verify_token=None):
+    rows = get_db().execute(
+        "SELECT user_id, config FROM integrations WHERE provider = 'whatsapp'"
+    ).fetchall()
+    matched = None
+    for row in rows:
+        try:
+            config = json.loads(row["config"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(config, dict):
+            continue
+        if phone_number_id and config.get("phone_number_id") == phone_number_id:
+            matched = (row["user_id"], config)
+            if phone_number_id:
+                break
+        if verify_token and secrets.compare_digest(
+            str(config.get("verify_token", "")), str(verify_token)
+        ):
+            matched = (row["user_id"], config)
+            break
+    return matched if matched is not None else (None, None)
+
+
+DISCORD_API = "https://discord.com/api/v10"
+DISCORD_TOKEN_RE = re.compile(r"^[A-Za-z0-9_.-]{20,200}$")
+
+
+def discord_response_error(response):
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    message = payload.get("message") if isinstance(payload, dict) else None
+    if response.status_code == 401:
+        return "The Discord bot token is not valid."
+    if response.status_code == 403:
+        return "The bot does not have permission to view or post in that channel."
+    if response.status_code == 404:
+        return "Discord could not find that channel. Check the channel ID."
+    if response.status_code == 429:
+        retry = payload.get("retry_after") if isinstance(payload, dict) else None
+        return f"Discord is rate limiting requests. Try again in {retry or 'a few'} seconds."
+    return message or f"Discord returned HTTP {response.status_code}."
+
+
+def discord_request(config, method, path, params=None, payload=None):
+    token = config.get("bot_token", "")
+    if not token:
+        raise RuntimeError("Connect Discord again to refresh the bot token.")
+    response = requests.request(
+        method,
+        DISCORD_API + path,
+        headers={
+            "Authorization": "Bot " + token,
+            "Content-Type": "application/json",
+        },
+        params=params,
+        json=payload,
+        timeout=(5, 20),
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(discord_response_error(response))
+    return response.json() if response.content else {}
+
+
+def connect_discord(user, bot_token, channel_id):
+    config = {"bot_token": bot_token, "channel_id": channel_id}
+    bot = discord_request(config, "GET", "/users/@me")
+    channel = discord_request(config, "GET", f"/channels/{channel_id}")
+    guild = {}
+    if channel.get("guild_id"):
+        try:
+            guild = discord_request(config, "GET", f"/guilds/{channel['guild_id']}")
+        except (requests.RequestException, RuntimeError):
+            guild = {}
+    config.update(
+        {
+            "bot_name": bot.get("global_name") or bot.get("username") or "Discord bot",
+            "bot_username": bot.get("username", ""),
+            "bot_id": bot.get("id", ""),
+            "channel_name": channel.get("name", "") or channel_id,
+            "guild_name": guild.get("name", ""),
+        }
+    )
+    save_integration(user["id"], "discord", config)
+    return config
+
+
+def discord_recent_messages(config, limit=8):
+    messages = discord_request(
+        config,
+        "GET",
+        f"/channels/{config['channel_id']}/messages",
+        params={"limit": limit},
+    )
+    items = []
+    for message in reversed(messages or []):
+        author = message.get("author", {}) or {}
+        name = author.get("global_name") or author.get("username") or "Discord"
+        content = message.get("content") or "(No text content)"
+        timestamp = message.get("timestamp") or ""
+        try:
+            when = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone()
+            label = when.strftime("%b %d, %H:%M")
+        except (TypeError, ValueError):
+            label = ""
+        items.append({"id": message.get("id"), "sender": name, "text": content, "time": label})
+    return items
+
+
+def discord_send_message(config, text):
+    return discord_request(
+        config,
+        "POST",
+        f"/channels/{config['channel_id']}/messages",
+        payload={"content": text[:2000]},
+    )
+
+
+SOCIAL_API_VERSION = "v22.0"
+SOCIAL_TIMEOUT = (5, 20)
+
+
+def social_field(name, label, field_type="text", placeholder="", required=True):
+    return {
+        "name": name,
+        "label": label,
+        "type": field_type,
+        "placeholder": placeholder,
+        "required": required,
+    }
+
+
+SOCIAL_PROVIDERS = [
+    {
+        "key": "x",
+        "name": "X",
+        "mark": "X",
+        "subtitle": "Posts, replies and profile",
+        "help": "Create an app at developer.x.com, then use an OAuth 2.0 user access token with tweet.read and tweet.write.",
+        "fields": [social_field("access_token", "OAuth 2.0 access token", "password", "Paste your X access token")],
+        "test": True,
+        "test_label": "Post test tweet",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 280,
+    },
+    {
+        "key": "facebook",
+        "name": "Facebook",
+        "mark": "f",
+        "subtitle": "Pages, posts and feed",
+        "help": "Open developers.facebook.com, create an app, and paste a Page access token with pages_manage_posts and pages_read_engagement.",
+        "fields": [social_field("access_token", "Page access token", "password", "Paste your Page access token")],
+        "test": True,
+        "test_label": "Post to Page",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 5000,
+    },
+    {
+        "key": "instagram",
+        "name": "Instagram",
+        "mark": "Ig",
+        "subtitle": "Business profile and feed",
+        "help": "Use a Meta app with an Instagram Business account. Enter the Instagram user ID and an access token with instagram_basic.",
+        "fields": [
+            social_field("ig_user_id", "Instagram user ID", "text", "17841400000000000"),
+            social_field("access_token", "Access token", "password", "Paste your access token"),
+        ],
+        "test": False,
+        "note": "Instagram publishing requires an image or video URL, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "threads",
+        "name": "Threads",
+        "mark": "Th",
+        "subtitle": "Text posts and profile",
+        "help": "Create a Meta Threads app and paste a long-lived Threads access token with threads_basic and threads_content_publish.",
+        "fields": [social_field("access_token", "Threads access token", "password", "Paste your Threads token")],
+        "test": True,
+        "test_label": "Post test thread",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 500,
+    },
+    {
+        "key": "linkedin",
+        "name": "LinkedIn",
+        "mark": "in",
+        "subtitle": "Member posts and profile",
+        "help": "Use a LinkedIn OAuth 2.0 access token with openid, profile and w_member_social scopes.",
+        "fields": [social_field("access_token", "Access token", "password", "Paste your LinkedIn token")],
+        "test": True,
+        "test_label": "Post test update",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 3000,
+    },
+    {
+        "key": "reddit",
+        "name": "Reddit",
+        "mark": "r",
+        "subtitle": "Profile, subreddits and posts",
+        "help": "Create a Reddit script app and paste an OAuth access token with identity and read scopes.",
+        "fields": [social_field("access_token", "OAuth access token", "password", "Paste your Reddit token")],
+        "test": False,
+        "note": "Posting needs a subreddit and title, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "mastodon",
+        "name": "Mastodon",
+        "mark": "M",
+        "subtitle": "Posts and federated profile",
+        "help": "In Mastodon open Preferences, Development, New application, and copy the access token. Enter the instance domain.",
+        "fields": [
+            social_field("instance", "Instance", "text", "mastodon.social"),
+            social_field("access_token", "Access token", "password", "Paste your Mastodon token"),
+        ],
+        "test": True,
+        "test_label": "Post test status",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 500,
+    },
+    {
+        "key": "bluesky",
+        "name": "Bluesky",
+        "mark": "B",
+        "subtitle": "Posts and AT Protocol profile",
+        "help": "Use your handle and an App Password from bsky.app Settings, Privacy and security, App passwords.",
+        "fields": [
+            social_field("handle", "Handle", "text", "you.bsky.social"),
+            social_field("app_password", "App password", "password", "xxxx-xxxx-xxxx-xxxx"),
+        ],
+        "test": True,
+        "test_label": "Post test skeet",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 300,
+    },
+    {
+        "key": "tiktok",
+        "name": "TikTok",
+        "mark": "Tt",
+        "subtitle": "Profile and creator info",
+        "help": "Create a TikTok developer app and paste an access token with user.info.basic.",
+        "fields": [social_field("access_token", "Access token", "password", "Paste your TikTok token")],
+        "test": False,
+        "note": "Video publishing needs a hosted video file, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "pinterest",
+        "name": "Pinterest",
+        "mark": "P",
+        "subtitle": "Profile and boards",
+        "help": "Create a Pinterest developer app and paste an access token with user_accounts:read.",
+        "fields": [social_field("access_token", "Access token", "password", "Paste your Pinterest token")],
+        "test": False,
+        "note": "Pins require an image URL, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "tumblr",
+        "name": "Tumblr",
+        "mark": "t",
+        "subtitle": "Blogs and posts",
+        "help": "Create a Tumblr OAuth app and paste an OAuth 2.0 access token.",
+        "fields": [social_field("access_token", "Access token", "password", "Paste your Tumblr token")],
+        "test": False,
+        "note": "Tumblr posting needs a blog identifier, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "twitch",
+        "name": "Twitch",
+        "mark": "Tw",
+        "subtitle": "Channel and streaming profile",
+        "help": "Create a Twitch developer app and paste its client ID plus an OAuth user access token.",
+        "fields": [
+            social_field("client_id", "Client ID", "text", "Your Twitch client ID"),
+            social_field("access_token", "User access token", "password", "Paste your Twitch token"),
+        ],
+        "test": False,
+        "note": "Chat and stream actions need additional bot scopes, so CentroMail validates the connection here.",
+    },
+    {
+        "key": "slack",
+        "name": "Slack",
+        "mark": "S",
+        "subtitle": "Workspace channels and messages",
+        "help": "Create a Slack app, install it to your workspace, and paste the bot token plus the target channel ID.",
+        "fields": [
+            social_field("bot_token", "Bot token", "password", "xoxb-..."),
+            social_field("channel_id", "Channel ID", "text", "C0123456789"),
+        ],
+        "test": True,
+        "test_label": "Send test message",
+        "test_placeholder": "Hello from CentroMail",
+        "max_length": 4000,
+    },
+]
+
+SOCIAL_PROVIDERS_BY_KEY = {provider["key"]: provider for provider in SOCIAL_PROVIDERS}
+
+
+def social_error(response):
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    if isinstance(payload, dict):
+        for key in ("error_description", "message", "detail", "error"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+            if isinstance(value, dict):
+                nested = value.get("message")
+                if nested:
+                    return nested
+    return f"The service returned HTTP {response.status_code}."
+
+
+def social_request(url, token="", method="GET", params=None, payload=None, headers=None):
+    request_headers = dict(headers or {})
+    if token:
+        request_headers["Authorization"] = "Bearer " + token
+    response = requests.request(
+        method,
+        url,
+        headers=request_headers,
+        params=params,
+        json=payload,
+        timeout=SOCIAL_TIMEOUT,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(social_error(response))
+    if not response.content:
+        return {}
+    try:
+        return response.json()
+    except ValueError:
+        return {}
+
+
+def social_profile(provider, config):
+    token = config.get("access_token") or config.get("bot_token") or ""
+
+    if provider == "x":
+        data = social_request("https://api.x.com/2/users/me", token)
+        user = data.get("data") or {}
+        config["account"] = user.get("name") or "X account"
+        config["detail"] = f"@{user['username']}" if user.get("username") else ""
+    elif provider == "facebook":
+        data = social_request(
+            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/me",
+            params={"fields": "id,name", "access_token": token},
+        )
+        config["account"] = data.get("name") or "Facebook Page"
+        config["detail"] = f"Page {data['id']}" if data.get("id") else ""
+    elif provider == "instagram":
+        data = social_request(
+            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/{config['ig_user_id']}",
+            params={"fields": "id,username,account_type", "access_token": token},
+        )
+        config["account"] = "@" + data.get("username", "instagram")
+        config["detail"] = data.get("account_type", "")
+    elif provider == "threads":
+        data = social_request(
+            "https://graph.threads.net/v1.0/me",
+            params={"fields": "id,username", "access_token": token},
+        )
+        config["account"] = "@" + data.get("username", "threads")
+        config["detail"] = f"User {data['id']}" if data.get("id") else ""
+    elif provider == "linkedin":
+        data = social_request("https://api.linkedin.com/v2/userinfo", token)
+        config["account"] = data.get("name") or data.get("email") or "LinkedIn member"
+        config["detail"] = data.get("email", "")
+        config["member_id"] = data.get("sub", "")
+    elif provider == "reddit":
+        data = social_request(
+            "https://oauth.reddit.com/api/v1/me",
+            token,
+            headers={"User-Agent": "CentroMail/1.0"},
+        )
+        config["account"] = "u/" + data.get("name", "reddit")
+        config["detail"] = f"{data.get('link_karma', 0)} link karma"
+    elif provider == "mastodon":
+        instance = (
+            config.get("instance", "")
+            .replace("https://", "")
+            .replace("http://", "")
+            .strip("/")
+        )
+        if not instance or "." not in instance:
+            raise RuntimeError("Enter a Mastodon instance such as mastodon.social.")
+        config["instance"] = instance
+        base_url = "https://" + instance
+        data = social_request(base_url + "/api/v1/accounts/verify_credentials", token)
+        config["account"] = "@" + data.get("acct", "mastodon")
+        config["detail"] = data.get("display_name", "")
+        config["base_url"] = base_url
+    elif provider == "bluesky":
+        response = requests.post(
+            "https://bsky.social/xrpc/com.atproto.server.createSession",
+            json={
+                "identifier": config.get("handle", "").lstrip("@"),
+                "password": config.get("app_password", ""),
+            },
+            timeout=SOCIAL_TIMEOUT,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(social_error(response))
+        data = response.json()
+        config.update(
+            {
+                "handle": data.get("handle", config.get("handle", "")),
+                "access_token": data.get("accessJwt", ""),
+                "refresh_token": data.get("refreshJwt", ""),
+                "did": data.get("did", ""),
+            }
+        )
+        config["account"] = "@" + config["handle"]
+        config["detail"] = "App password session"
+    elif provider == "tiktok":
+        data = social_request(
+            "https://open.tiktokapis.com/v2/user/info/",
+            token,
+            params={"fields": "open_id,display_name,username"},
+        )
+        user = (data.get("data") or {}).get("user") or {}
+        config["account"] = user.get("display_name") or "TikTok account"
+        config["detail"] = "@" + user["username"] if user.get("username") else ""
+    elif provider == "pinterest":
+        data = social_request("https://api.pinterest.com/v5/user_account", token)
+        config["account"] = data.get("username") or "Pinterest account"
+        config["detail"] = data.get("account_type", "")
+    elif provider == "tumblr":
+        data = social_request("https://api.tumblr.com/v2/user/info", token)
+        user = (data.get("response") or {}).get("user") or {}
+        blogs = user.get("blogs") or []
+        config["account"] = user.get("name") or "Tumblr"
+        config["detail"] = f"{len(blogs)} blog(s)" if blogs else ""
+    elif provider == "twitch":
+        data = social_request(
+            "https://api.twitch.tv/helix/users",
+            token,
+            headers={"Client-Id": config.get("client_id", "")},
+        )
+        user = (data.get("data") or [{}])[0]
+        config["account"] = user.get("display_name") or "Twitch channel"
+        config["detail"] = "@" + user["login"] if user.get("login") else ""
+    elif provider == "slack":
+        data = social_request("https://slack.com/api/auth.test", token, method="POST")
+        if not data.get("ok"):
+            raise RuntimeError(data.get("error", "Slack rejected the bot token."))
+        config["account"] = data.get("team") or "Slack workspace"
+        config["detail"] = "#" + config.get("channel_id", "")
+    else:
+        raise RuntimeError("This provider is not supported.")
+
+    return config
+
+
+def social_publish(provider, config, text):
+    token = config.get("access_token") or config.get("bot_token") or ""
+
+    if provider == "x":
+        social_request(
+            "https://api.x.com/2/tweets",
+            token,
+            method="POST",
+            payload={"text": text[:280]},
+        )
+    elif provider == "facebook":
+        social_request(
+            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/me/feed",
+            method="POST",
+            params={"access_token": token},
+            payload={"message": text[:5000]},
+        )
+    elif provider == "threads":
+        container = social_request(
+            "https://graph.threads.net/v1.0/me/threads",
+            method="POST",
+            params={
+                "media_type": "TEXT",
+                "text": text[:500],
+                "access_token": token,
+            },
+        )
+        creation_id = container.get("id")
+        if not creation_id:
+            raise RuntimeError("Threads did not return a post container.")
+        social_request(
+            "https://graph.threads.net/v1.0/me/threads_publish",
+            method="POST",
+            params={"creation_id": creation_id, "access_token": token},
+        )
+    elif provider == "linkedin":
+        social_request(
+            "https://api.linkedin.com/v2/ugcPosts",
+            token,
+            method="POST",
+            headers={
+                "X-Restli-Protocol-Version": "2.0.0",
+                "Content-Type": "application/json",
+            },
+            payload={
+                "author": "urn:li:person:" + config.get("member_id", ""),
+                "lifecycleState": "PUBLISHED",
+                "specificContent": {
+                    "com.linkedin.ugc.ShareContent": {
+                        "shareCommentary": {"text": text[:3000]},
+                        "shareMediaCategory": "NONE",
+                    }
+                },
+                "visibility": {
+                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                },
+            },
+        )
+    elif provider == "mastodon":
+        social_request(
+            config.get("base_url", "https://mastodon.social") + "/api/v1/statuses",
+            token,
+            method="POST",
+            payload={"status": text[:500]},
+        )
+    elif provider == "bluesky":
+        social_request(
+            "https://bsky.social/xrpc/com.atproto.repo.createRecord",
+            token,
+            method="POST",
+            payload={
+                "repo": config.get("did", ""),
+                "collection": "app.bsky.feed.post",
+                "record": {
+                    "$type": "app.bsky.feed.post",
+                    "text": text[:300],
+                    "createdAt": datetime.now(timezone.utc)
+                    .isoformat()
+                    .replace("+00:00", "Z"),
+                },
+            },
+        )
+    elif provider == "slack":
+        data = social_request(
+            "https://slack.com/api/chat.postMessage",
+            token,
+            method="POST",
+            payload={
+                "channel": config.get("channel_id", ""),
+                "text": text[:4000],
+            },
+        )
+        if not data.get("ok"):
+            raise RuntimeError(data.get("error", "Slack rejected the message."))
+    else:
+        raise RuntimeError("This provider only supports validating the connection.")
+
+
+def social_connect(provider, values):
+    spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
+    if spec is None:
+        raise RuntimeError("Unknown social provider.")
+    config = {}
+    for field in spec["fields"]:
+        value = values.get(field["name"], "").strip()
+        if field["name"] == "access_token" and value.lower().startswith("bearer "):
+            value = value[7:].strip()
+        if field["required"] and not value:
+            raise RuntimeError(f"Enter {field['label'].lower()}.")
+        config[field["name"]] = value
+    config["provider"] = provider
+    config["connected_at"] = int(time.time())
+    return social_profile(provider, config)
 
 
 def google_callback_uri():
@@ -437,32 +1759,98 @@ def home():
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html', stats=make_stats([]), user_email=session.get('user_email'))
+    return render_template(
+        'dashboard.html',
+        stats=make_stats(load_cached_gmail_messages(g.user)),
+        user_email=session.get('user_email'),
+    )
+
+
+@app.get('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@app.get('/terms')
+def terms():
+    return render_template('terms.html')
+
+
+@app.post('/account/delete')
+def delete_account():
+    """Delete the signed-in account and locally stored account data."""
+    user_id = g.user["id"]
+    db = get_db()
+    for table in (
+        "gmail_cache", "gmail_sync_state", "whatsapp_messages", "integrations",
+    ):
+        db.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    db.commit()
+    session.clear()
+    flash("Your CentroMail account and locally stored data were deleted.", "info")
+    return redirect(url_for('login'))
+
+
+INBOX_PAGE_SIZE = 50
+
+
+def paginate_messages(messages, page):
+    total = len(messages)
+    pages = max(1, (total + INBOX_PAGE_SIZE - 1) // INBOX_PAGE_SIZE)
+    page = min(max(page or 1, 1), pages)
+    start = (page - 1) * INBOX_PAGE_SIZE
+    return {
+        "messages": messages[start:start + INBOX_PAGE_SIZE],
+        "page": page,
+        "pages": pages,
+        "first": start + 1 if total else 0,
+        "last": min(start + INBOX_PAGE_SIZE, total),
+    }
 
 
 @app.route('/inbox')
 def inbox():
     try:
-        messages = fetch_gmail_messages(g.user)
+        result = sync_gmail_inbox(g.user)
     except requests.HTTPError as error:
-        status = error.response.status_code if error.response is not None else "unknown"
-        app.logger.error("Gmail inbox pull failed with HTTP error: status=%s", status)
-        if error.response is not None and error.response.status_code == 403:
-            flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
-        else:
-            flash("Gmail could not be loaded right now. Please try again.", "error")
-        messages = []
-    except requests.Timeout:
-        app.logger.error("Gmail inbox pull timed out")
-        flash("Gmail took too long to respond. Please try again.", "error")
-        messages = []
+        message = gmail_error_message(error)
+        app.logger.error(
+            "Gmail inbox sync failed with HTTP error: status=%s reason=%s",
+            error.response.status_code if error.response is not None else "unknown",
+            gmail_error_reason(error),
+        )
+        result = {
+            "messages": load_cached_gmail_messages(g.user),
+            "total": None,
+            "remaining": None,
+            "busy": False,
+            "error": message,
+            "retry_after": 60,
+        }
     except (requests.RequestException, KeyError, ValueError):
-        app.logger.exception("Gmail inbox pull failed")
-        flash("Gmail could not be loaded right now. Please try again.", "error")
-        messages = []
-    if not get_google_token(g.user):
+        app.logger.exception("Gmail inbox sync failed")
+        result = {
+            "messages": load_cached_gmail_messages(g.user),
+            "total": None,
+            "remaining": None,
+            "busy": False,
+            "error": "Gmail could not be loaded right now. Please try again.",
+            "retry_after": 60,
+        }
+    messages = result["messages"]
+    if result["error"] == "no_token":
         flash("Connect Google again to load your Gmail inbox.", "info")
-    return render_template('mail.html', messages=messages, stats=make_stats(messages))
+    elif result["error"] and not messages:
+        flash(result["error"], "error")
+    page = paginate_messages(messages, request.args.get("page", type=int))
+    return render_template(
+        'mail.html',
+        messages=page["messages"],
+        page=page,
+        stats=make_stats(messages),
+        gmail_sync=result,
+    )
 
 
 @app.route('/mail')
@@ -473,50 +1861,449 @@ def mail():
 @app.route('/message/<message_id>')
 def message_detail(message_id):
     try:
-        messages = fetch_gmail_messages(g.user)
+        message = fetch_gmail_message(g.user, message_id)
+        if message is not None:
+            return render_template('message.html', message=message)
+        flash("Connect Google again to load this email.", "info")
+        messages = load_cached_gmail_messages(g.user)
     except requests.HTTPError as error:
-        app.logger.error("Gmail message pull failed with HTTP error: status=%s", error.response.status_code if error.response else "unknown")
-        if error.response is not None and error.response.status_code == 403:
-            flash("Gmail access is unavailable because the Gmail API is disabled for this Google project. Enable the Gmail API in Google Cloud Console, then sign in with Google again.", "error")
-        else:
-            flash("Gmail could not be loaded right now. Please try again.", "error")
-        messages = []
+        app.logger.error(
+            "Gmail message pull failed with HTTP error: status=%s reason=%s",
+            error.response.status_code if error.response else "unknown",
+            gmail_error_reason(error),
+        )
+        flash(gmail_error_message(error), "error")
+        messages = load_cached_gmail_messages(g.user)
     except (requests.RequestException, KeyError, ValueError):
         app.logger.exception("Gmail message pull failed")
         flash("Gmail could not be loaded right now. Please try again.", "error")
-        messages = []
-    for message in messages:
-        if message['id'] == message_id:
-            return render_template('message.html', message=message)
-    return render_template('mail.html', messages=messages, stats=make_stats(messages))
+        messages = load_cached_gmail_messages(g.user)
+    page = paginate_messages(messages, 1)
+    return render_template(
+        'mail.html',
+        messages=page["messages"],
+        page=page,
+        stats=make_stats(messages),
+    )
 
 
-@app.route('/compose', methods=['GET', 'POST'])
+@app.post('/compose')
 def compose():
-    if request.method == 'POST':
-        recipient = normalize_email(request.form.get('to', ''))
-        subject = request.form.get('subject') or 'No subject'
-        body = request.form.get('body') or ''
-        if not valid_email(recipient):
-            flash("Enter a valid recipient email address.", "error")
-        elif not body.strip():
-            flash("Write a message before sending.", "error")
+    """Send a message from the in-page composer. There is no compose page."""
+    recipient = normalize_email(request.form.get('to', ''))
+    subject = request.form.get('subject') or 'No subject'
+    body = request.form.get('body') or ''
+    if not valid_email(recipient):
+        flash("Enter a valid recipient email address.", "error")
+    elif not body.strip():
+        flash("Write a message before sending.", "error")
+    else:
+        try:
+            send_gmail_message(g.user, recipient, subject, body)
+        except RuntimeError as error:
+            flash(str(error), "error")
+        except requests.RequestException:
+            flash("Gmail could not send the message. Please try again.", "error")
         else:
-            try:
-                send_gmail_message(g.user, recipient, subject, body)
-            except RuntimeError as error:
-                flash(str(error), "error")
-            except requests.RequestException:
-                flash("Gmail could not send the message. Please try again.", "error")
-            else:
-                flash(f"Message sent to {recipient} successfully.", "success")
-                return redirect(url_for('inbox'))
-    return render_template('compose.html')
+            flash(f"Message sent to {recipient} successfully.", "success")
+    return redirect(url_for('inbox'))
 
 
 @app.route('/settings')
 def settings():
     return render_template('settings.html')
+
+
+@app.get('/integrations')
+def integrations():
+    telegram = get_integration(g.user["id"], "telegram")
+    telegram_stage = telegram.get("stage") if telegram else None
+    telegram_account = telegram.get("account") if telegram else None
+    updates = []
+    telegram_error = None
+    if telegram_stage == "connected":
+        try:
+            telegram_account, updates = telegram_snapshot(telegram, g.user["id"])
+        except Exception as error:
+            telegram_error = telegram_error_text(error)
+            app.logger.warning(
+                "Telegram sync failed for user id=%s: %s", g.user["id"], telegram_error
+            )
+    whatsapp = get_integration(g.user["id"], "whatsapp")
+    discord = get_integration(g.user["id"], "discord")
+    discord_messages = []
+    discord_error = None
+    if discord is not None:
+        try:
+            discord_messages = discord_recent_messages(discord)
+        except Exception as error:
+            discord_error = str(error)
+            app.logger.warning(
+                "Discord sync failed for user id=%s: %s", g.user["id"], discord_error
+            )
+    social_cards = [
+        {
+            "spec": spec,
+            "config": get_integration(g.user["id"], "social:" + spec["key"]),
+        }
+        for spec in SOCIAL_PROVIDERS
+    ]
+    social_state = [
+        {
+            "key": card["spec"]["key"],
+            "name": card["spec"]["name"],
+            "connected": bool(card["config"]),
+            "account": (card["config"] or {}).get("account", ""),
+        }
+        for card in social_cards
+    ]
+    return render_template(
+        'integrations.html',
+        telegram=telegram,
+        telegram_stage=telegram_stage,
+        telegram_account=telegram_account,
+        telegram_updates=updates,
+        telegram_error=telegram_error,
+        telegram_available=telegram_available(),
+        whatsapp=whatsapp,
+        whatsapp_messages=whatsapp_recent_messages(g.user["id"]) if whatsapp else [],
+        whatsapp_webhook_url=url_for('whatsapp_webhook', _external=True),
+        discord=discord,
+        discord_messages=discord_messages,
+        discord_error=discord_error,
+        social_cards=social_cards,
+        social_state=social_state,
+        google_connected=bool(get_google_token(g.user)),
+        google_email=session.get("user_email"),
+    )
+
+
+@app.post('/integrations/telegram/start')
+def telegram_start_route():
+    api_id_text = request.form.get("api_id", "").strip()
+    api_hash = request.form.get("api_hash", "").strip()
+    phone = re.sub(r"[\s().-]", "", request.form.get("phone", ""))
+    if not api_id_text.isdigit() or not 1 <= int(api_id_text) <= 2147483647:
+        flash("Enter the numeric API ID from my.telegram.org.", "error")
+        return redirect(url_for('integrations'))
+    if not TELEGRAM_API_HASH_RE.fullmatch(api_hash):
+        flash("Enter the 32-character API hash from my.telegram.org.", "error")
+        return redirect(url_for('integrations'))
+    if not TELEGRAM_PHONE_RE.fullmatch(phone):
+        flash("Enter your phone number in international format, for example +233201234567.", "error")
+        return redirect(url_for('integrations'))
+    if not telegram_available():
+        flash("Telegram account support is not installed. Run pip install telethon.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        telegram_send_code(g.user, int(api_id_text), api_hash, phone)
+    except Exception as error:
+        message = telegram_error_text(error)
+        app.logger.warning("Telegram code request failed for user id=%s: %s", g.user["id"], message)
+        flash(f"Telegram could not send a login code: {message}", "error")
+    else:
+        flash(
+            "Login code sent. Open Telegram, find the message from Telegram, and enter the code here.",
+            "success",
+        )
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/telegram/verify')
+def telegram_verify_route():
+    code = re.sub(r"\s+", "", request.form.get("code", ""))
+    if not code:
+        flash("Enter the login code Telegram sent you.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        config = telegram_verify(g.user, code, "code")
+    except Exception as error:
+        message = telegram_error_text(error)
+        app.logger.warning("Telegram code verification failed for user id=%s: %s", g.user["id"], message)
+        flash(f"Telegram sign-in failed: {message}", "error")
+    else:
+        if config.get("stage") == "password":
+            flash("Two-step verification is on. Enter your Telegram password.", "info")
+        else:
+            flash("Telegram account connected and saved on this device.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/telegram/password')
+def telegram_password_route():
+    password = request.form.get("password", "")
+    if not password:
+        flash("Enter your Telegram two-step verification password.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        telegram_verify(g.user, password, "password")
+    except Exception as error:
+        message = telegram_error_text(error)
+        app.logger.warning("Telegram password sign-in failed for user id=%s: %s", g.user["id"], message)
+        flash(f"Telegram sign-in failed: {message}", "error")
+    else:
+        flash("Telegram account connected and saved on this device.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/telegram/restart')
+def telegram_restart_route():
+    delete_integration(g.user["id"], "telegram")
+    flash("Telegram sign-in restarted.", "info")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/telegram/test')
+def test_telegram_route():
+    telegram = get_integration(g.user["id"], "telegram")
+    if telegram is None or telegram.get("stage") != "connected":
+        flash("Connect your Telegram account first.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        telegram_send_test(telegram, g.user["id"])
+    except Exception as error:
+        message = telegram_error_text(error)
+        app.logger.warning("Telegram test failed for user id=%s: %s", g.user["id"], message)
+        flash(f"Telegram test failed: {message}", "error")
+    else:
+        flash("Test message sent to your Telegram Saved Messages.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/telegram/disconnect')
+def disconnect_telegram_route():
+    telegram = get_integration(g.user["id"], "telegram")
+    telegram_disconnect(telegram, g.user["id"])
+    delete_integration(g.user["id"], "telegram")
+    flash("Telegram has been disconnected.", "info")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/whatsapp')
+def connect_whatsapp_route():
+    phone_number_id = re.sub(r"\D", "", request.form.get("phone_number_id", ""))
+    access_token = request.form.get("access_token", "").strip()
+    if access_token.lower().startswith("bearer "):
+        access_token = access_token[7:].strip()
+    verify_token = request.form.get("verify_token", "").strip()
+    if not phone_number_id:
+        flash("Enter the WhatsApp phone number ID from the Meta developer dashboard.", "error")
+        return redirect(url_for('integrations'))
+    if not access_token or len(access_token) > 4096:
+        flash("Enter a valid WhatsApp Cloud API access token.", "error")
+        return redirect(url_for('integrations'))
+    if verify_token and not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", verify_token):
+        flash("The webhook verify token must be 8-64 letters, numbers, underscores or dashes.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        connect_whatsapp(g.user, phone_number_id, access_token, verify_token)
+    except requests.RequestException:
+        app.logger.warning("WhatsApp connection failed for user id=%s: network error", g.user["id"])
+        flash("WhatsApp could not be reached. Check your connection and try again.", "error")
+    except RuntimeError as error:
+        app.logger.warning("WhatsApp connection failed for user id=%s: %s", g.user["id"], error)
+        flash(f"WhatsApp could not be connected: {error}", "error")
+    else:
+        flash("WhatsApp is connected and saved on this device.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/whatsapp/test')
+def test_whatsapp_route():
+    whatsapp = get_integration(g.user["id"], "whatsapp")
+    if whatsapp is None:
+        flash("Connect WhatsApp first.", "error")
+        return redirect(url_for('integrations'))
+    recipient = re.sub(r"\D", "", request.form.get("recipient", ""))
+    text = request.form.get("message", "").strip()[:4096]
+    if not 7 <= len(recipient) <= 15:
+        flash("Enter the recipient's phone number with country code.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        whatsapp_send_message(
+            whatsapp,
+            recipient,
+            text or "CentroMail connection test: your WhatsApp integration is working.",
+        )
+    except requests.RequestException:
+        app.logger.warning("WhatsApp test failed for user id=%s: network error", g.user["id"])
+        flash("WhatsApp could not be reached. Check your connection and try again.", "error")
+    except RuntimeError as error:
+        app.logger.warning("WhatsApp test failed for user id=%s: %s", g.user["id"], error)
+        flash(f"WhatsApp test failed: {error}", "error")
+    else:
+        flash("Test message sent through WhatsApp.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/whatsapp/disconnect')
+def disconnect_whatsapp_route():
+    delete_integration(g.user["id"], "whatsapp")
+    get_db().execute("DELETE FROM whatsapp_messages WHERE user_id = ?", (g.user["id"],))
+    get_db().commit()
+    flash("WhatsApp has been disconnected.", "info")
+    return redirect(url_for('integrations'))
+
+
+@app.route('/integrations/whatsapp/webhook', methods=['GET', 'POST'])
+def whatsapp_webhook():
+    if request.method == "GET":
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge", "")
+        user_id, _ = find_whatsapp_integration(verify_token=token) if token else (None, None)
+        if mode == "subscribe" and user_id is not None:
+            return challenge, 200, {"Content-Type": "text/plain"}
+        abort(403)
+
+    payload = request.get_json(silent=True) or {}
+    for entry in payload.get("entry", []) or []:
+        for change in entry.get("changes", []) or []:
+            value = change.get("value", {}) or {}
+            metadata = value.get("metadata", {}) or {}
+            user_id, _ = find_whatsapp_integration(
+                phone_number_id=str(metadata.get("phone_number_id", ""))
+            )
+            if user_id is None:
+                continue
+            for message in value.get("messages", []) or []:
+                try:
+                    store_whatsapp_message(user_id, message)
+                except Exception:
+                    app.logger.exception("Could not store a WhatsApp webhook message")
+    return "ok", 200, {"Content-Type": "text/plain"}
+
+
+@app.post('/integrations/discord')
+def connect_discord_route():
+    bot_token = request.form.get("bot_token", "").strip()
+    if bot_token.lower().startswith("bot "):
+        bot_token = bot_token[4:].strip()
+    channel_id = re.sub(r"\D", "", request.form.get("channel_id", ""))
+    if not DISCORD_TOKEN_RE.fullmatch(bot_token):
+        flash("Enter a valid Discord bot token from the Bot settings page.", "error")
+        return redirect(url_for('integrations'))
+    if not 15 <= len(channel_id) <= 25:
+        flash("Enter the numeric Discord channel ID.", "error")
+        return redirect(url_for('integrations'))
+    try:
+        connect_discord(g.user, bot_token, channel_id)
+    except requests.RequestException:
+        app.logger.warning("Discord connection failed for user id=%s: network error", g.user["id"])
+        flash("Discord could not be reached. Check your connection and try again.", "error")
+    except RuntimeError as error:
+        app.logger.warning("Discord connection failed for user id=%s: %s", g.user["id"], error)
+        flash(f"Discord could not be connected: {error}", "error")
+    else:
+        flash("Discord is connected and saved on this device.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/discord/test')
+def test_discord_route():
+    discord = get_integration(g.user["id"], "discord")
+    if discord is None:
+        flash("Connect Discord first.", "error")
+        return redirect(url_for('integrations'))
+    text = request.form.get("message", "").strip()[:2000]
+    try:
+        discord_send_message(
+            discord,
+            text or "CentroMail connection test: your Discord integration is working.",
+        )
+    except requests.RequestException:
+        app.logger.warning("Discord test failed for user id=%s: network error", g.user["id"])
+        flash("Discord could not be reached. Check your connection and try again.", "error")
+    except RuntimeError as error:
+        app.logger.warning("Discord test failed for user id=%s: %s", g.user["id"], error)
+        flash(f"Discord test failed: {error}", "error")
+    else:
+        flash("Test message sent to the Discord channel.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/discord/disconnect')
+def disconnect_discord_route():
+    delete_integration(g.user["id"], "discord")
+    flash("Discord has been disconnected.", "info")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/social/<provider>/connect')
+def connect_social_route(provider):
+    spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
+    if spec is None:
+        abort(404)
+    values = {
+        field["name"]: request.form.get(field["name"], "")
+        for field in spec["fields"]
+    }
+    try:
+        config = social_connect(provider, values)
+        save_integration(g.user["id"], "social:" + provider, config)
+    except RuntimeError as error:
+        app.logger.warning(
+            "%s connection failed for user id=%s: %s",
+            spec["name"],
+            g.user["id"],
+            error,
+        )
+        flash(f"{spec['name']} could not be connected: {error}", "error")
+    except requests.RequestException:
+        app.logger.warning(
+            "%s connection failed for user id=%s: network error",
+            spec["name"],
+            g.user["id"],
+        )
+        flash(
+            f"{spec['name']} could not be reached. Check your connection and try again.",
+            "error",
+        )
+    else:
+        flash(f"{spec['name']} is connected and saved on this device.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/social/<provider>/test')
+def test_social_route(provider):
+    spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
+    if spec is None:
+        abort(404)
+    config = get_integration(g.user["id"], "social:" + provider)
+    if config is None:
+        flash(f"Connect {spec['name']} first.", "error")
+        return redirect(url_for('integrations'))
+    text = request.form.get("message", "").strip()
+    text = text or f"CentroMail test: your {spec['name']} integration is working."
+    text = text[: spec.get("max_length", 5000)]
+    try:
+        social_publish(provider, config, text)
+    except RuntimeError as error:
+        app.logger.warning(
+            "%s test failed for user id=%s: %s", spec["name"], g.user["id"], error
+        )
+        flash(f"{spec['name']} test failed: {error}", "error")
+    except requests.RequestException:
+        app.logger.warning(
+            "%s test failed for user id=%s: network error", spec["name"], g.user["id"]
+        )
+        flash(
+            f"{spec['name']} could not be reached. Check your connection and try again.",
+            "error",
+        )
+    else:
+        flash(f"Test post sent to {spec['name']}.", "success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/social/<provider>/disconnect')
+def disconnect_social_route(provider):
+    spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
+    if spec is None:
+        abort(404)
+    delete_integration(g.user["id"], "social:" + provider)
+    flash(f"{spec['name']} has been disconnected.", "info")
+    return redirect(url_for('integrations'))
 
 
 @app.post('/logout')

@@ -1,164 +1,225 @@
 /*
- * CentroMail theme generated from the Coolors palette:
- * #F1F7ED #E0EEC6 #7CA982 #50745C #243E36
+ * CentroMail brand layer.
  *
- * These are the M3E system roles consumed by the bundled components.
+ * m3e.css carries the generated Material 3 Expressive system, seeded from
+ * #50745C. This file pins the exact Coolors palette the app is designed
+ * around and maps the small set of legacy variables onto system roles, so
+ * every page follows one green theme in light and dark mode.
+ *
+ * Palette: #F1F7ED #E0EEC6 #7CA982 #50745C #243E36
  */
-@font-face {
-  font-family: "Material Symbols Rounded";
-  font-style: normal;
-  font-weight: 100 700;
-  font-display: swap;
-  src: url("fonts/material-symbols-rounded.woff2") format("woff2");
-}
 
 :root {
-  color-scheme: light;
-  --m3e-sys-color-background: #f7faf8;
-  --m3e-sys-color-on-background: #13231b;
-  --m3e-sys-color-surface: #ffffff;
-  --m3e-sys-color-surface-bright: #ffffff;
-  --m3e-sys-color-surface-dim: #dce8df;
-  --m3e-sys-color-surface-container-lowest: #ffffff;
-  --m3e-sys-color-surface-container-low: #f1f7f2;
-  --m3e-sys-color-surface-container: #eaf3eb;
-  --m3e-sys-color-surface-container-high: #e2eee4;
-  --m3e-sys-color-surface-container-highest: #d9e8dc;
-  --m3e-sys-color-surface-variant: #d9e8dc;
-  --m3e-sys-color-on-surface: #13231b;
-  --m3e-sys-color-on-surface-variant: #365341;
-  --m3e-sys-color-primary: #245c3c;
-  --m3e-sys-color-on-primary: #ffffff;
-  --m3e-sys-color-primary-container: #c7e6c6;
-  --m3e-sys-color-on-primary-container: #153b24;
-  --m3e-sys-color-secondary: #2f6b46;
-  --m3e-sys-color-on-secondary: #ffffff;
-  --m3e-sys-color-secondary-container: #c5e4ca;
-  --m3e-sys-color-on-secondary-container: #153b24;
-  --m3e-sys-color-tertiary: #35656b;
-  --m3e-sys-color-on-tertiary: #ffffff;
-  --m3e-sys-color-tertiary-container: #bfe2e2;
-  --m3e-sys-color-on-tertiary-container: #12363b;
-  --m3e-sys-color-outline: #477057;
-  --m3e-sys-color-outline-variant: #9dbba3;
-  --m3e-sys-color-surface-tint: #245c3c;
+    /* Legacy aliases used by older page rules. */
+    --background: var(--m3e-sys-color-background);
+    --page-bg: var(--m3e-sys-color-background);
+    --surface: var(--m3e-sys-color-surface);
+    --surface-container: var(--m3e-sys-color-surface-container);
+    --surface-variant: var(--m3e-sys-color-surface-variant);
+    --primary: var(--m3e-sys-color-primary);
+    --primary-container: var(--m3e-sys-color-primary-container);
+    --on-primary: var(--m3e-sys-color-on-primary);
+    --on-surface: var(--m3e-sys-color-on-surface);
+    --text: var(--m3e-sys-color-on-surface);
+    --muted: var(--m3e-sys-color-on-surface-variant);
+    --border: var(--m3e-sys-color-outline-variant);
+    --highlight: var(--m3e-sys-color-secondary-container);
+    --success: #1e7a45;
+    --warning: #8a5a00;
+    --danger: var(--m3e-sys-color-error);
+    --shadow: none;
+    --elevation-1: none;
+    --elevation-2: none;
+    --hero-glow: color-mix(in srgb, var(--m3e-sys-color-primary) 16%, transparent);
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --m3e-sys-color-background: #101512;
-  --m3e-sys-color-on-background: #e8eee9;
-  --m3e-sys-color-surface: #171e1a;
-  --m3e-sys-color-surface-bright: #2b3530;
-  --m3e-sys-color-surface-dim: #0c110e;
-  --m3e-sys-color-surface-container-lowest: #111713;
-  --m3e-sys-color-surface-container-low: #151c18;
-  --m3e-sys-color-surface-container: #19221c;
-  --m3e-sys-color-surface-container-high: #202b25;
-  --m3e-sys-color-surface-container-highest: #293730;
-  --m3e-sys-color-surface-variant: #303d35;
-  --m3e-sys-color-on-surface: #e4ece6;
-  --m3e-sys-color-on-surface-variant: #b5c3b9;
-  --m3e-sys-color-primary: #39734f;
-  --m3e-sys-color-on-primary: #f5fff7;
-  --m3e-sys-color-primary-container: #263f30;
-  --m3e-sys-color-on-primary-container: #d1ead8;
-  --m3e-sys-color-secondary: #568567;
-  --m3e-sys-color-on-secondary: #f5fff7;
-  --m3e-sys-color-secondary-container: #30483a;
-  --m3e-sys-color-on-secondary-container: #d6e9dc;
-  --m3e-sys-color-tertiary: #72aaa4;
-  --m3e-sys-color-on-tertiary: #082b2e;
-  --m3e-sys-color-tertiary-container: #254642;
-  --m3e-sys-color-on-tertiary-container: #d1e9e5;
-  --m3e-sys-color-outline: #718d79;
-  --m3e-sys-color-outline-variant: #46564b;
-  --m3e-sys-color-surface-tint: #79b58a;
+/* Light mode: pin the supplied palette exactly. */
+:root[data-theme="light"],
+:root.palette-light {
+    color-scheme: light;
+    --m3e-sys-color-background: #f1f7ed;
+    --m3e-sys-color-on-background: #243e36;
+    --m3e-sys-color-surface: #f1f7ed;
+    --m3e-sys-color-surface-dim: #d5e4b8;
+    --m3e-sys-color-surface-bright: #ffffff;
+    --m3e-sys-color-surface-container-lowest: #ffffff;
+    --m3e-sys-color-surface-container-low: #f7fbf1;
+    --m3e-sys-color-surface-container: #eaf2dc;
+    --m3e-sys-color-surface-container-high: #e0eec6;
+    --m3e-sys-color-surface-container-highest: #d5e4b8;
+    --m3e-sys-color-surface-variant: #e0eec6;
+    --m3e-sys-color-on-surface: #243e36;
+    --m3e-sys-color-on-surface-variant: #456b55;
+    --m3e-sys-color-primary: #50745c;
+    --m3e-sys-color-primary-dim: #476b53;
+    --m3e-sys-color-on-primary: #ffffff;
+    --m3e-sys-color-primary-container: #7ca982;
+    --m3e-sys-color-on-primary-container: #10291d;
+    --m3e-sys-color-inverse-primary: #9ed5a7;
+    --m3e-sys-color-secondary: #7ca982;
+    --m3e-sys-color-secondary-dim: #6f9a75;
+    --m3e-sys-color-on-secondary: #17301f;
+    --m3e-sys-color-secondary-container: #e0eec6;
+    --m3e-sys-color-on-secondary-container: #243e36;
+    --m3e-sys-color-tertiary: #243e36;
+    --m3e-sys-color-on-tertiary: #f1f7ed;
+    --m3e-sys-color-tertiary-container: #50745c;
+    --m3e-sys-color-on-tertiary-container: #f1f7ed;
+    --m3e-sys-color-outline: #7ca982;
+    --m3e-sys-color-outline-variant: #cbdcc0;
+    --m3e-sys-color-inverse-surface: #243e36;
+    --m3e-sys-color-inverse-on-surface: #f1f7ed;
+    --m3e-sys-color-surface-tint: #50745c;
 }
+
+/* No saved preference: follow the system but still use the palette. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        color-scheme: light;
+        --m3e-sys-color-background: #f1f7ed;
+        --m3e-sys-color-on-background: #243e36;
+        --m3e-sys-color-surface: #f1f7ed;
+        --m3e-sys-color-surface-dim: #d5e4b8;
+        --m3e-sys-color-surface-bright: #ffffff;
+        --m3e-sys-color-surface-container-lowest: #ffffff;
+        --m3e-sys-color-surface-container-low: #f7fbf1;
+        --m3e-sys-color-surface-container: #eaf2dc;
+        --m3e-sys-color-surface-container-high: #e0eec6;
+        --m3e-sys-color-surface-container-highest: #d5e4b8;
+        --m3e-sys-color-surface-variant: #e0eec6;
+        --m3e-sys-color-on-surface: #243e36;
+        --m3e-sys-color-on-surface-variant: #456b55;
+        --m3e-sys-color-primary: #50745c;
+        --m3e-sys-color-primary-dim: #476b53;
+        --m3e-sys-color-on-primary: #ffffff;
+        --m3e-sys-color-primary-container: #7ca982;
+        --m3e-sys-color-on-primary-container: #10291d;
+        --m3e-sys-color-inverse-primary: #9ed5a7;
+        --m3e-sys-color-secondary: #7ca982;
+        --m3e-sys-color-secondary-dim: #6f9a75;
+        --m3e-sys-color-on-secondary: #17301f;
+        --m3e-sys-color-secondary-container: #e0eec6;
+        --m3e-sys-color-on-secondary-container: #243e36;
+        --m3e-sys-color-tertiary: #243e36;
+        --m3e-sys-color-on-tertiary: #f1f7ed;
+        --m3e-sys-color-tertiary-container: #50745c;
+        --m3e-sys-color-on-tertiary-container: #f1f7ed;
+        --m3e-sys-color-outline: #7ca982;
+        --m3e-sys-color-outline-variant: #cbdcc0;
+        --m3e-sys-color-inverse-surface: #243e36;
+        --m3e-sys-color-inverse-on-surface: #f1f7ed;
+        --m3e-sys-color-surface-tint: #50745c;
+    }
+}
+
+/* Dark mode: deep green surfaces with light mint accents. */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --m3e-sys-color-background: #0b1712;
+    --m3e-sys-color-on-background: #e4efe6;
+    --m3e-sys-color-surface: #0b1712;
+    --m3e-sys-color-surface-dim: #08120e;
+    --m3e-sys-color-surface-bright: #2b4436;
+    --m3e-sys-color-surface-container-lowest: #08120e;
+    --m3e-sys-color-surface-container-low: #10221a;
+    --m3e-sys-color-surface-container: #142a20;
+    --m3e-sys-color-surface-container-high: #1b3428;
+    --m3e-sys-color-surface-container-highest: #23402f;
+    --m3e-sys-color-surface-variant: #23402f;
+    --m3e-sys-color-on-surface: #e4efe6;
+    --m3e-sys-color-on-surface-variant: #b7cdbb;
+    --m3e-sys-color-primary: #9ed5a7;
+    --m3e-sys-color-primary-dim: #8ec798;
+    --m3e-sys-color-on-primary: #0c2b17;
+    --m3e-sys-color-primary-container: #2d6540;
+    --m3e-sys-color-on-primary-container: #cfeBD2;
+    --m3e-sys-color-inverse-primary: #50745c;
+    --m3e-sys-color-secondary: #b7cdbb;
+    --m3e-sys-color-secondary-dim: #a6bcaa;
+    --m3e-sys-color-on-secondary: #12261a;
+    --m3e-sys-color-secondary-container: #35523f;
+    --m3e-sys-color-on-secondary-container: #d6e9d8;
+    --m3e-sys-color-tertiary: #e0eec6;
+    --m3e-sys-color-on-tertiary: #243e36;
+    --m3e-sys-color-tertiary-container: #7ca982;
+    --m3e-sys-color-on-tertiary-container: #10291d;
+    --m3e-sys-color-outline: #7ca982;
+    --m3e-sys-color-outline-variant: #35523f;
+    --m3e-sys-color-inverse-surface: #e4efe6;
+    --m3e-sys-color-inverse-on-surface: #243e36;
+    --m3e-sys-color-surface-tint: #9ed5a7;
+    --success: #8ed6a4;
+    --warning: #f0c36a;
+}
+
+/* Base document ------------------------------------------------------- */
 
 html {
-  background-color: var(--m3e-sys-color-background);
-  transition: background-color 240ms ease;
+    background: var(--m3e-sys-color-background);
+    scroll-behavior: smooth;
 }
 
-body,
-body * {
-  transition-property: background-color, border-color, color, fill, outline-color, stroke;
-  transition-duration: 240ms;
-  transition-timing-function: ease;
+body {
+    background: var(--m3e-sys-color-background);
+    color: var(--m3e-sys-color-on-surface);
+    font-family: "Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color 220ms ease, color 220ms ease;
+}
+
+::selection {
+    background: var(--m3e-sys-color-primary-container);
+    color: var(--m3e-sys-color-on-primary-container);
+}
+
+:where(a, button, input, textarea, select):focus-visible {
+    outline: 3px solid var(--m3e-sys-color-primary);
+    outline-offset: 2px;
+}
+
+/*
+ * M3E ships the icon font but styles icons through its own `.m3e-icon`
+ * class. CentroMail templates use Google's ligature class name, so define
+ * it once here: this file loads on every page (including auth screens).
+ */
+.material-symbols-rounded {
+    direction: ltr;
+    display: inline-block;
+    font-family: "Material Symbols Rounded";
+    font-size: 24px;
+    font-style: normal;
+    font-weight: normal;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    letter-spacing: normal;
+    line-height: 1;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    -webkit-font-feature-settings: "liga";
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
 }
 
 .theme-toggle-icon,
 [data-theme-menu-icon],
 [data-inbox-theme-icon] {
-  transition: transform 280ms cubic-bezier(.2, .8, .2, 1);
+    transition: transform 280ms cubic-bezier(.2, .8, .2, 1);
 }
 
 :root[data-theme="dark"] .theme-toggle-icon,
 :root[data-theme="dark"] [data-theme-menu-icon],
 :root[data-theme="dark"] [data-inbox-theme-icon] {
-  transform: rotate(180deg);
-}
-
-/* Keep the M3 Expressive spring feel while the app uses flat, shadow-free surfaces. */
-.m3e-button {
-  position: relative;
-  overflow: hidden;
-  transition:
-    border-radius 320ms cubic-bezier(.2, .8, .2, 1),
-    background-color 180ms ease,
-    color 180ms ease,
-    transform 180ms cubic-bezier(.2, .8, .2, 1);
-}
-
-.m3e-button::after {
-  pointer-events: none;
-}
-
-.m3e-button::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: currentColor;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease;
-}
-
-.m3e-button:hover {
-  border-radius: 18px;
-  transform: translateY(-1px);
-}
-
-.m3e-button:hover::before {
-  opacity: .08;
-}
-
-.m3e-button:focus-visible {
-  outline: 3px solid var(--m3e-sys-color-secondary);
-  outline-offset: 3px;
-}
-
-.m3e-button:active {
-  border-radius: 12px;
-  transform: scale(.97);
-}
-
-.m3e-button:active::before {
-  opacity: .14;
+    transform: rotate(180deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html,
-  body,
-  body * {
-    transition-duration: 0.01ms !important;
-  }
-  .m3e-button {
-    transition: none;
-  }
-  .m3e-button::before {
-    transition: none;
-  }
+    html,
+    body,
+    body * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }

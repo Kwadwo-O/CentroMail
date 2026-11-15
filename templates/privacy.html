@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Privacy Notice | CentroMail{% endblock %}
+{% block content %}
+<article class="legal-page">
+    <p class="eyebrow">Legal · Version 1.0 · 15 November 2026</p>
+    <h1>Privacy Notice</h1>
+    <p class="legal-lead">This notice explains how CentroMail processes personal data when you use the service. It is written for users in the EU, EEA and United Kingdom. It is an implementation draft for qualified legal review and should be updated when the service, providers or operating jurisdictions change.</p>
+
+    <h2>1. Who controls your data</h2>
+    <p><strong>Controller:</strong> CentroMail<br><strong>Privacy contact:</strong> <a href="mailto:support@centromail.net">support@centromail.net</a><br><strong>Data Protection Officer:</strong> CentroMail has not appointed a separate Data Protection Officer. Use the privacy contact above for data-protection questions and requests.</p>
+
+    <h2>2. Data we process</h2>
+    <ul>
+        <li>Account data: name, email address, password hash, profile image and account timestamps.</li>
+        <li>Gmail data: message identifiers, headers, sender and recipient details, subjects, dates, previews and cached message bodies needed to show your inbox and send mail.</li>
+        <li>Integration data: connection metadata and credentials needed for Telegram, WhatsApp Cloud API, Discord and supported social providers.</li>
+        <li>Messaging data received through enabled integrations, such as sender identifiers, message text and timestamps.</li>
+        <li>Technical data needed to secure sessions, prevent abuse and operate the service.</li>
+    </ul>
+
+    <h2>3. Purposes and legal bases</h2>
+    <div class="legal-table-wrap"><table class="legal-table"><thead><tr><th>Purpose</th><th>Legal basis</th></tr></thead><tbody>
+        <tr><td>Create and secure your account</td><td>Performance of the account contract; legitimate interests in service security</td></tr>
+        <tr><td>Read, cache and send Gmail messages at your request</td><td>Performance of your contract and your explicit instruction</td></tr>
+        <tr><td>Connect and operate messaging or social integrations you select</td><td>Performance of your contract and your instruction</td></tr>
+        <tr><td>Maintain logs, prevent abuse and troubleshoot failures</td><td>Legitimate interests in security, reliability and fraud prevention</td></tr>
+        <tr><td>Meet legal obligations</td><td>Compliance with a legal obligation</td></tr>
+    </tbody></table></div>
+
+    <h2>4. Providers and international transfers</h2>
+    <p>Depending on the integrations you enable, data may be sent to Google, Telegram, Meta/WhatsApp, Discord and the relevant social provider. Those providers act under their own privacy notices and may process data outside the UK or EEA. CentroMail will use an adequacy decision, standard contractual clauses or another lawful transfer mechanism where required. Review each provider before connecting it.</p>
+
+    <h2>5. Storage and retention</h2>
+    <p>CentroMail stores account data and locally cached service data until you delete your account. Integration credentials and integration records are deleted when you remove that integration. Account deletion removes the local account, Gmail cache, sync state, messaging records and integration records from CentroMail’s database. It does not erase data already held by Google or another connected provider; use that provider’s controls or contact it directly.</p>
+
+    <h2>6. Cookies and browser storage</h2>
+    <p>CentroMail uses an essential HTTP-only session cookie for authentication and CSRF protection. The interface may use local browser storage for theme and non-secret integration preferences. CentroMail does not use advertising cookies or behavioural analytics in this implementation.</p>
+
+    <h2>7. Your rights</h2>
+    <p>Subject to applicable law, you may request access, correction, erasure, restriction, portability or object to processing based on legitimate interests. Where processing relies on consent, you may withdraw it at any time. To make a request, email <a href="mailto:support@centromail.net">support@centromail.net</a> from an address we can reasonably associate with your account. We may ask for proportionate verification. You may also complain to the supervisory authority in the country where you live, work or believe an infringement occurred.</p>
+
+    <h2>8. Automated decisions and children</h2>
+    <p>CentroMail does not make decisions based solely on automated processing that produce legal or similarly significant effects. The service is not directed to children under the minimum digital-consent age applicable in their country.</p>
+
+    <h2>9. Consent and withdrawal</h2>
+    <p>CentroMail does not currently rely on consent for its core service processing. If you give consent for an optional processing activity in the future, you may withdraw it at any time by contacting <a href="mailto:support@centromail.net">support@centromail.net</a>. Withdrawal does not affect processing that occurred before withdrawal or processing based on another lawful basis.</p>
+
+    <h2>10. Changes</h2>
+    <p>We will update this notice when processing changes. Material changes will be communicated through the service or by email where appropriate. The current version date appears at the top of this page.</p>
+
+    <p class="legal-disclaimer">This notice is not legal advice. CentroMail should obtain qualified privacy counsel review before launch and confirm its controller identity, supervisory authority, provider contracts, transfer mechanisms and retention implementation.</p>
+</article>
+{% endblock %}

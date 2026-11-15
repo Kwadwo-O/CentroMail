@@ -1,0 +1,420 @@
+/*
+ * Integrations page.
+ * Every card uses the same Material 3 Expressive surface, status pill and
+ * form rhythm, so Gmail, messaging and social providers feel like one system.
+ */
+
+.integrations-page {
+    margin: 0 auto;
+    max-width: 1180px;
+    padding: 2rem 1.5rem 3.5rem;
+}
+
+.integrations-heading {
+    margin-bottom: 1.5rem;
+}
+
+.integrations-heading h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.05em;
+    line-height: 1.05;
+    margin: 0 0 0.5rem;
+}
+
+.integrations-intro {
+    color: var(--m3e-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 66ch;
+}
+
+.integration-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+}
+
+.integration-card {
+    background: var(--m3e-sys-color-surface-container-low);
+    border: 1px solid var(--m3e-sys-color-outline-variant);
+    border-radius: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.3rem;
+}
+
+.integration-card-top {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.integration-card-top > div:nth-child(2) {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+.integration-card h2 {
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.integration-subtitle {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.76rem;
+    margin: 0.15rem 0 0;
+}
+
+.integration-mark {
+    align-items: center;
+    background: var(--m3e-sys-color-secondary-container);
+    border-radius: 0.9rem;
+    color: var(--m3e-sys-color-on-secondary-container);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+    font-weight: 750;
+    height: 44px;
+    justify-content: center;
+    letter-spacing: -0.03em;
+    width: 44px;
+}
+
+.integration-mark-google { background: #e8f0fe; color: #1a73e8; }
+.integration-mark-telegram { background: #e1f1fb; color: #168acd; }
+.integration-mark-whatsapp { background: #e2f6e9; color: #1b8752; }
+.integration-mark-discord { background: #eceefe; color: #5865f2; }
+.integration-mark-x { background: #ececec; color: #202124; }
+.integration-mark-facebook { background: #e7f0fe; color: #1877f2; }
+.integration-mark-instagram { background: #fde8f1; color: #d62976; }
+.integration-mark-threads { background: #ececec; color: #202124; }
+.integration-mark-linkedin { background: #e6eef8; color: #0a66c2; }
+.integration-mark-reddit { background: #fdece5; color: #ff4500; }
+.integration-mark-mastodon { background: #e8e6fb; color: #6364ff; }
+.integration-mark-bluesky { background: #e3f2fd; color: #1185fe; }
+.integration-mark-tiktok { background: #ececec; color: #202124; }
+.integration-mark-pinterest { background: #fde8e8; color: #e60023; }
+.integration-mark-tumblr { background: #e8edf4; color: #35465c; }
+.integration-mark-twitch { background: #efe6fb; color: #9146ff; }
+.integration-mark-slack { background: #f6e9ef; color: #611f69; }
+
+:root[data-theme="dark"] .integration-mark-google { background: #17345c; color: #a8c7fa; }
+:root[data-theme="dark"] .integration-mark-telegram { background: #12394f; color: #8ed0f8; }
+:root[data-theme="dark"] .integration-mark-whatsapp { background: #123a27; color: #86e0ad; }
+:root[data-theme="dark"] .integration-mark-discord { background: #262b5c; color: #aeb5ff; }
+:root[data-theme="dark"] .integration-mark-x,
+:root[data-theme="dark"] .integration-mark-threads,
+:root[data-theme="dark"] .integration-mark-tiktok { background: #2f3033; color: #e8eaed; }
+:root[data-theme="dark"] .integration-mark-facebook { background: #12345c; color: #8ab4f8; }
+:root[data-theme="dark"] .integration-mark-instagram { background: #4a1c30; color: #f8a1c4; }
+:root[data-theme="dark"] .integration-mark-linkedin { background: #123449; color: #8ec8f0; }
+:root[data-theme="dark"] .integration-mark-reddit { background: #4a2418; color: #ffab91; }
+:root[data-theme="dark"] .integration-mark-mastodon { background: #2a2a5c; color: #b9b8ff; }
+:root[data-theme="dark"] .integration-mark-bluesky { background: #123a52; color: #8ecdf8; }
+:root[data-theme="dark"] .integration-mark-pinterest { background: #4a1616; color: #f8a1a1; }
+:root[data-theme="dark"] .integration-mark-tumblr { background: #26313d; color: #b8c9dc; }
+:root[data-theme="dark"] .integration-mark-twitch { background: #35235c; color: #d0b8ff; }
+:root[data-theme="dark"] .integration-mark-slack { background: #431f38; color: #f0b8d8; }
+
+.status-pill {
+    background: var(--m3e-sys-color-surface-container-high);
+    border-radius: 999px;
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.28rem 0.6rem;
+    white-space: nowrap;
+}
+
+.status-pill.is-connected {
+    background: #e6f4ea;
+    color: #137333;
+}
+
+.status-pill.is-pending {
+    background: #fef7e0;
+    color: #8a5a00;
+}
+
+:root[data-theme="dark"] .status-pill.is-connected {
+    background: #1d3b27;
+    color: #ceead6;
+}
+
+:root[data-theme="dark"] .status-pill.is-pending {
+    background: #3d2e0a;
+    color: #fdd663;
+}
+
+.integration-facts {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.integration-facts > div {
+    display: grid;
+    gap: 0.05rem;
+}
+
+.integration-facts dt {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.integration-facts dd {
+    font-size: 0.84rem;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.integration-copy,
+.integration-note,
+.integration-alert,
+.integration-empty {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.78rem;
+    margin: 0;
+}
+
+.integration-alert {
+    background: var(--m3e-sys-color-error-container);
+    border-radius: 0.8rem;
+    color: var(--m3e-sys-color-on-error-container);
+    padding: 0.6rem 0.75rem;
+}
+
+.integration-empty {
+    border: 1px dashed var(--m3e-sys-color-outline-variant);
+    border-radius: 0.8rem;
+    padding: 0.7rem 0.75rem;
+}
+
+.integration-form {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.integration-form label {
+    color: var(--m3e-sys-color-on-surface-variant);
+    display: grid;
+    font-size: 0.7rem;
+    font-weight: 700;
+    gap: 0.25rem;
+    letter-spacing: 0.03em;
+}
+
+.integration-form input {
+    background: var(--m3e-sys-color-surface);
+    border: 1px solid var(--m3e-sys-color-outline);
+    border-radius: 0.8rem;
+    color: var(--m3e-sys-color-on-surface);
+    font-size: 0.84rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    min-height: 42px;
+    padding: 0.55rem 0.75rem;
+    width: 100%;
+}
+
+.integration-form input:focus {
+    border-color: var(--m3e-sys-color-primary);
+}
+
+.integration-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.integration-actions form {
+    margin: 0;
+}
+
+.integration-actions .button {
+    min-height: 38px;
+    padding: 0.45rem 1rem;
+}
+
+.telegram-feed {
+    border-top: 1px solid var(--m3e-sys-color-outline-variant);
+    display: grid;
+    gap: 0.7rem;
+    padding-top: 0.85rem;
+}
+
+.telegram-feed-heading {
+    align-items: baseline;
+    display: flex;
+    justify-content: space-between;
+}
+
+.telegram-feed-heading strong {
+    font-size: 0.8rem;
+}
+
+.telegram-feed-heading span {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.68rem;
+}
+
+.telegram-list {
+    display: grid;
+    gap: 0.35rem;
+    list-style: none;
+    margin: 0;
+    max-height: 230px;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.telegram-list li {
+    align-items: flex-start;
+    border-radius: 0.85rem;
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 0.45rem;
+}
+
+.telegram-list li:hover {
+    background: var(--m3e-sys-color-surface-container);
+}
+
+.telegram-list strong {
+    font-size: 0.76rem;
+}
+
+.telegram-list p {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.72rem;
+    margin: 0.05rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.telegram-list time {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.62rem;
+    white-space: nowrap;
+}
+
+.telegram-avatar {
+    align-items: center;
+    background: var(--m3e-sys-color-secondary-container);
+    border-radius: 50%;
+    color: var(--m3e-sys-color-on-secondary-container);
+    display: inline-flex;
+    font-size: 0.62rem;
+    font-weight: 700;
+    height: 30px;
+    justify-content: center;
+    width: 30px;
+}
+
+.telegram-step {
+    background: var(--m3e-sys-color-surface-container);
+    border-radius: 1rem;
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.8rem 0.9rem;
+}
+
+.telegram-step-label {
+    color: var(--m3e-sys-color-primary);
+    font-size: 0.65rem;
+    font-weight: 750;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.telegram-form-row {
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+}
+
+.telegram-form-row > label,
+.integration-form > label {
+    min-width: 0;
+}
+
+.webhook-box {
+    background: var(--m3e-sys-color-surface-container);
+    border-radius: 1rem;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.8rem 0.9rem;
+}
+
+.webhook-box > div {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.webhook-box span {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.webhook-box code {
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+}
+
+.browser-storage-card {
+    align-items: center;
+    background: var(--m3e-sys-color-surface-container-low);
+    border: 1px solid var(--m3e-sys-color-outline-variant);
+    border-radius: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: 1.25rem;
+    padding: 1.2rem 1.4rem;
+}
+
+.browser-storage-card h2 {
+    font-size: 1rem;
+    margin: 0 0 0.25rem;
+}
+
+.browser-storage-card p {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.78rem;
+    margin: 0;
+    max-width: 78ch;
+}
+
+.browser-storage-status {
+    margin-top: 0.4rem !important;
+}
+
+@media (max-width: 700px) {
+    .integrations-page {
+        padding: 1.25rem 0.85rem 2.5rem;
+    }
+
+    .integration-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .integration-card {
+        border-radius: 1.25rem;
+    }
+
+    .telegram-form-row {
+        grid-template-columns: 1fr;
+    }
+}

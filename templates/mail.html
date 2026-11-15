@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Mail | Row Project{% endblock %}
+{% block title %}Mail | CentroMail{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">
 {% endblock %}
 
@@ -16,7 +14,7 @@
 {% block content %}
 <div class="gmail-app">
     <header class="gmail-header">
-        <button class="icon-button mobile-menu" aria-label="Open menu"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Menu" class="ui-icon"></button>
+        <button class="icon-button mobile-menu" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Menu" class="ui-icon"></button>
         <a class="gmail-logo" href="{{ url_for('mail') }}">
             <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo">
         </a>
@@ -33,7 +31,7 @@
                 <div class="quick-menu" id="quick-menu" hidden>
                     <a href="{{ url_for('dashboard') }}"><span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview</a>
                     <a href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox</a>
-                    <a href="{{ url_for('compose') }}"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</a>
+                    <a href="{{ url_for('integrations') }}"><span class="material-symbols-rounded" aria-hidden="true">extension</span>Integrations</a>
                     <a href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings</a>
                 </div>
             </div>
@@ -68,7 +66,7 @@
     </div>
 
     <div class="gmail-body workspace-view" data-workspace-view="email">
-        <aside class="mail-sidebar">
+        <aside class="mail-sidebar" id="mail-sidebar">
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
                 <a class="mail-nav-link active" href="#inbox"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="Inbox" class="ui-icon"><span>Inbox</span><b>{{ stats.unread }}</b></a>
@@ -85,6 +83,7 @@
                 <a class="label-link" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
             </div>
         </aside>
+        <button class="sidebar-scrim" id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close mailbox menu"></button>
 
         <main class="inbox" id="inbox">
             <div class="inbox-heading">
@@ -92,7 +91,7 @@
                     <p class="eyebrow">Main menu</p>
                     <h1>Inbox</h1>
                 </div>
-                <span class="page-count">0–0 of {{ stats.total }}</span>
+                <span class="page-count">{% if stats.total %}{{ page.first }}–{{ page.last }} of {{ stats.total }}{% else %}0–0{% endif %}</span>
             </div>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
@@ -101,9 +100,25 @@
                 <button class="toolbar-button" id="delete-mail" aria-label="Delete selected"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Delete" class="ui-icon"></button>
                 <button class="toolbar-button" id="mark-read" aria-label="Mark selected as read"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Read" class="ui-icon"></button>
                 <span class="toolbar-spacer"></span>
-                <button class="toolbar-button" aria-label="Previous page"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Previous" class="ui-icon rotate-left"></button>
-                <button class="toolbar-button" aria-label="Next page"><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Next" class="ui-icon"></button>
+                <a class="toolbar-button{% if page.page <= 1 %} is-disabled{% endif %}" href="{{ url_for('inbox', page=page.page - 1) if page.page > 1 else url_for('inbox') }}" aria-label="Previous page" {% if page.page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Previous" class="ui-icon rotate-left"></a>
+                <a class="toolbar-button{% if page.page >= page.pages %} is-disabled{% endif %}" href="{{ url_for('inbox', page=page.page + 1) if page.page < page.pages else url_for('inbox', page=page.pages) }}" aria-label="Next page" {% if page.page >= page.pages %}aria-disabled="true" tabindex="-1"{% endif %}><img src="{{ url_for('static', filename='images/icons/arrow-right.svg') }}" alt="Next" class="ui-icon"></a>
             </div>
+            {% if gmail_sync and (gmail_sync.remaining or gmail_sync.busy or (gmail_sync.error and gmail_sync.error != 'no_token')) %}
+            <div class="gmail-sync-banner" id="gmail-sync" data-url="{{ url_for('inbox', page=page.page) }}" data-delay="{{ gmail_sync.retry_after or 5 }}">
+                <span class="gmail-sync-spinner" aria-hidden="true"></span>
+                <div>
+                    <strong>{% if gmail_sync.busy %}Waiting for the current sync{% elif gmail_sync.error %}Gmail sync paused{% else %}Syncing your inbox{% endif %}</strong>
+                    {% if gmail_sync.total is not none and gmail_sync.remaining is not none %}
+                    <span>{{ gmail_sync.total - gmail_sync.remaining }} of {{ gmail_sync.total }} messages loaded{% if gmail_sync.remaining %} · {{ gmail_sync.remaining }} remaining{% endif %}</span>
+                    {% elif gmail_sync.busy %}
+                    <span>Another sync is already running. This page will retry automatically.</span>
+                    {% else %}
+                    <span>Showing messages saved on this device.</span>
+                    {% endif %}
+                    {% if gmail_sync.error %}<small>{{ gmail_sync.error }}</small>{% endif %}
+                </div>
+            </div>
+            {% endif %}
             <div class="inbox-tabs" role="tablist">
                 <button class="inbox-tab active" type="button" data-tab="primary" role="tab" aria-selected="true"><img src="{{ url_for('static', filename='images/icons/email.svg') }}" alt="" class="ui-icon">Primary</button>
                 <button class="inbox-tab" type="button" data-tab="updates" role="tab" aria-selected="false"><img src="{{ url_for('static', filename='images/icons/info.svg') }}" alt="" class="ui-icon">Updates</button>
@@ -115,7 +130,7 @@
                     <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select {{ message.sender }} message"><span class="checkmark"></span></label>
                     <button class="star-button" aria-label="Star message"><img src="{{ url_for('static', filename='images/icons/star.svg') }}" alt="Star" class="ui-icon"></button>
                     <div class="sender-avatar">{{ message.sender[:2]|upper }}</div>
-                    <div class="message-details"><strong>{{ message.sender }}</strong><p><b>{{ message.subject }}</b> — {{ message.preview }}</p></div>
+                    <a class="message-details" href="{{ url_for('message_detail', message_id=message.id) }}" aria-label="Open {{ message.subject }} from {{ message.sender }}"><strong>{{ message.sender }}</strong><p><b>{{ message.subject }}</b> — {{ message.preview }}</p></a>
                     <time>{{ message.time }}</time>
                 </article>
                 {% endfor %}
@@ -215,6 +230,25 @@
         themeMenuButton.querySelector("[data-inbox-theme-icon]").textContent = dark ? "dark_mode" : "light_mode";
         themeMenuButton.querySelector("[data-inbox-theme-label]").textContent = dark ? "Dark theme" : "Light theme";
     });
+    const sidebar = document.querySelector("#mail-sidebar");
+    const sidebarScrim = document.querySelector("#sidebar-scrim");
+    const mobileMenu = document.querySelector(".mobile-menu");
+    const setSidebar = (open) => {
+        if (!sidebar) return;
+        sidebar.classList.toggle("is-open", open);
+        sidebarScrim?.classList.toggle("is-open", open);
+        mobileMenu?.setAttribute("aria-expanded", String(open));
+        document.body.style.overflow = open ? "hidden" : "";
+    };
+    mobileMenu?.addEventListener("click", () => setSidebar(!sidebar.classList.contains("is-open")));
+    sidebarScrim?.addEventListener("click", () => setSidebar(false));
+    sidebar?.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setSidebar(false)));
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setSidebar(false);
+    });
+    window.addEventListener("resize", () => {
+        if (window.innerWidth > 900) setSidebar(false);
+    });
     const showCompose = (show) => {
         compose.hidden = !show;
         if (show) compose.querySelector("input").focus();
@@ -250,6 +284,13 @@
     document.querySelector("#refresh-mail").addEventListener("click", () => window.location.reload());
     document.querySelector("#mark-read").addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").classList.remove("unread")));
     document.querySelectorAll("#archive-mail, #delete-mail").forEach((button) => button.addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").remove())));
+
+    const gmailSync = document.querySelector("#gmail-sync");
+    if (gmailSync) {
+        window.setTimeout(() => {
+            window.location.replace(gmailSync.dataset.url);
+        }, Math.max(3, Number(gmailSync.dataset.delay) || 5) * 1000);
+    }
 
     document.querySelectorAll(".workspace-tab").forEach((tab) => tab.addEventListener("click", () => {
         const workspace = tab.dataset.workspace;

@@ -20,7 +20,14 @@
                 <strong>Password sign-in</strong>
             </div>
         </div>
+        <section class="settings-danger" aria-labelledby="delete-account-heading">
+            <h2 id="delete-account-heading">Delete account</h2>
+            <p>Delete your CentroMail account and all data stored locally, including cached email, integration credentials, and messaging records. Removing an integration deletes its locally stored connection data.</p>
+            <form method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Delete your CentroMail account and all locally stored data? This cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button button-danger" type="submit">Delete my account</button>
+            </form>
+        </section>
     </div>
 </section>
 {% endblock %}
-
