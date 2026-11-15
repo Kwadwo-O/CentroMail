@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
+import bleach
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
@@ -437,7 +438,7 @@ def gmail_message_date(metadata):
 
 
 def decode_gmail_body(payload):
-    """Return readable text from Gmail's nested MIME payload."""
+    """Return readable text and safe HTML from Gmail's nested MIME payload."""
     plain_parts = []
     html_parts = []
 
@@ -459,16 +460,42 @@ def decode_gmail_body(payload):
             visit(child)
 
     visit(payload or {})
+
+    # Return plain text if available, else convert HTML to plain text.
     if plain_parts:
-        return "\n\n".join(part.strip() for part in plain_parts if part.strip()).strip()
-    if html_parts:
-        # Do not render remote HTML directly in the application.  The detail
-        # view displays a readable, escaped text version instead.
+        plain_text = "\n\n".join(part.strip() for part in plain_parts if part.strip()).strip()
+    elif html_parts:
         text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", "\n".join(html_parts))
         text = re.sub(r"(?i)<br\s*/?>", "\n", text)
         text = re.sub(r"(?i)</p\s*>|</div\s*>|</tr\s*>", "\n", text)
-        return html.unescape(re.sub(r"<[^>]+>", " ", text)).strip()
-    return "(This email has no readable message body.)"
+        plain_text = html.unescape(re.sub(r"<[^>]+>", " ", text)).strip()
+    else:
+        plain_text = "(This email has no readable message body.)"
+
+    # Produce a safe HTML version when the message has an HTML part.
+    safe_html = ""
+    if html_parts:
+        combined_html = "\n".join(html_parts)
+        # Strip script/style and sanitize remaining HTML to prevent XSS.
+        combined_html = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", combined_html)
+        safe_html = bleach.clean(
+            combined_html,
+            tags=[
+                "p", "br", "div", "span", "strong", "b", "em", "i", "u", "s", "strike",
+                "a", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table",
+                "thead", "tbody", "tr", "td", "th", "blockquote", "pre", "code", "hr",
+                "img", "sub", "sup", "small", "mark", "del", "ins"
+            ],
+            attributes={
+                "a": ["href", "title", "target"],
+                "img": ["src", "alt", "title", "width", "height"],
+                "*": ["class", "style", "id"]
+            },
+            protocols=["http", "https", "mailto"],
+            strip=True
+        ).strip()
+
+    return {"text": plain_text, "html": safe_html}
 
 
 def gmail_metadata_from_payload(payload, fallback_id):

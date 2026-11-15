@@ -16,7 +16,11 @@
         </div>
 
         <h3>{{ message.subject }}</h3>
-        <div class="mail-body">{{ message.body }}</div>
+        {% if message.body is mapping and message.body.html %}
+        <div class="mail-body mail-body-html">{{ message.body.html | safe }}</div>
+        {% else %}
+        <div class="mail-body">{{ message.body.text if message.body is mapping else message.body }}</div>
+        {% endif %}
 
         <div class="message-actions">
             <a class="button" href="{{ url_for('inbox') }}">Back to inbox</a>
