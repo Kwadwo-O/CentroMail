@@ -618,7 +618,13 @@ body:has(.gmail-app) .page-content {
     grid-template-columns: 28px 30px 38px minmax(0, 1fr) auto;
     min-height: 70px;
     padding: 8px 18px;
+    cursor: pointer;
     transition: background-color 150ms ease;
+}
+
+.message:focus-visible {
+    position: relative;
+    z-index: 1;
 }
 
 .message:hover {
