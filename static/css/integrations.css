@@ -82,6 +82,10 @@
     width: 44px;
 }
 
+.integration-mark .material-symbols-rounded {
+    font-size: 23px;
+}
+
 .integration-mark-google { background: #e8f0fe; color: #1a73e8; }
 .integration-mark-telegram { background: #e1f1fb; color: #168acd; }
 .integration-mark-whatsapp { background: #e2f6e9; color: #1b8752; }
@@ -227,6 +231,31 @@
     border-color: var(--m3e-sys-color-primary);
 }
 
+.telegram-form {
+    display: grid;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.telegram-form input {
+    background: var(--m3e-sys-color-surface);
+    border: 1px solid var(--m3e-sys-color-outline);
+    border-radius: 0.8rem;
+    color: var(--m3e-sys-color-on-surface);
+    display: block;
+    font: inherit;
+    font-size: 0.84rem;
+    min-height: 42px;
+    min-width: 0;
+    padding: 0.55rem 0.75rem;
+    width: 100%;
+}
+
+.telegram-form input:focus {
+    border-color: var(--m3e-sys-color-primary);
+    outline: 0;
+}
+
 .integration-actions {
     display: flex;
     flex-wrap: wrap;
@@ -337,7 +366,7 @@
 .telegram-form-row {
     display: grid;
     gap: 0.6rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     min-width: 0;
 }
 
