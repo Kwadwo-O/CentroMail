@@ -27,13 +27,10 @@
                     <h2 id="appearance-heading">Appearance</h2>
                 </div>
             </div>
-            <label class="settings-control">
-                <span><strong>Theme</strong><small>Choose how CentroMail looks on this device.</small></span>
-                <select id="theme-preference" aria-label="Theme preference">
-                    <option value="system">Use device setting</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                </select>
+            <label class="settings-switch">
+                <span><strong>Dark theme</strong><small>Switch between light and dark appearance.</small></span>
+                <input id="theme-preference" type="checkbox" role="switch" aria-label="Dark theme">
+                <span class="switch-track" aria-hidden="true"></span>
             </label>
             <div class="settings-control settings-color-control">
                 <span><strong>Accent color</strong><small>Choose a brand accent for buttons and highlights.</small></span>
@@ -148,7 +145,7 @@
         const confirmActions = document.querySelector('#confirm-preference');
         const feedback = document.querySelector('#settings-feedback');
 
-        theme.value = localStorage.getItem(keys.theme) || 'system';
+        theme.checked = document.documentElement.dataset.theme === 'dark';
         density.value = localStorage.getItem(keys.density) || 'comfortable';
         autoRefresh.checked = localStorage.getItem(keys.autoRefresh) !== 'false';
             confirmActions.checked = localStorage.getItem(keys.confirm) !== 'false';
@@ -221,13 +218,9 @@
         font.addEventListener('change', () => { localStorage.setItem('centromail-font', font.value); applyCustomization(); });
 
         theme.addEventListener('change', () => {
-            if (theme.value === 'system') {
-                delete document.documentElement.dataset.theme;
-                localStorage.removeItem(keys.theme);
-            } else {
-                document.documentElement.dataset.theme = theme.value;
-                localStorage.setItem(keys.theme, theme.value);
-            }
+            const selectedTheme = theme.checked ? 'dark' : 'light';
+            document.documentElement.dataset.theme = selectedTheme;
+            localStorage.setItem(keys.theme, selectedTheme);
         });
         density.addEventListener('change', () => localStorage.setItem(keys.density, density.value));
         autoRefresh.addEventListener('change', () => localStorage.setItem(keys.autoRefresh, autoRefresh.checked));

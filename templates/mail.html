@@ -95,7 +95,14 @@
             </div>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
-                <button class="toolbar-button" id="refresh-mail" aria-label="Refresh"><img src="{{ url_for('static', filename='images/icons/menu.svg') }}" alt="Refresh" class="ui-icon"></button>
+                <form class="inbox-refresh-form" id="refresh-mail-form" method="get" action="{{ url_for('inbox') }}">
+                    <input type="hidden" name="page" value="{{ page.page }}">
+                    <input type="hidden" name="refresh" value="1">
+                    <button class="toolbar-button refresh-button" id="refresh-mail" type="submit" aria-label="Refresh inbox" title="Check for new mail">
+                        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+                        <span data-refresh-label aria-live="polite">Refresh</span>
+                    </button>
+                </form>
                 <button class="toolbar-button" id="archive-mail" aria-label="Archive selected"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Archive" class="ui-icon"></button>
                 <button class="toolbar-button" id="delete-mail" aria-label="Delete selected"><img src="{{ url_for('static', filename='images/icons/trash.svg') }}" alt="Delete" class="ui-icon"></button>
                 <button class="toolbar-button" id="mark-read" aria-label="Mark selected as read"><img src="{{ url_for('static', filename='images/icons/check.svg') }}" alt="Read" class="ui-icon"></button>
@@ -294,13 +301,21 @@
         document.querySelectorAll(".message:not([hidden]) .message-check").forEach((check) => { check.checked = event.target.checked; });
     });
     document.querySelectorAll(".star-button").forEach((button) => button.addEventListener("click", () => button.classList.toggle("starred")));
-    document.querySelector("#refresh-mail").addEventListener("click", () => window.location.reload());
+    document.querySelector("#refresh-mail-form").addEventListener("submit", () => {
+        window.clearTimeout(gmailSyncTimer);
+        const button = document.querySelector("#refresh-mail");
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.setAttribute("aria-label", "Refreshing inbox");
+        button.querySelector("[data-refresh-label]").textContent = "Refreshing…";
+    });
     document.querySelector("#mark-read").addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").classList.remove("unread")));
     document.querySelectorAll("#archive-mail, #delete-mail").forEach((button) => button.addEventListener("click", () => document.querySelectorAll(".message-check:checked").forEach((check) => check.closest(".message").remove())));
 
     const gmailSync = document.querySelector("#gmail-sync");
+    let gmailSyncTimer;
     if (gmailSync) {
-        window.setTimeout(() => {
+        gmailSyncTimer = window.setTimeout(() => {
             window.location.replace(gmailSync.dataset.url);
         }, Math.max(3, Number(gmailSync.dataset.delay) || 5) * 1000);
     }

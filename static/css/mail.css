@@ -490,6 +490,39 @@ body:has(.gmail-app) .page-content {
     width: 34px;
 }
 
+.inbox-refresh-form {
+    display: flex;
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.inbox-toolbar .refresh-button {
+    background: var(--m3e-sys-color-secondary-container);
+    color: var(--m3e-sys-color-on-secondary-container);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    gap: 6px;
+    height: 40px;
+    padding: 0 12px;
+    white-space: nowrap;
+    width: auto;
+}
+
+.refresh-button .material-symbols-rounded {
+    font-size: 20px;
+}
+
+.inbox-toolbar .refresh-button:hover:not(:disabled) {
+    background: var(--m3e-sys-color-surface-container-high);
+    color: var(--m3e-sys-color-on-surface);
+}
+
+.refresh-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
 .toolbar-button.is-disabled {
     opacity: 0.38;
     pointer-events: none;

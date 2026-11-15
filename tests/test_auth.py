@@ -179,6 +179,44 @@ class AuthTests(unittest.TestCase):
             self.assertNotIn("user_id", session)
         self.assert_redirect_path(self.client.get("/dashboard"), "/login")
 
+    def test_manual_inbox_refresh_finds_new_mail_with_a_fresh_cached_list(self):
+        self.register()
+        user_id = self.users()[0]["id"]
+        with application.app.app_context():
+            application.save_gmail_message_ids(user_id, [])
+        message = {
+            "id": "new-message",
+            "sender": "Sender",
+            "subject": "New mail after refreshing",
+            "preview": "Just arrived",
+            "time": "12:00",
+            "internal_date": 123,
+            "unread": True,
+            "starred": False,
+            "category": "primary",
+        }
+        with (
+            patch.object(application, "get_gmail_access_token", return_value="test-token"),
+            patch.object(application, "fetch_gmail_message_ids", return_value=[message["id"]]) as list_mail,
+            patch.object(application, "_fetch_gmail_detail", return_value=message) as get_detail,
+        ):
+            response = self.client.get("/inbox")
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(message["subject"].encode(), response.data)
+            list_mail.assert_not_called()
+
+            response = self.client.get("/inbox?refresh=1&page=1")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(message["subject"].encode(), response.data)
+            list_mail.assert_called_once()
+            get_detail.assert_called_once()
+
+            # Normal navigation reuses the list saved by the manual refresh.
+            response = self.client.get("/inbox")
+            self.assertIn(message["subject"].encode(), response.data)
+            self.assertEqual(list_mail.call_count, 1)
+            self.assertEqual(get_detail.call_count, 1)
+
     def test_legal_pages_are_public_and_linked(self):
         for route, heading in (("/privacy", b"Privacy Notice"), ("/terms", b"Terms of Use")):
             with self.subTest(route=route):

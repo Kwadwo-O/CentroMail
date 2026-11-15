@@ -19,7 +19,7 @@ from pathlib import Path
 import requests
 import bleach
 from bleach.css_sanitizer import CSSSanitizer
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
+from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
                    session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
@@ -66,7 +66,7 @@ google = oauth.register(
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"},
+    client_kwargs={"scope": "openid email profile https://www.googleapis.com/auth/gmail.modify"},
     authorize_params={"access_type": "offline", "prompt": "consent"},
 )
 
@@ -152,6 +152,26 @@ def init_db():
             )"""
         )
         db.execute(
+            """CREATE TABLE IF NOT EXISTS gmail_folder_pages (
+                user_id INTEGER NOT NULL,
+                folder TEXT NOT NULL,
+                query TEXT NOT NULL,
+                cursor TEXT NOT NULL,
+                message_ids TEXT NOT NULL,
+                next_cursor TEXT,
+                total INTEGER NOT NULL,
+                listed_at REAL NOT NULL,
+                PRIMARY KEY (user_id, folder, query, cursor)
+            )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS gmail_mailbox_counts (
+                user_id INTEGER PRIMARY KEY,
+                counts TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            )"""
+        )
+        db.execute(
             """CREATE TABLE IF NOT EXISTS whatsapp_messages (
                 user_id INTEGER NOT NULL,
                 message_id TEXT NOT NULL,
@@ -190,6 +210,7 @@ def csrf_token():
 
 PROTECTED_ENDPOINTS = {
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
+    "mailbox_messages", "mailbox_counts", "mail_action",
     "delete_account",
     "integrations", "telegram_start_route", "telegram_verify_route",
     "telegram_password_route", "telegram_restart_route", "test_telegram_route",
@@ -312,7 +333,11 @@ def gmail_cache_get(user_id, message_id, *, body=False):
     if body:
         if row["body"] is None or now - (row["body_at"] or 0) > GMAIL_BODY_TTL:
             return None
-        return row["body"]
+        try:
+            decoded = json.loads(row["body"])
+        except (TypeError, json.JSONDecodeError):
+            return {"text": row["body"], "html": ""}
+        return decoded if isinstance(decoded, dict) else {"text": row["body"], "html": ""}
     if row["metadata"] is None or now - (row["metadata_at"] or 0) > GMAIL_METADATA_TTL:
         return None
     try:
@@ -336,7 +361,7 @@ def gmail_cache_put(user_id, message_id, metadata=None, body=None):
             message_id,
             json.dumps(metadata) if metadata is not None else None,
             time.time() if metadata is not None else None,
-            body,
+            json.dumps(body) if isinstance(body, dict) else body,
             time.time() if body is not None else None,
         ),
     )
@@ -519,6 +544,7 @@ def gmail_metadata_from_payload(payload, fallback_id):
         "internal_date": int(payload.get("internalDate", 0) or 0),
         "unread": "UNREAD" in label_ids,
         "starred": "STARRED" in label_ids,
+        "label_ids": sorted(label_ids),
         "category": "social" if "CATEGORY_SOCIAL" in label_ids else (
             "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
         ),
@@ -623,14 +649,14 @@ def _fetch_gmail_detail(headers, message_id):
     return gmail_metadata_from_payload(detail.json(), message_id)
 
 
-def sync_gmail_inbox(user, batch_size=GMAIL_BATCH_SIZE):
+def sync_gmail_inbox(user, batch_size=GMAIL_BATCH_SIZE, force_refresh=False):
     """Load a bounded batch and let the page continue the sync.
 
     A large inbox cannot be fetched in one request: Gmail's per-user quota
     rejects thousands of metadata requests in a burst.  Each call therefore
-    lists the inbox (cached for a minute), fills at most ``batch_size``
-    missing messages, and reports how many are left.  The inbox page reloads
-    itself until ``remaining`` reaches zero.
+    lists the inbox (cached for five minutes unless manually refreshed),
+    fills at most ``batch_size`` missing messages, and reports how many are
+    left.  The inbox page reloads itself until ``remaining`` reaches zero.
     """
     result = {
         "messages": load_cached_gmail_messages(user),
@@ -652,7 +678,7 @@ def sync_gmail_inbox(user, batch_size=GMAIL_BATCH_SIZE):
         return result
     try:
         headers = {"Authorization": "Bearer " + access_token}
-        message_ids = load_gmail_message_ids(user["id"])
+        message_ids = None if force_refresh else load_gmail_message_ids(user["id"])
         if message_ids is None:
             message_ids = fetch_gmail_message_ids(user, headers)
             save_gmail_message_ids(user["id"], message_ids)
@@ -1815,7 +1841,8 @@ def delete_account():
     user_id = g.user["id"]
     db = get_db()
     for table in (
-        "gmail_cache", "gmail_sync_state", "whatsapp_messages", "integrations",
+        "gmail_cache", "gmail_sync_state", "gmail_folder_pages", "gmail_mailbox_counts",
+        "whatsapp_messages", "integrations",
     ):
         db.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM users WHERE id = ?", (user_id,))
@@ -1826,6 +1853,213 @@ def delete_account():
 
 
 INBOX_PAGE_SIZE = 50
+MAIL_BATCH_SIZE = 25
+GMAIL_FOLDERS = {
+    "inbox": {"title": "Inbox", "icon": "inbox", "label": "INBOX"},
+    "starred": {"title": "Starred", "icon": "star", "label": "STARRED"},
+    "snoozed": {"title": "Snoozed", "icon": "snooze", "query": "in:snoozed"},
+    "sent": {"title": "Sent", "icon": "send", "label": "SENT"},
+    "drafts": {"title": "Drafts", "icon": "draft", "label": "DRAFT"},
+    "all": {"title": "All mail", "icon": "all_inbox"},
+    "important": {"title": "Important", "icon": "label_important", "label": "IMPORTANT"},
+    "spam": {"title": "Spam", "icon": "report", "label": "SPAM"},
+    "trash": {"title": "Trash", "icon": "delete", "label": "TRASH"},
+}
+
+
+def requested_mail_folder():
+    folder = request.args.get("folder", "inbox")
+    if folder not in GMAIL_FOLDERS:
+        abort(404)
+    return folder
+
+
+def cached_mail_preview(user, folder):
+    """Render a small local preview without contacting Gmail."""
+    page = get_db().execute(
+        "SELECT message_ids FROM gmail_folder_pages "
+        "WHERE user_id = ? AND folder = ? AND query = '' AND cursor = ''",
+        (user["id"], folder),
+    ).fetchone()
+    if page:
+        ids = json.loads(page["message_ids"])[:MAIL_BATCH_SIZE]
+        return [message for message_id in ids
+                if (message := gmail_cache_get(user["id"], message_id)) is not None]
+    # Old inbox caches have no label_ids. Only treat those as inbox messages.
+    label = GMAIL_FOLDERS[folder].get("label")
+    if folder == "snoozed":
+        return []
+    rows = get_db().execute(
+        """SELECT metadata FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL
+           AND (? = 'all' OR EXISTS (
+               SELECT 1 FROM json_each(COALESCE(json_extract(metadata, '$.label_ids'), '["INBOX"]'))
+               WHERE value = ?))
+           ORDER BY CAST(json_extract(metadata, '$.internal_date') AS INTEGER) DESC LIMIT ?""",
+        (user["id"], folder, label, MAIL_BATCH_SIZE),
+    ).fetchall()
+    return [json.loads(row["metadata"]) for row in rows]
+
+
+def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
+    """Fetch one Gmail page, never walk the entire mailbox."""
+    token = get_gmail_access_token(user)
+    if not token:
+        raise RuntimeError("Connect Google to load your email.")
+    headers = {"Authorization": "Bearer " + token}
+    db = get_db()
+    cached = db.execute(
+        "SELECT * FROM gmail_folder_pages WHERE user_id = ? AND folder = ? AND query = ? AND cursor = ?",
+        (user["id"], folder, query, cursor),
+    ).fetchone()
+    if cached and not refresh and time.time() - cached["listed_at"] < GMAIL_LIST_TTL:
+        ids = json.loads(cached["message_ids"])
+        next_cursor, total = cached["next_cursor"], cached["total"]
+    else:
+        config = GMAIL_FOLDERS[folder]
+        params = {"maxResults": MAIL_BATCH_SIZE, "includeSpamTrash": folder in {"spam", "trash"}}
+        if config.get("label"):
+            params["labelIds"] = config["label"]
+        search = " ".join(part for part in (config.get("query", ""), query) if part)
+        if search:
+            params["q"] = search
+        if cursor:
+            params["pageToken"] = cursor
+        response = requests.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            headers=headers, params=params, timeout=(5, 15),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        ids = [item["id"] for item in payload.get("messages", []) if item.get("id")][:MAIL_BATCH_SIZE]
+        next_cursor = payload.get("nextPageToken")
+        total = payload.get("resultSizeEstimate", len(ids))
+        db.execute(
+            """INSERT INTO gmail_folder_pages VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(user_id, folder, query, cursor) DO UPDATE SET
+               message_ids = excluded.message_ids, next_cursor = excluded.next_cursor,
+               total = excluded.total, listed_at = excluded.listed_at""",
+            (user["id"], folder, query, cursor, json.dumps(ids), next_cursor, total, time.time()),
+        )
+        db.commit()
+    messages, missing = {}, []
+    for message_id in ids:
+        metadata = None if refresh else gmail_cache_get(user["id"], message_id)
+        if metadata is not None:
+            messages[message_id] = metadata
+        else:
+            missing.append(message_id)
+    # At most 25 metadata requests per page; other pages wait for scrolling.
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(_fetch_gmail_detail, headers, item): item for item in missing}
+        for future in as_completed(futures):
+            message_id = futures[future]
+            try:
+                metadata = future.result()
+            except requests.HTTPError as error:
+                if gmail_error_status(error) in {404, 410}:
+                    continue
+                raise
+            gmail_cache_put(user["id"], message_id, metadata=metadata)
+            messages[message_id] = metadata
+    return [messages[item] for item in ids if item in messages], next_cursor, total
+
+
+@app.get('/api/mail/messages')
+def mailbox_messages():
+    folder = requested_mail_folder()
+    query = request.args.get("search", "").strip()[:500]
+    category = request.args.get("category", "")
+    if folder == "inbox" and category in {"primary", "updates", "social"}:
+        query = " ".join(filter(None, (query, "category:" + category)))
+    try:
+        messages, next_cursor, total = fetch_mail_page(
+            g.user, folder, request.args.get("cursor", ""), query,
+            refresh=request.args.get("refresh") == "1",
+        )
+    except RuntimeError as error:
+        return jsonify(error=str(error), reconnect=True), 409
+    except requests.HTTPError as error:
+        return jsonify(error=gmail_error_message(error), reconnect=gmail_error_status(error) in {401, 403}), 502
+    except (requests.RequestException, KeyError, ValueError):
+        app.logger.exception("Could not load Gmail page")
+        return jsonify(error="Could not load messages. Please try again."), 502
+    return jsonify(
+        html=render_template('mail_rows.html', messages=messages, folder=folder),
+        next_cursor=next_cursor, total=total, count=len(messages),
+    )
+
+
+@app.get('/api/mail/counts')
+def mailbox_counts():
+    cached = get_db().execute(
+        "SELECT counts, updated_at FROM gmail_mailbox_counts WHERE user_id = ?", (g.user["id"],)
+    ).fetchone()
+    if cached and time.time() - cached["updated_at"] < 60 and request.args.get("refresh") != "1":
+        return jsonify(json.loads(cached["counts"]))
+    try:
+        token = get_gmail_access_token(g.user)
+        if not token:
+            return jsonify({})
+        counts = {}
+        for folder, label in (("inbox", "INBOX"), ("drafts", "DRAFT")):
+            response = requests.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/labels/" + label,
+                headers={"Authorization": "Bearer " + token}, timeout=(5, 10),
+            )
+            response.raise_for_status()
+            info = response.json()
+            counts[folder] = info.get("messagesUnread", 0) if folder == "inbox" else info.get("messagesTotal", 0)
+        get_db().execute(
+            "INSERT OR REPLACE INTO gmail_mailbox_counts VALUES (?, ?, ?)",
+            (g.user["id"], json.dumps(counts), time.time()),
+        )
+        get_db().commit()
+        return jsonify(counts)
+    except (requests.RequestException, KeyError, ValueError):
+        return jsonify(json.loads(cached["counts"]) if cached else {})
+
+
+@app.post('/api/mail/action')
+def mail_action():
+    changes = {
+        "archive": ([], ["INBOX"]), "trash": (["TRASH"], ["INBOX"]),
+        "restore": (["INBOX"], ["TRASH"]), "read": ([], ["UNREAD"]),
+        "unread": (["UNREAD"], []), "star": (["STARRED"], []), "unstar": ([], ["STARRED"]),
+    }
+    action = request.form.get("action")
+    ids = list(dict.fromkeys(request.form.getlist("message_ids")))
+    if action not in changes or not 1 <= len(ids) <= 50 or any(
+        not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", item) for item in ids
+    ):
+        return jsonify(error="Select messages and choose a valid action."), 400
+    add, remove = changes[action]
+    try:
+        token = get_gmail_access_token(g.user)
+        if not token:
+            return jsonify(error="Connect Google to change your email.", reconnect=True), 409
+        response = requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
+            headers={"Authorization": "Bearer " + token},
+            json={"ids": ids, "addLabelIds": add, "removeLabelIds": remove}, timeout=(5, 20),
+        )
+        response.raise_for_status()
+    except requests.HTTPError as error:
+        if gmail_error_status(error) in {401, 403}:
+            return jsonify(error="Reconnect Google to allow archiving, starring and changing messages.", reconnect=True), 403
+        return jsonify(error=gmail_error_message(error)), 502
+    except requests.RequestException:
+        return jsonify(error="The message action failed. Please try again."), 502
+    db = get_db()
+    for message_id in ids:
+        metadata = gmail_cache_get(g.user["id"], message_id)
+        if metadata is not None:
+            labels = (set(metadata.get("label_ids", ["INBOX"])) | set(add)) - set(remove)
+            metadata.update(label_ids=sorted(labels), unread="UNREAD" in labels, starred="STARRED" in labels)
+            gmail_cache_put(g.user["id"], message_id, metadata=metadata)
+    for table in ("gmail_folder_pages", "gmail_mailbox_counts", "gmail_sync_state"):
+        db.execute(f"DELETE FROM {table} WHERE user_id = ?", (g.user["id"],))
+    db.commit()
+    return jsonify(action=action, ids=ids)
 
 
 def paginate_messages(messages, page):
@@ -1844,45 +2078,11 @@ def paginate_messages(messages, page):
 
 @app.route('/inbox')
 def inbox():
-    try:
-        result = sync_gmail_inbox(g.user)
-    except requests.HTTPError as error:
-        message = gmail_error_message(error)
-        app.logger.error(
-            "Gmail inbox sync failed with HTTP error: status=%s reason=%s",
-            error.response.status_code if error.response is not None else "unknown",
-            gmail_error_reason(error),
-        )
-        result = {
-            "messages": load_cached_gmail_messages(g.user),
-            "total": None,
-            "remaining": None,
-            "busy": False,
-            "error": message,
-            "retry_after": 60,
-        }
-    except (requests.RequestException, KeyError, ValueError):
-        app.logger.exception("Gmail inbox sync failed")
-        result = {
-            "messages": load_cached_gmail_messages(g.user),
-            "total": None,
-            "remaining": None,
-            "busy": False,
-            "error": "Gmail could not be loaded right now. Please try again.",
-            "retry_after": 60,
-        }
-    messages = result["messages"]
-    if result["error"] == "no_token":
-        flash("Connect Google again to load your Gmail inbox.", "info")
-    elif result["error"] and not messages:
-        flash(result["error"], "error")
-    page = paginate_messages(messages, request.args.get("page", type=int))
+    folder = requested_mail_folder()
+    messages = cached_mail_preview(g.user, folder)
     return render_template(
-        'mail.html',
-        messages=page["messages"],
-        page=page,
-        stats=make_stats(messages),
-        gmail_sync=result,
+        'mail.html', messages=messages, folder=folder, folders=GMAIL_FOLDERS,
+        folder_title=GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages),
     )
 
 
@@ -1893,30 +2093,19 @@ def mail():
 
 @app.route('/message/<message_id>')
 def message_detail(message_id):
+    folder = requested_mail_folder()
     try:
         message = fetch_gmail_message(g.user, message_id)
-        if message is not None:
-            return render_template('message.html', message=message)
-        flash("Connect Google again to load this email.", "info")
-        messages = load_cached_gmail_messages(g.user)
-    except requests.HTTPError as error:
-        app.logger.error(
-            "Gmail message pull failed with HTTP error: status=%s reason=%s",
-            error.response.status_code if error.response else "unknown",
-            gmail_error_reason(error),
-        )
-        flash(gmail_error_message(error), "error")
-        messages = load_cached_gmail_messages(g.user)
-    except (requests.RequestException, KeyError, ValueError):
-        app.logger.exception("Gmail message pull failed")
-        flash("Gmail could not be loaded right now. Please try again.", "error")
-        messages = load_cached_gmail_messages(g.user)
-    page = paginate_messages(messages, 1)
+        if message is None:
+            raise RuntimeError("Connect Google to read this email.")
+    except (RuntimeError, requests.RequestException, KeyError, ValueError) as error:
+        if request.args.get("pane") == "1":
+            return render_template('message_error.html', error="Could not open this email. Reconnect Google or try again."), 502
+        flash(str(error) if isinstance(error, RuntimeError) else "Could not open this email. Please try again.", "error")
+        return redirect(url_for('inbox', folder=folder))
     return render_template(
-        'mail.html',
-        messages=page["messages"],
-        page=page,
-        stats=make_stats(messages),
+        'message_pane.html' if request.args.get("pane") == "1" else 'message.html',
+        message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"],
     )
 
 
