@@ -114,6 +114,7 @@
 .auth-form {
     display: grid;
     gap: 0.7rem;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .auth-button.m3e-button {
@@ -151,6 +152,7 @@
 
 .input-group.m3e-text-field {
     margin: 0;
+    min-inline-size: 0;
 }
 
 .input-group:has(.password-toggle) .m3e-text-field__input {
@@ -198,6 +200,10 @@
     justify-content: center;
     margin-top: 0.15rem;
     width: 100%;
+}
+
+.login-submit {
+    margin-top: 0.5rem;
 }
 
 .switch-area {
