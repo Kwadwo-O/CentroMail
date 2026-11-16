@@ -12,6 +12,11 @@
 .settings-search .m3e-search__leading .m3e-icon { font-size: 22px; }
 #settings-feedback { flex: 1; color: var(--muted); font-size: .875rem; margin: 0; min-width: 220px; }
 .settings-layout { display: grid; grid-template-columns: 224px minmax(0,1fr); gap: 32px; align-items: start; }
+.settings-mobile-navigation { display: none; min-width: 0; }
+.settings-category-button { width: 100%; min-height: 56px; justify-content: start; gap: 12px; text-align: left; }
+.settings-category-button [data-settings-category-label] { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.settings-category-button[aria-expanded=true] > .m3e-icon:last-child { transform: rotate(180deg); }
+#settings-category-menu > .m3e-menu { max-block-size: calc(100dvh - 24px); max-inline-size: calc(100vw - 24px); }
 .settings-navigation { display: grid; gap: 6px; position: sticky; top: 96px; }
 .settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; padding: 6px; border-radius: var(--m3e-sys-shape-corner-extra-large,28px); --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
 .settings-navigation .m3e-menu__group { display: grid; gap: 4px; padding: 6px; background: transparent; border-radius: 16px; box-shadow: none; }
@@ -24,8 +29,11 @@
 .settings-navigation small { min-width: 24px; padding: 2px 5px; border-radius: 6px; background: var(--surface-container); color: var(--muted); font-size: .6875rem; text-align: center; font-variant-numeric: tabular-nums; }
 .settings-navigation a[aria-current] small { background: var(--m3e-sys-color-secondary-container); color: inherit; }
 .settings-content { display: grid; min-width: 0; gap: 24px; }
-.settings-preview { background: var(--surface-container); padding: 24px; border-radius: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
-.settings-preview > div:first-child { flex: 1; min-width: 220px; }
+.settings-preview { background: var(--surface-container); padding: 24px; border-radius: 20px; }
+.settings-preview-summary { display: none; }
+.settings-preview-content { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.settings-preview-content > div:first-child { flex: 1; min-width: 220px; }
+.settings-preview:not([open]) .settings-preview-content { display: none; }
 .settings-preview-kicker { font-size: .75rem; color: var(--muted); }
 .settings-preview h2 { font-size: 1.375rem; margin: 8px 0; }
 .settings-preview p { margin: 0; font-size: .875rem; color: var(--muted); }
@@ -61,19 +69,42 @@
 .settings-page .settings-danger { margin-top: 32px; background: var(--surface); border-color: var(--danger); }
 .settings-danger h3 { margin-top: 0; }
 .settings-privacy-links a { display: inline-flex; align-items: center; min-height: 44px; }
-@media(max-width:760px) {
+@media(max-width:900px) {
  .settings-page { padding-block: 24px; }
  .settings-layout { grid-template-columns: 1fr; gap: 20px; }
- .settings-navigation { display: flex; flex-wrap: wrap; position: static; gap: 4px; }
- .settings-navigation .m3e-menu__group { display: contents; }
- .settings-navigation-heading { display: none; }
- .settings-navigation a { display: flex; padding: 8px 10px; font-size: .8125rem; }
- .settings-navigation .m3e-menu__item-leading, .settings-navigation .m3e-menu__item-trailing { display: none; }
+ .settings-navigation { display: none; }
+ .settings-mobile-navigation { display: block; position: sticky; top: calc(var(--settings-header-offset,0px) + 8px); z-index: 10; background: var(--surface); border-radius: 999px; }
+ .settings-page .settings-section { scroll-margin-top: calc(var(--settings-header-offset,0px) + 76px); }
+ .settings-preview-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; font-weight: 550; }
+ .settings-preview-summary::-webkit-details-marker { display: none; }
+ .settings-preview[open] .settings-preview-summary { margin-bottom: 16px; }
+ .settings-preview[open] .settings-preview-summary .m3e-icon { transform: rotate(180deg); }
+ .settings-preview-kicker { display: none; }
+ .settings-preview-content { gap: 16px; }
+ .settings-preview-content > div:first-child { min-width: 0; flex-basis: 100%; }
+}
+@media(max-width:600px) {
+ .settings-header { gap: 12px; margin-bottom: 20px; }
+ :root[data-theme] .settings-header h1 { font-size: calc(2rem * var(--cm-heading-scale)); }
+ .settings-tools { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; margin-bottom: 20px; }
+ #settings-feedback { min-width: 0; font-size: .8125rem; }
+ .settings-layout { gap: 16px; }
+ :root[data-theme] .settings-page .settings-content { gap: calc(16px * var(--cm-spacing)); }
+ :root[data-theme] .settings-page :is(.settings-section,.settings-preview) { padding: min(var(--cm-card-padding),16px); }
+ :root[data-theme] .settings-page .settings-preview:not([open]) { padding-block: 8px; }
+ .settings-section-heading { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
+ .settings-section-heading > div { display: contents; }
+ .settings-section-heading h2 { grid-column: 1; grid-row: 1; }
+ .settings-section-heading p { grid-column: 1 / -1; grid-row: 2; }
+ .settings-section-heading [data-reset-group] { grid-column: 2; grid-row: 1; padding-inline: 8px; font-size: .8125rem; }
  .settings-row { flex-wrap: wrap; gap: 12px; }
  .settings-row > label:first-child { flex-basis: 100%; }
  .settings-row:has(.settings-switch-control) { flex-wrap: nowrap; }
  .settings-row:has(.settings-switch-control) > label:first-child { flex-basis: auto; }
- .settings-row select { width: 100%; }
- .settings-page .settings-section, .settings-preview { padding: 20px; }
- .settings-preview > div:first-child { min-width: 0; flex-basis: 100%; }
+ .settings-row select { width: 100%; font-size: 1rem; }
+ .settings-page .color-options { justify-content: start; max-width: none; gap: 10px; padding: 3px; }
+ .settings-account-row { flex-direction: column; }
+ .settings-storage-actions { display: grid; grid-template-columns: minmax(0,1fr); }
+ .settings-storage-actions > *, .settings-danger .m3e-button { width: 100%; white-space: normal; text-align: center; }
+ .settings-privacy-links { gap: 8px 16px; }
 }

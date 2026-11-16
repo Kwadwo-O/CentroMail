@@ -64,6 +64,15 @@ class AccessibilityTests(unittest.TestCase):
                     subjects = [tag for tag, attrs, _ in elements if attrs.get('class') == 'reader-subject']
                     self.assertEqual(subjects, [heading])
 
+    def test_both_settings_menus_reach_every_section(self):
+        self.auth.register()
+        elements = PageMarkup(self.auth.client.get('/settings').text).elements
+        sections = {attrs['data-settings-section'] for _, attrs, _ in elements if 'data-settings-section' in attrs}
+        desktop = {attrs['data-settings-nav'] for _, attrs, _ in elements if 'data-settings-nav' in attrs}
+        mobile = {attrs['value'] for tag, attrs, _ in elements if tag == 'm3e-menu-item'}
+        self.assertEqual(desktop, sections)
+        self.assertEqual(mobile, sections)
+
 
 if __name__ == '__main__':
     unittest.main()

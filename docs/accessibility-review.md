@@ -18,10 +18,12 @@ Reviewed 16 November 2026 using the accessibility-a11y skill.
 
 ## Verification
 
-All 63 Python tests passed, including rendered landmark, field-name, ARIA-reference, and email-heading regressions. All ten app scripts and 18 rendered inline scripts passed syntax checks.
+All 64 Python tests passed, including rendered landmark, field-name, ARIA-reference, email-heading, and mobile/desktop Settings category regressions. All ten app scripts and 18 rendered inline scripts passed syntax checks.
 
 Firefox keyboard checks passed for tabs, Compose, reading-pane focus, mobile menu containment/return, sign-in cancellation, and lazy-loading focus. System and saved reduced-motion checks passed.
 
 Axe-core found no violations for the tested WCAG A/AA rules on Landing, Login, Register, Onboarding, Dashboard, Settings, Integrations, Inbox, Message, Privacy, and Terms in light/dark themes, at 320/768-pixel widths, and at verified 200% browser zoom. Mobile menu interactions were also checked at 390 pixels.
+
+The mobile Settings follow-up uses a compact M3E section menu below the sticky app header and a collapsible live preview. All ten categories, search, controls, and larger text fit the tested 320, 390, 600, 768, and 900-pixel widths. The menu stays inside a 320×480 viewport, with keyboard navigation scrolling the focused item into view. Desktop light/dark and 200% zoom checks also passed.
 
 Manual screen-reader and user testing were not performed. Browser checks used local message fixtures; arbitrary received HTML emails depend on their sender's markup. These checks do not establish full WCAG conformance.

@@ -15,6 +15,22 @@
     const links = [...document.querySelectorAll('[data-settings-nav]')];
     const search = document.querySelector('#settings-search');
     const clearSearch = document.querySelector('#clear-settings-search');
+    const categoryMenu = document.querySelector('#settings-category-menu');
+    const categoryButton = document.querySelector('#settings-category-button');
+    const mobileSettings = matchMedia('(max-width: 900px)');
+    const preview = document.querySelector('.settings-preview');
+    const page = document.querySelector('.settings-page');
+    const header = document.querySelector('.site-header');
+    const syncHeader = () => page.style.setProperty('--settings-header-offset', getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().height + 'px' : '0px');
+    new ResizeObserver(syncHeader).observe(header);
+    document.addEventListener('centromail-appearance-change', syncHeader);
+    syncHeader();
+    const syncLayout = () => {
+        preview.open = !mobileSettings.matches;
+        if (!mobileSettings.matches) categoryMenu.removeAttribute('open');
+    };
+    mobileSettings.addEventListener('change', syncLayout);
+    syncLayout();
     const show = () => {
         const query = search.value.trim().toLowerCase();
         clearSearch.hidden = !search.value;
@@ -29,8 +45,21 @@
             section.hidden = query ? !(sectionMatch || rows.some(row => !row.hidden)) : section.dataset.settingsSection !== category;
         });
         links.forEach(link => { if (!query && link.dataset.settingsNav === category) link.setAttribute('aria-current','location'); else link.removeAttribute('aria-current'); });
+        const categoryItems = [...categoryMenu.querySelectorAll('m3e-menu-item')];
+        categoryItems.forEach(item => item.toggleAttribute('checked', !query && item.getAttribute('value') === category));
+        const current = categoryItems.find(item => item.getAttribute('value') === category);
+        const label = query ? 'Search results' : current.textContent.trim();
+        categoryButton.querySelector('[data-settings-category-label]').textContent = label;
+        categoryButton.querySelector('[data-settings-category-icon]').textContent = query ? 'search' : current.getAttribute('icon');
+        categoryButton.setAttribute('aria-label', 'Settings category: ' + label);
         document.querySelector('#settings-empty').hidden = !query || matches > 0;
     };
+    categoryMenu.addEventListener('action', event => {
+        search.value = '';
+        location.hash = 'settings-' + event.detail.value;
+        show();
+    });
+    categoryMenu.addEventListener('focusin', event => { if (event.target.matches('.m3e-menu__item')) event.target.scrollIntoView({block: 'nearest', inline: 'nearest'}); });
     links.forEach(link => link.addEventListener('click', () => { search.value = ''; }));
     search.addEventListener('input', show); window.addEventListener('hashchange', show);
     clearSearch.addEventListener('click', () => { search.value = ''; show(); search.focus(); });

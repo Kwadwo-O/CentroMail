@@ -23,6 +23,26 @@
         <p id="settings-feedback" role="status" aria-live="polite">Changes save automatically on this browser.</p>
     </div>
     <div class="settings-layout">
+        <nav class="settings-mobile-navigation" aria-label="Settings sections">
+            <button class="settings-category-button m3e-button m3e-button--tonal" id="settings-category-button" type="button" aria-label="Settings category: Colours" aria-haspopup="menu" aria-controls="settings-category-menu" aria-expanded="false">
+                <span class="m3e-icon" data-settings-category-icon aria-hidden="true">palette</span>
+                <span data-settings-category-label>Colours</span>
+                <span class="m3e-icon" aria-hidden="true">expand_more</span>
+            </button>
+            <m3e-menu id="settings-category-menu" anchor="settings-category-button" variant="baseline" label="Settings categories">
+                {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
+                <m3e-menu-group label="{{ label }}">
+                    {% for group in preference_groups if group.key in keys %}
+                    <m3e-menu-item type="radio" value="{{ group.key }}" icon="{{ group.icon }}" checked-icon="check">{{ group.title }}</m3e-menu-item>
+                    {% endfor %}
+                </m3e-menu-group>
+                {% endfor %}
+                <m3e-menu-group label="Account">
+                    <m3e-menu-item type="radio" value="account" icon="person" checked-icon="check">Account</m3e-menu-item>
+                    <m3e-menu-item type="radio" value="data" icon="shield" checked-icon="check">Data and privacy</m3e-menu-item>
+                </m3e-menu-group>
+            </m3e-menu>
+        </nav>
         <nav class="settings-navigation m3e-menu m3e-menu--baseline" aria-label="Settings categories">
             {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
             <div class="m3e-menu__group" aria-label="{{ label }}">
@@ -42,10 +62,13 @@
             </div>
         </nav>
         <div class="settings-content">
-            <div class="settings-preview" aria-label="Live appearance preview">
+            <details class="settings-preview" open>
+                <summary class="settings-preview-summary"><span>Live preview</span><span class="m3e-icon" aria-hidden="true">expand_more</span></summary>
+                <div class="settings-preview-content">
                 <div><span class="settings-preview-kicker">Live preview</span><h2>A space that feels like you</h2><p>Colours, text, buttons, and spacing update across CentroMail.</p></div>
                 <div class="settings-preview-actions"><button type="button" class="m3e-button m3e-button--filled" id="preview-button"><span class="m3e-icon" aria-hidden="true">favorite</span>Try a button</button><span class="m3e-badge m3e-badge--large">3</span><button type="button" class="m3e-icon-button m3e-icon-button--standard" id="preview-icon" aria-label="Preview icon"><span class="m3e-icon" aria-hidden="true">star</span></button></div>
-            </div>
+                </div>
+            </details>
             <p id="settings-empty" hidden>No settings match your search.</p>
             {% for group in preference_groups %}
             <section class="settings-section" id="settings-{{ group.key }}" data-settings-section="{{ group.key }}" aria-labelledby="{{ group.key }}-heading">
