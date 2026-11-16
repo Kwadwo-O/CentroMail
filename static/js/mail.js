@@ -29,6 +29,7 @@
     let cursor = null, hasMore = true, loading = false, failed = false;
     let generation = 0, controller, searchTimer, readerController;
     let actionPending = false, readerMessageId;
+    let statusController, statusOffset = 0, changeGeneration = 0;
     const rows = () => [...list.querySelectorAll('.message')];
     const sort = document.querySelector('#mail-sort');
     const sortMessages = () => {
@@ -72,6 +73,7 @@
     };
     const updateSelection = () => {
         const count = selected().length;
+        document.querySelector('.mail-selection-actions').hidden = count === 0;
         selectAll.checked = rows().length > 0 && count === rows().length;
         selectAll.indeterminate = count > 0 && count < rows().length;
         selectAll.disabled = rows().length === 0 || actionPending;
@@ -99,11 +101,42 @@
             });
         } catch { /* Existing counts remain when Gmail is unavailable. */ }
     };
-    document.addEventListener('centromail-mail-read', event => { if (event.detail.account === app.dataset.account) loadCounts(true); });
+    document.addEventListener('centromail-mail-read', event => {
+        if (event.detail.account === app.dataset.account) { changeGeneration++; statusController?.abort(); loadCounts(true); }
+    });
+    const syncGmailStatus = async () => {
+        if (!app.dataset.statusUrl || document.hidden || search.disabled || loading || actionPending || statusController) return;
+        const loaded = rows();
+        if (!loaded.length) return;
+        const visible = loaded.filter(row => { const box = row.getBoundingClientRect(); return box.bottom > 0 && box.top < innerHeight; });
+        const batch = [...new Set([...visible, ...loaded.slice(statusOffset, statusOffset + 25)])].slice(0,50);
+        statusOffset = (statusOffset + 25) % loaded.length;
+        const pending = new AbortController(); statusController = pending;
+        const version = changeGeneration, page = generation;
+        const timeout = setTimeout(() => pending.abort(), 30000);
+        const body = new URLSearchParams({account:app.dataset.account, csrf_token:app.dataset.csrf});
+        batch.forEach(row => body.append('message_ids',row.dataset.messageId));
+        try {
+            const data = await readJson(await fetch(app.dataset.statusUrl,{method:'POST',body,signal:pending.signal}));
+            if (version !== changeGeneration || page !== generation || document.hidden || search.disabled) return;
+            for (const message of data.messages) {
+                const row = loaded.find(item => item.dataset.messageId === message.id);
+                if (!row?.isConnected) continue;
+                row.classList.toggle('unread', message.unread);
+                row.querySelector('.message-read-state').textContent = message.unread ? 'Unread: ' : '';
+            }
+            document.querySelectorAll('[data-folder-count]').forEach(element => {
+                const count = data.counts[element.dataset.folderCount];
+                if (count !== undefined) { element.textContent = count; element.hidden = !count; }
+            });
+        } catch { /* Keep the last known status when Gmail is temporarily unavailable. */ }
+        finally { clearTimeout(timeout); if (statusController === pending) statusController = null; }
+    };
     const loadMessages = async ({reset = false, force = false} = {}) => {
         if (reset) {
             generation += 1;
             controller?.abort();
+            statusController?.abort(); statusController = null; statusOffset = 0;
             cursor = null;
             hasMore = true;
             failed = false;
@@ -171,6 +204,7 @@
                 more.textContent = failed ? 'Try again' : 'Load more';
                 if (restoreMoreFocus) list.focus();
                 setRefreshBusy(false);
+                if (!failed) syncGmailStatus();
             }
         }
     };
@@ -216,6 +250,8 @@
     const performAction = async (action, targets) => {
         if (action === 'trash' && window.CentroMailAppearance.get('confirm-actions') === 'true' && !confirm('Move the selected messages to Trash?')) return;
         if (actionPending || !targets.length) return;
+        changeGeneration++; statusController?.abort();
+        const actionButton = document.activeElement.closest('[data-mail-action]');
         const data = new URLSearchParams({action, csrf_token: app.dataset.csrf, account: app.dataset.account, folder});
         targets.forEach(row => data.append('message_ids', row.dataset.messageId));
         actionPending = true;
@@ -253,6 +289,9 @@
             actionPending = false;
             targets.forEach(row => row.querySelector('.star-button').disabled = false);
             updateSelection();
+            if (actionButton && (document.activeElement === document.body || document.activeElement === actionButton)) {
+                (selected().length ? actionButton : selectAll.disabled ? list : selectAll).focus({preventScroll:true});
+            }
         }
     };
     list.addEventListener('click', event => {
@@ -330,10 +369,13 @@
         if (localStorage.getItem('centromail-auto-refresh') !== 'false' && document.visibilityState === 'visible' &&
             !search.disabled && !loading && !actionPending && !list.contains(document.activeElement) && !reader.contains(document.activeElement) && selected().length === 0 && rows().length <= 25 && !search.value.trim()) {
             loadMessages({reset: true, force: true});
-        }
+        } else if (window.CentroMailAppearance.get('auto-refresh') !== 'false') syncGmailStatus();
     }, Number(window.CentroMailAppearance.get('refresh-interval')) * 1000);
     };
     document.addEventListener('centromail-appearance-change', scheduleRefresh);
+    window.addEventListener('focus', syncGmailStatus);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) statusController?.abort(); else syncGmailStatus(); });
+    document.querySelector('#workspace-tab-email').addEventListener('click', syncGmailStatus);
     scheduleRefresh();
     syncSort();
     updateSelection();

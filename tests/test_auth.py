@@ -293,7 +293,9 @@ class AuthTests(unittest.TestCase):
                 result = self.client.get(path)
                 self.assertEqual(result.status_code, 200)
                 self.assertIn(b'class="email-body-frame"', result.data)
-                self.assertIn(b'sandbox="allow-popups allow-popups-to-escape-sandbox"', result.data)
+                self.assertIn(b'sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"', result.data)
+                self.assertNotIn(b'allow-scripts', result.data)
+                self.assertIn(b"script-src 'none'", result.data)
             network.assert_not_called()
 
     def test_legal_pages_are_public_and_linked(self):

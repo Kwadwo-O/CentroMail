@@ -219,7 +219,9 @@ The inbox opens from a small local preview and loads Gmail in batches of 25 mess
 
 Sidebar links open Inbox, Starred, Snoozed, Sent and Drafts, with additional folders under More. Folder counts come from Gmail.
 
-On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. HTML emails use an isolated reader that preserves safe typography and table formatting.
+On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. HTML emails use an isolated reader that preserves safe typography and table formatting. The message body fits its content, with one scrolling area and a toolbar that stays visible.
+
+Gmail read/unread changes made outside CentroMail are checked when you return to the inbox and at the configured auto-refresh interval (60 seconds by default). Checks update loaded rows in place, keeping your selection and reading pane; larger lists are checked in rotating batches. Automatic checks pause while the tab is hidden or Apps is selected. No extra Google setup is required.
 
 Successfully opening an unread email saves its read status to the connected provider and refreshes the inbox count. If that update fails, the email stays available to read and the reader explains how to retry. Disabled Reply buttons show an M3E tooltip on hover or keyboard focus explaining the no-reply restriction.
 

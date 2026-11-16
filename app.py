@@ -260,6 +260,7 @@ def csrf_token():
 PROTECTED_ENDPOINTS = {
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
     "mailbox_messages", "mailbox_counts", "mail_action",
+    "gmail_message_states",
     "delete_account",
     "integrations", "telegram_start_route", "telegram_verify_route",
     "telegram_password_route", "telegram_restart_route", "test_telegram_route",
@@ -2163,6 +2164,67 @@ def mailbox_messages():
         html=render_template('mail_rows.html', messages=[{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in messages], folder=folder, mail_account_key=active_email_account(g.user)["key"]),
         next_cursor=next_cursor, total=total, count=len(messages),
     )
+
+
+@app.post('/api/mail/gmail/status')
+def gmail_message_states():
+    account = active_email_account(g.user)
+    if account['kind'] != 'gmail': abort(404)
+    identifiers = list(dict.fromkeys(request.form.getlist('message_ids')))
+    if not 1 <= len(identifiers) <= 50:
+        return jsonify(error='Check up to 50 loaded messages at a time.'), 400
+    try:
+        raw_ids = {identifier:gmail_raw_message_id(account, identifier) for identifier in identifiers}
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    try:
+        token = get_gmail_access_token(g.user)
+        if not token: return jsonify(error='Reconnect Gmail to update read status.', reconnect=True), 409
+        db = get_db()
+        cached = {identifier:db.execute('SELECT metadata, metadata_at FROM gmail_cache WHERE user_id=? AND message_id=?', (g.user['id'],identifier)).fetchone() for identifier in identifiers}
+        def fetch_labels(raw_id):
+            response = google_requests.get(f'https://gmail.googleapis.com/gmail/v1/users/me/messages/{raw_id}',
+                headers={'Authorization':'Bearer '+token}, params={'format':'minimal','fields':'id,labelIds'}, timeout=(5,10))
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict): raise ValueError('Invalid Gmail message.')
+            labels = payload.get('labelIds', [])
+            if payload.get('id') != raw_id or not isinstance(labels, list) or any(not isinstance(label, str) for label in labels):
+                raise ValueError('Invalid Gmail message labels.')
+            return 'UNREAD' in labels
+        states, remote = [], {}
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(fetch_labels, raw_id):identifier for identifier,raw_id in raw_ids.items()}
+            for future in as_completed(futures):
+                try: unread = future.result()
+                except requests.HTTPError as error:
+                    if gmail_error_status(error) in {404,410}: continue
+                    raise
+                remote[futures[future]] = unread
+        for identifier, unread in remote.items():
+            previous = cached[identifier]
+            if previous and previous['metadata']:
+                metadata = json.loads(previous['metadata'])
+                labels = set(metadata.get('label_ids', []))
+                labels.add('UNREAD') if unread else labels.discard('UNREAD')
+                metadata.update(unread=unread, label_ids=sorted(labels))
+                # Do not overwrite a local action that completed while Gmail was being checked.
+                updated = db.execute('UPDATE gmail_cache SET metadata=? WHERE user_id=? AND message_id=? AND metadata=? AND metadata_at IS ?',
+                    (json.dumps(metadata),g.user['id'],identifier,previous['metadata'],previous['metadata_at']))
+                if not updated.rowcount:
+                    current = db.execute('SELECT metadata FROM gmail_cache WHERE user_id=? AND message_id=?', (g.user['id'],identifier)).fetchone()
+                    if current and current['metadata']: unread = json.loads(current['metadata']).get('unread', unread)
+            states.append({'id':identifier, 'unread':unread})
+        if account['key'] == 'gmail': db.execute('DELETE FROM gmail_mailbox_counts WHERE user_id=?', (g.user['id'],))
+        else: db.execute('DELETE FROM gmail_account_counts WHERE user_id=? AND account_key=?', (g.user['id'],account['key']))
+        db.commit()
+        return jsonify(messages=states, counts=mailbox_counts().get_json())
+    except requests.HTTPError as error:
+        get_db().rollback()
+        return jsonify(error=gmail_error_message(error), reconnect=gmail_error_status(error) in {401,403}), 502
+    except (ValueError, KeyError, requests.RequestException):
+        get_db().rollback()
+        return jsonify(error='Gmail read status could not be updated. Try Refresh.'), 502
 
 
 @app.get('/api/mail/counts')

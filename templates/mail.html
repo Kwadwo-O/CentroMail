@@ -9,7 +9,7 @@
 {% block main_class %}mail-page{% endblock %}
 
 {% block content %}
-<div class="gmail-app" data-folder="{{ folder }}" data-account="{{ mail_account_key }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" data-google-url="{{ url_for('authenticate', provider='google') if mail_kind == 'gmail' else url_for('integrations') }}" data-csrf="{{ csrf_token() }}">
+<div class="gmail-app" data-folder="{{ folder }}" data-account="{{ mail_account_key }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" {% if mail_kind == 'gmail' %}data-status-url="{{ url_for('gmail_message_states') }}"{% endif %} data-google-url="{{ url_for('authenticate', provider='google') if mail_kind == 'gmail' else url_for('integrations') }}" data-csrf="{{ csrf_token() }}">
     <header class="gmail-header">
         <button class="icon-button mobile-menu m3e-icon-button m3e-icon-button--standard" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><span class="material-symbols-rounded ui-icon" aria-hidden="true">menu</span></button>
         <label class="search-box">
@@ -115,7 +115,7 @@
                         <span data-refresh-label aria-live="polite">Refresh</span>
                     </button>
                 </form>
-                <div class="mail-selection-actions" role="group" aria-label="Selected message actions">
+                <div class="mail-selection-actions" role="group" aria-label="Selected message actions" hidden>
                     <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="{{ 'restore' if folder == 'trash' else 'archive' }}" aria-label="{{ 'Restore' if folder == 'trash' else 'Archive' }} selected messages" title="{{ 'Restore to inbox' if folder == 'trash' else 'Archive selected' }}" disabled><span class="material-symbols-rounded" aria-hidden="true">{{ 'restore_from_trash' if folder == 'trash' else 'archive' }}</span></button>
                     <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="trash" aria-label="Move selected messages to Trash" title="Move to Trash" disabled {% if folder == 'trash' %}hidden{% endif %}><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
                     <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="read" aria-label="Mark selected messages as read" title="Mark as read" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_read</span></button>
@@ -142,8 +142,8 @@
                 <div id="mail-load-sentinel" aria-hidden="true"></div>
             </div>
         </section>
-        <aside class="mail-reader" id="mail-reader" aria-label="Email reading pane" tabindex="-1" hidden>
-            <header class="reader-toolbar"><strong>Email</strong><div><a class="icon-button m3e-icon-button m3e-icon-button--standard" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
+        <aside class="mail-reader m3e-card m3e-card--outlined" id="mail-reader" aria-label="Email reading pane" tabindex="-1" hidden>
+            <header class="reader-toolbar"><strong><span class="m3e-icon" aria-hidden="true">mail</span>Reading pane</strong><div><a class="icon-button m3e-icon-button m3e-icon-button--standard" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
             <p class="sr-only" id="reader-status" role="status"></p>
             <div class="reader-content" id="reader-content"></div>
         </aside>

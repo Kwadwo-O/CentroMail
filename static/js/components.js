@@ -21,6 +21,22 @@ const syncTheme = async () => {
     style.textContent = createTheme(options).cssText; lastTheme = key;
 };
 const originalFrames = new WeakMap();
+const frameObservers = new Map();
+const watchEmailSize = frame => {
+    frameObservers.get(frame)?.disconnect();
+    if (!frame.isConnected) { frameObservers.delete(frame); return; }
+    const body = frame.contentDocument?.body;
+    if (!body) return;
+    const fit = () => {
+        if (!frame.isConnected || frame.contentDocument?.body !== body) return;
+        const height = Math.min(100000, Math.max(64, Math.ceil(body.getBoundingClientRect().height) + 2));
+        if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
+    };
+    const observer = new ResizeObserver(() => requestAnimationFrame(fit));
+    observer.observe(body);
+    frameObservers.set(frame, observer);
+    fit();
+};
 let tooltipModule;
 const syncTooltips = () => {
     if (document.querySelector('m3e-tooltip')) tooltipModule ??= import('../vendor/m3e/tooltip/index.js');
@@ -30,13 +46,23 @@ document.addEventListener('keydown', event => {
     const tooltip = document.querySelector('m3e-tooltip[open]');
     if (tooltip) { tooltip.hide(); event.preventDefault(); event.stopPropagation(); }
 }, {capture:true});
-const syncReaderText = () => document.querySelectorAll('.email-body-frame').forEach(frame => {
-    if (!originalFrames.has(frame)) originalFrames.set(frame, frame.getAttribute('srcdoc'));
-    const size = window.CentroMailAppearance.get('reader-text-size');
-    const spacing = window.CentroMailAppearance.get('reader-line-height');
-    const content = originalFrames.get(frame).replace('</head>', `<style>body{font-size:${size}px!important;line-height:${spacing}!important}</style></head>`);
-    if (frame.getAttribute('srcdoc') !== content) frame.setAttribute('srcdoc', content);
-});
+const syncReaderText = () => {
+    for (const [frame, observer] of frameObservers) {
+        if (!frame.isConnected) { observer.disconnect(); frameObservers.delete(frame); }
+    }
+    document.querySelectorAll('.email-body-frame').forEach(frame => {
+        if (!originalFrames.has(frame)) {
+            originalFrames.set(frame, frame.getAttribute('srcdoc'));
+            // Email scripts remain sandboxed; only the parent measures the document.
+            frame.addEventListener('load', () => watchEmailSize(frame));
+            watchEmailSize(frame);
+        }
+        const size = window.CentroMailAppearance.get('reader-text-size');
+        const spacing = window.CentroMailAppearance.get('reader-line-height');
+        const content = originalFrames.get(frame).replace('</head>', `<style>body{font-size:${size}px!important;line-height:${spacing}!important}</style></head>`);
+        if (frame.getAttribute('srcdoc') !== content) frame.setAttribute('srcdoc', content);
+    });
+};
 document.addEventListener('centromail-appearance-change', () => { syncTheme(); syncReaderText(); });
 new MutationObserver(syncTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
 new MutationObserver(() => { syncReaderText(); syncTooltips(); }).observe(document.documentElement, {childList: true, subtree: true});

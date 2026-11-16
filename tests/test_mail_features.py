@@ -1,6 +1,7 @@
 """Smart email controls and account isolation using local fixtures."""
 import base64
 import hashlib
+import json
 from email import policy
 from email.parser import BytesParser
 from unittest.mock import Mock, patch
@@ -31,6 +32,98 @@ class MailFeatureTests(IntegrationFixture):
                 'token':{'access_token':token,'refresh_token':'refresh-'+token,'expires_at':a.time.time()+3600}}}
         with a.app.app_context():a.save_integration(self.user_id,key,account['config'])
         return account
+
+    def gmail_status_response(self, url, **kwargs):
+        response = Mock()
+        identifier = url.rsplit('/', 1)[-1]
+        response.json.return_value = {'id':identifier, 'labelIds':['INBOX'], 'messagesUnread':2, 'messagesTotal':1}
+        return response
+
+    def test_gmail_status_syncs_both_directions_without_extending_metadata_ttl(self):
+        metadata = a.gmail_metadata_from_payload(self.payload(), 'sample')
+        metadata.update(unread=True, label_ids=['INBOX','UNREAD','STARRED'])
+        with a.app.app_context():
+            a.gmail_cache_put(self.user_id, 'sample', metadata=metadata, body={'text':'Keep this body'})
+            db=a.get_db()
+            db.execute('UPDATE gmail_cache SET metadata_at=123 WHERE user_id=?', (self.user_id,))
+            db.commit()
+        with patch.object(a.google_requests, 'get', side_effect=self.gmail_status_response):
+            response=self.post_form('/api/mail/gmail/status', {'message_ids':['sample','sample']})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json['messages'],[{'id':'sample','unread':False}])
+        self.assertEqual(response.json['counts']['inbox'],2)
+        def unread(url, **kwargs):
+            result=self.gmail_status_response(url, **kwargs)
+            result.json.return_value['labelIds'].append('UNREAD')
+            return result
+        with patch.object(a.google_requests, 'get', side_effect=unread):
+            response=self.post_form('/api/mail/gmail/status', {'message_ids':'sample'})
+        self.assertTrue(response.json['messages'][0]['unread'])
+        with a.app.app_context():
+            cached=a.get_db().execute('SELECT * FROM gmail_cache WHERE user_id=?', (self.user_id,)).fetchone()
+            self.assertEqual(cached['metadata_at'],123)
+            self.assertEqual(json.loads(cached['body']),{'text':'Keep this body'})
+            self.assertEqual(set(json.loads(cached['metadata'])['label_ids']),{'INBOX','UNREAD','STARRED'})
+
+    def test_gmail_status_uses_selected_account_and_rejects_foreign_or_invalid_ids(self):
+        second=self.save_gmail()
+        identifier=a.gmail_message_key(second,'sample')
+        with patch.object(a.google_requests, 'get', side_effect=self.gmail_status_response) as fetch:
+            response=self.post_form('/api/mail/gmail/status', {'account':second['key'],'message_ids':identifier})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json['messages'][0]['id'],identifier)
+        for call in fetch.call_args_list:
+            self.assertEqual(call.kwargs['headers']['Authorization'],'Bearer second-token')
+        self.assertTrue(any(call.args[0].endswith('/messages/sample') for call in fetch.call_args_list))
+        with patch.object(a.google_requests, 'get') as fetch:
+            for data in ({'account':second['key'],'message_ids':'sample'}, {'message_ids':identifier}, {'message_ids':'../invalid'}, {'message_ids':[]}, {'message_ids':[str(i) for i in range(51)]}):
+                self.assertEqual(self.post_form('/api/mail/gmail/status',{'account':'gmail',**data}).status_code,400)
+            self.assertEqual(self.client.post('/api/mail/gmail/status',data={'message_ids':'sample'}).status_code,400)
+        fetch.assert_not_called()
+
+    def test_gmail_status_does_not_overwrite_a_local_action_completed_during_fetch(self):
+        metadata=a.gmail_metadata_from_payload(self.payload(),'sample')
+        metadata.update(unread=True,label_ids=['INBOX','UNREAD'])
+        def concurrent_action(url, **kwargs):
+            response=self.gmail_status_response(url,**kwargs)
+            if '/messages/' in url:
+                metadata.update(unread=False,label_ids=['INBOX'])
+                with a.app.app_context():a.gmail_cache_put(self.user_id,'sample',metadata=metadata)
+                response.json.return_value['labelIds'].append('UNREAD')
+            return response
+        for original_unread in (True, False):
+            with self.subTest(original_unread=original_unread):
+                metadata.update(unread=original_unread,label_ids=['INBOX','UNREAD'] if original_unread else ['INBOX'])
+                with a.app.app_context():
+                    a.gmail_cache_put(self.user_id,'sample',metadata=metadata)
+                    a.get_db().execute('UPDATE gmail_cache SET metadata_at=123 WHERE user_id=?', (self.user_id,))
+                    a.get_db().commit()
+                with patch.object(a.google_requests,'get',side_effect=concurrent_action):
+                    response=self.post_form('/api/mail/gmail/status',{'message_ids':'sample'})
+                self.assertEqual(response.json['messages'],[{'id':'sample','unread':False}])
+                with a.app.app_context():self.assertFalse(a.gmail_cache_get(self.user_id,'sample')['unread'])
+
+    def test_gmail_status_errors_preserve_cached_status_and_missing_messages_are_skipped(self):
+        metadata=a.gmail_metadata_from_payload(self.payload(),'sample')
+        metadata.update(unread=True,label_ids=['INBOX','UNREAD'])
+        with a.app.app_context():a.gmail_cache_put(self.user_id,'sample',metadata=metadata)
+        for status in (401,403,429,500):
+            error=a.requests.HTTPError(response=Mock(status_code=status))
+            with patch.object(a.google_requests,'get',side_effect=error):
+                response=self.post_form('/api/mail/gmail/status',{'message_ids':['sample','other']})
+            self.assertEqual(response.status_code,502)
+            with a.app.app_context():self.assertTrue(a.gmail_cache_get(self.user_id,'sample')['unread'])
+        def missing(url, **kwargs):
+            if '/messages/' in url:raise a.requests.HTTPError(response=Mock(status_code=404))
+            return self.gmail_status_response(url,**kwargs)
+        with patch.object(a.google_requests,'get',side_effect=missing):
+            response=self.post_form('/api/mail/gmail/status',{'message_ids':'sample'})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json['messages'],[])
+        malformed=Mock(); malformed.json.return_value={'id':'sample','labelIds':'UNREAD'}
+        with patch.object(a.google_requests,'get',return_value=malformed):
+            self.assertEqual(self.post_form('/api/mail/gmail/status',{'message_ids':'sample'}).status_code,502)
+        with a.app.app_context():self.assertTrue(a.gmail_cache_get(self.user_id,'sample')['unread'])
 
     def test_no_reply_variants_and_usable_reply_to(self):
         for address in ('noreply@example.com','NO-REPLY@example.com','no_reply+123@example.com','do.not.reply@example.com','DoNotReply@example.com','alerts-no-reply@example.com','noreply123@example.com'):
