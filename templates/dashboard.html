@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | CentroMail{% endblock %}
+{% block main_class %}page-content dashboard-page{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -9,14 +10,14 @@
 <div class="dashboard-app">
     <header class="dashboard-topbar">
         <a class="dashboard-brand" href="{{ url_for('dashboard') }}">
-            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="104" height="52">
+            <img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="104" height="52">
         </a>
         <div class="dashboard-search">
             <span class="material-symbols-rounded" aria-hidden="true">search</span>
             <input type="search" placeholder="Search your workspace" aria-label="Search your workspace">
         </div>
         <div class="dashboard-account">
-            <button class="account-trigger" type="button" aria-expanded="false" aria-controls="account-menu">
+            <button class="account-trigger m3e-button m3e-button--text" type="button" aria-expanded="false" aria-controls="account-menu">
                 <span class="account-name">{{ g.user.name or g.user.email }}</span>
                 {% if g.user.avatar_url %}
                 <img class="account-avatar" src="{{ g.user.avatar_url }}" alt="">
@@ -29,13 +30,13 @@
                     <strong>{{ g.user.name or g.user.email }}</strong>
                     <small>{{ g.user.email }}</small>
                 </div>
-                <button class="account-menu-item" type="button" data-theme-menu-toggle>
+                <button class="account-menu-item m3e-button m3e-button--text" type="button" data-theme-menu-toggle>
                     <span class="material-symbols-rounded" aria-hidden="true" data-theme-menu-icon>dark_mode</span>
                     <span data-theme-menu-label>Dark theme</span>
                 </button>
                 <form class="account-logout" action="{{ url_for('logout') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="account-menu-item account-menu-danger" type="submit">
+                    <button class="account-menu-item account-menu-danger m3e-button m3e-button--text" type="submit">
                         <span class="material-symbols-rounded" aria-hidden="true">logout</span>
                         <span>Log out</span>
                     </button>
@@ -47,12 +48,12 @@
     <div class="dashboard-layout">
         <aside class="dashboard-sidebar">
             <nav aria-label="Workspace navigation" class="dashboard-nav">
-                <a class="dashboard-nav-link active" href="{{ url_for('dashboard') }}">
+                <a class="dashboard-nav-link active" href="{{ url_for('dashboard') }}" aria-current="page">
                     <span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview
                 </a>
                 <a class="dashboard-nav-link" href="{{ url_for('inbox') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox
-                    <strong>{{ stats.unread }}</strong>
+                    <strong class="m3e-badge m3e-badge--large">{{ stats.unread }}</strong>
                 </a>
                 <a class="dashboard-nav-link" href="{{ url_for('mail') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">mail</span>All mail
@@ -104,19 +105,19 @@
             <section class="dashboard-stats" aria-label="Mailbox summary">
                 <article class="m3e-card m3e-card--elevated dashboard-stat dashboard-stat-primary">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">mail</span>
-                    <div><span>Total mail</span><strong>{{ stats.total }}</strong><small>Across your workspace</small></div>
+                    <div><span>Cached mail</span><strong>{{ stats.total }}</strong><small>Emails loaded on this device</small></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">mark_email_unread</span>
-                    <div><span>Unread</span><strong>{{ stats.unread }}</strong><small>Ready for your attention</small></div>
+                    <div><span>Cached unread</span><strong>{{ stats.unread }}</strong><small>Unread in the local cache</small></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">star</span>
-                    <div><span>Starred</span><strong>{{ stats.starred }}</strong><small>Important messages</small></div>
+                    <div><span>Cached starred</span><strong>{{ stats.starred }}</strong><small>Starred in the local cache</small></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">send</span>
-                    <div><span>Sent</span><strong>{{ stats.sent }}</strong><small>Messages sent</small></div>
+                    <div><span>Cached sent</span><strong>{{ stats.sent }}</strong><small>Sent emails in the local cache</small></div>
                 </article>
             </section>
 

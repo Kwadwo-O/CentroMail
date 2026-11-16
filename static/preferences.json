@@ -1,0 +1,1076 @@
+[
+  {
+    "key": "colours",
+    "title": "Colours",
+    "icon": "palette",
+    "description": "Choose a consistent Material palette for every page.",
+    "settings": [
+      {
+        "key": "theme",
+        "label": "Theme",
+        "description": "Follow your device or use a fixed light or dark theme.",
+        "default": "system",
+        "type": "select",
+        "id": "theme-preference",
+        "choices": [
+          {
+            "value": "system",
+            "label": "Follow device"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          }
+        ]
+      },
+      {
+        "key": "accent",
+        "label": "Accent colour",
+        "description": "Generate matching surface, text, and button colours.",
+        "default": "#50745c",
+        "type": "color",
+        "id": "custom-accent"
+      },
+      {
+        "key": "palette",
+        "label": "Palette style",
+        "description": "Choose how strongly your accent colours the interface.",
+        "default": "tonalSpot",
+        "type": "select",
+        "id": "palette-preference",
+        "choices": [
+          {
+            "value": "tonalSpot",
+            "label": "Balanced"
+          },
+          {
+            "value": "neutral",
+            "label": "Neutral"
+          },
+          {
+            "value": "vibrant",
+            "label": "Vibrant"
+          },
+          {
+            "value": "expressive",
+            "label": "Expressive"
+          },
+          {
+            "value": "monochrome",
+            "label": "Monochrome"
+          },
+          {
+            "value": "fidelity",
+            "label": "Faithful"
+          },
+          {
+            "value": "content",
+            "label": "Content"
+          },
+          {
+            "value": "rainbow",
+            "label": "Rainbow"
+          },
+          {
+            "value": "fruitSalad",
+            "label": "Playful"
+          }
+        ]
+      },
+      {
+        "key": "contrast",
+        "label": "Colour contrast",
+        "description": "Increase the separation between text and surfaces.",
+        "default": "standard",
+        "type": "select",
+        "id": "contrast-preference",
+        "choices": [
+          {
+            "value": "standard",
+            "label": "Standard"
+          },
+          {
+            "value": "medium",
+            "label": "Medium"
+          },
+          {
+            "value": "high",
+            "label": "High"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "typography",
+    "title": "Typography",
+    "icon": "text_fields",
+    "description": "Make text comfortable across the workspace and public pages.",
+    "settings": [
+      {
+        "key": "font",
+        "label": "Interface font",
+        "description": "Additional fonts load from Google Fonts.",
+        "default": "system",
+        "type": "select",
+        "id": "font-preference",
+        "choices": [
+          {
+            "value": "system",
+            "label": "System / Google Sans"
+          },
+          {
+            "value": "google-sans",
+            "label": "Google Sans"
+          },
+          {
+            "value": "roboto",
+            "label": "Roboto"
+          },
+          {
+            "value": "open-sans",
+            "label": "Open Sans"
+          },
+          {
+            "value": "lato",
+            "label": "Lato"
+          },
+          {
+            "value": "montserrat",
+            "label": "Montserrat"
+          },
+          {
+            "value": "inter",
+            "label": "Inter"
+          },
+          {
+            "value": "poppins",
+            "label": "Poppins"
+          },
+          {
+            "value": "nunito",
+            "label": "Nunito"
+          },
+          {
+            "value": "playfair-display",
+            "label": "Playfair Display"
+          },
+          {
+            "value": "merriweather",
+            "label": "Merriweather"
+          }
+        ]
+      },
+      {
+        "key": "text-scale",
+        "label": "Text size",
+        "description": "Scale interface text on all pages.",
+        "default": "1",
+        "type": "select",
+        "id": "text-scale-preference",
+        "choices": [
+          {
+            "value": "0.9",
+            "label": "Small"
+          },
+          {
+            "value": "1",
+            "label": "Default"
+          },
+          {
+            "value": "1.1",
+            "label": "Large"
+          },
+          {
+            "value": "1.2",
+            "label": "Extra large"
+          }
+        ]
+      },
+      {
+        "key": "line-height",
+        "label": "Line spacing",
+        "description": "Spacing within paragraphs and descriptions.",
+        "default": "1.6",
+        "type": "select",
+        "id": "line-height-preference",
+        "choices": [
+          {
+            "value": "1.4",
+            "label": "Compact"
+          },
+          {
+            "value": "1.6",
+            "label": "Comfortable"
+          },
+          {
+            "value": "1.9",
+            "label": "Spacious"
+          }
+        ]
+      },
+      {
+        "key": "letter-spacing",
+        "label": "Letter spacing",
+        "description": "Give interface text more room.",
+        "default": "0",
+        "type": "select",
+        "id": "letter-spacing-preference",
+        "choices": [
+          {
+            "value": "0",
+            "label": "Default"
+          },
+          {
+            "value": "0.02",
+            "label": "Wide"
+          },
+          {
+            "value": "0.04",
+            "label": "Extra wide"
+          }
+        ]
+      },
+      {
+        "key": "body-weight",
+        "label": "Body text weight",
+        "description": "Weight of paragraphs, descriptions, and labels.",
+        "default": "400",
+        "type": "select",
+        "id": "body-weight-preference",
+        "choices": [
+          {
+            "value": "400",
+            "label": "Regular"
+          },
+          {
+            "value": "500",
+            "label": "Medium"
+          },
+          {
+            "value": "600",
+            "label": "Bold"
+          }
+        ]
+      },
+      {
+        "key": "heading-weight",
+        "label": "Heading weight",
+        "description": "Weight of page and section headings.",
+        "default": "600",
+        "type": "select",
+        "id": "heading-weight-preference",
+        "choices": [
+          {
+            "value": "500",
+            "label": "Medium"
+          },
+          {
+            "value": "600",
+            "label": "Semibold"
+          },
+          {
+            "value": "700",
+            "label": "Bold"
+          }
+        ]
+      },
+      {
+        "key": "heading-scale",
+        "label": "Heading size",
+        "description": "Scale titles separately from body text.",
+        "default": "1",
+        "type": "select",
+        "id": "heading-scale-preference",
+        "choices": [
+          {
+            "value": "0.85",
+            "label": "Small"
+          },
+          {
+            "value": "1",
+            "label": "Default"
+          },
+          {
+            "value": "1.15",
+            "label": "Large"
+          }
+        ]
+      },
+      {
+        "key": "underline-links",
+        "label": "Underline text links",
+        "description": "Make text links easier to recognise.",
+        "default": "false",
+        "type": "switch",
+        "id": "underline-links-preference"
+      }
+    ]
+  },
+  {
+    "key": "layout",
+    "title": "Layout",
+    "icon": "view_quilt",
+    "description": "Control spacing and surfaces without moving navigation between pages.",
+    "settings": [
+      {
+        "key": "corners",
+        "label": "Surface corners",
+        "description": "Shape of cards, dialogs, and page panels.",
+        "default": "soft",
+        "type": "select",
+        "id": "corner-preference",
+        "choices": [
+          {
+            "value": "soft",
+            "label": "Soft"
+          },
+          {
+            "value": "balanced",
+            "label": "Balanced"
+          },
+          {
+            "value": "sharp",
+            "label": "Sharp"
+          }
+        ]
+      },
+      {
+        "key": "content-width",
+        "label": "Page width",
+        "description": "Maximum width of content on larger screens.",
+        "default": "1240",
+        "type": "select",
+        "id": "content-width-preference",
+        "choices": [
+          {
+            "value": "1040",
+            "label": "Focused"
+          },
+          {
+            "value": "1240",
+            "label": "Balanced"
+          },
+          {
+            "value": "1440",
+            "label": "Wide"
+          }
+        ]
+      },
+      {
+        "key": "spacing",
+        "label": "Section spacing",
+        "description": "Space between panels and sections.",
+        "default": "1",
+        "type": "select",
+        "id": "spacing-preference",
+        "choices": [
+          {
+            "value": "0.8",
+            "label": "Compact"
+          },
+          {
+            "value": "1",
+            "label": "Default"
+          },
+          {
+            "value": "1.25",
+            "label": "Spacious"
+          }
+        ]
+      },
+      {
+        "key": "sidebar-width",
+        "label": "Sidebar width",
+        "description": "Width of dashboard and inbox sidebars.",
+        "default": "224",
+        "type": "select",
+        "id": "sidebar-width-preference",
+        "choices": [
+          {
+            "value": "200",
+            "label": "Narrow"
+          },
+          {
+            "value": "224",
+            "label": "Default"
+          },
+          {
+            "value": "272",
+            "label": "Wide"
+          }
+        ]
+      },
+      {
+        "key": "card-padding",
+        "label": "Card padding",
+        "description": "Space inside cards and settings panels.",
+        "default": "24",
+        "type": "select",
+        "id": "card-padding-preference",
+        "choices": [
+          {
+            "value": "18",
+            "label": "Compact"
+          },
+          {
+            "value": "24",
+            "label": "Default"
+          },
+          {
+            "value": "32",
+            "label": "Spacious"
+          }
+        ]
+      },
+      {
+        "key": "border-width",
+        "label": "Surface borders",
+        "description": "Thickness of panel and card boundaries.",
+        "default": "1",
+        "type": "select",
+        "id": "border-width-preference",
+        "choices": [
+          {
+            "value": "0",
+            "label": "None"
+          },
+          {
+            "value": "1",
+            "label": "Thin"
+          },
+          {
+            "value": "2",
+            "label": "Strong"
+          }
+        ]
+      },
+      {
+        "key": "sticky-header",
+        "label": "Keep headers visible",
+        "description": "Keep the page header visible while scrolling.",
+        "default": "true",
+        "type": "switch",
+        "id": "sticky-header-preference"
+      },
+      {
+        "key": "footer-visible",
+        "label": "Show page footers",
+        "description": "Show branding and legal links in the page footer.",
+        "default": "true",
+        "type": "switch",
+        "id": "footer-visible-preference"
+      },
+      {
+        "key": "dividers",
+        "label": "Show list dividers",
+        "description": "Show separators in message and settings rows.",
+        "default": "true",
+        "type": "switch",
+        "id": "dividers-preference"
+      }
+    ]
+  },
+  {
+    "key": "components",
+    "title": "Buttons and controls",
+    "icon": "touch_app",
+    "description": "Keep component sizes and shapes consistent throughout the app.",
+    "settings": [
+      {
+        "key": "button-shape",
+        "label": "Button shape",
+        "description": "Shape of standard buttons.",
+        "default": "pill",
+        "type": "select",
+        "id": "button-shape-preference",
+        "choices": [
+          {
+            "value": "pill",
+            "label": "Pill"
+          },
+          {
+            "value": "rounded",
+            "label": "Rounded"
+          },
+          {
+            "value": "square",
+            "label": "Square"
+          }
+        ]
+      },
+      {
+        "key": "button-height",
+        "label": "Button height",
+        "description": "Touch targets stay at least 44 pixels.",
+        "default": "44",
+        "type": "select",
+        "id": "button-height-preference",
+        "choices": [
+          {
+            "value": "44",
+            "label": "Compact"
+          },
+          {
+            "value": "48",
+            "label": "Comfortable"
+          },
+          {
+            "value": "56",
+            "label": "Large"
+          }
+        ]
+      },
+      {
+        "key": "button-label-case",
+        "label": "Button labels",
+        "description": "Capitalisation of button text.",
+        "default": "none",
+        "type": "select",
+        "id": "button-label-case-preference",
+        "choices": [
+          {
+            "value": "none",
+            "label": "As written"
+          },
+          {
+            "value": "uppercase",
+            "label": "Uppercase"
+          }
+        ]
+      },
+      {
+        "key": "icon-size",
+        "label": "Icon size",
+        "description": "Size of interface symbols inside buttons and navigation.",
+        "default": "24",
+        "type": "select",
+        "id": "icon-size-preference",
+        "choices": [
+          {
+            "value": "20",
+            "label": "Small"
+          },
+          {
+            "value": "24",
+            "label": "Default"
+          },
+          {
+            "value": "28",
+            "label": "Large"
+          }
+        ]
+      },
+      {
+        "key": "icon-fill",
+        "label": "Icon style",
+        "description": "Outline or filled Material symbols.",
+        "default": "0",
+        "type": "select",
+        "id": "icon-fill-preference",
+        "choices": [
+          {
+            "value": "0",
+            "label": "Outlined"
+          },
+          {
+            "value": "1",
+            "label": "Filled"
+          }
+        ]
+      },
+      {
+        "key": "field-style",
+        "label": "Field surface",
+        "description": "Background of text fields and search controls.",
+        "default": "plain",
+        "type": "select",
+        "id": "field-style-preference",
+        "choices": [
+          {
+            "value": "plain",
+            "label": "Plain"
+          },
+          {
+            "value": "tonal",
+            "label": "Tonal"
+          }
+        ]
+      },
+      {
+        "key": "focus-width",
+        "label": "Keyboard focus outline",
+        "description": "Thickness of the visible keyboard focus ring.",
+        "default": "3",
+        "type": "select",
+        "id": "focus-width-preference",
+        "choices": [
+          {
+            "value": "2",
+            "label": "Thin"
+          },
+          {
+            "value": "3",
+            "label": "Default"
+          },
+          {
+            "value": "4",
+            "label": "Strong"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "motion",
+    "title": "Motion and loading",
+    "icon": "animation",
+    "description": "Choose quieter motion or a more expressive feel.",
+    "settings": [
+      {
+        "key": "reduce-motion",
+        "label": "Reduce motion",
+        "description": "Stop decorative motion; device preferences also apply.",
+        "default": "false",
+        "type": "switch",
+        "id": "motion-preference"
+      },
+      {
+        "key": "motion-style",
+        "label": "Animation style",
+        "description": "Choose expressive or subtle transitions.",
+        "default": "expressive",
+        "type": "select",
+        "id": "motion-style-preference",
+        "choices": [
+          {
+            "value": "expressive",
+            "label": "Expressive"
+          },
+          {
+            "value": "standard",
+            "label": "Subtle"
+          }
+        ]
+      },
+      {
+        "key": "motion-speed",
+        "label": "Animation speed",
+        "description": "Duration of page and panel transitions.",
+        "default": "1",
+        "type": "select",
+        "id": "motion-speed-preference",
+        "choices": [
+          {
+            "value": "0.65",
+            "label": "Fast"
+          },
+          {
+            "value": "1",
+            "label": "Default"
+          },
+          {
+            "value": "1.4",
+            "label": "Relaxed"
+          }
+        ]
+      },
+      {
+        "key": "hover-motion",
+        "label": "Animate hover",
+        "description": "Allow buttons to lift or scale when hovered.",
+        "default": "true",
+        "type": "switch",
+        "id": "hover-motion-preference"
+      },
+      {
+        "key": "entrance-motion",
+        "label": "Animate entrances",
+        "description": "Animate content as it first enters the viewport.",
+        "default": "true",
+        "type": "switch",
+        "id": "entrance-motion-preference"
+      },
+      {
+        "key": "smooth-scroll",
+        "label": "Smooth scrolling",
+        "description": "Use smooth scrolling for in-page links.",
+        "default": "true",
+        "type": "switch",
+        "id": "smooth-scroll-preference"
+      },
+      {
+        "key": "loader-size",
+        "label": "Loading indicator size",
+        "description": "Size of Material loading shapes.",
+        "default": "28",
+        "type": "select",
+        "id": "loader-size-preference",
+        "choices": [
+          {
+            "value": "24",
+            "label": "Small"
+          },
+          {
+            "value": "28",
+            "label": "Default"
+          },
+          {
+            "value": "36",
+            "label": "Large"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "inbox",
+    "title": "Inbox and reading",
+    "icon": "inbox",
+    "description": "Mail preferences apply to every connected email account.",
+    "settings": [
+      {
+        "key": "density",
+        "label": "Message density",
+        "description": "Space between messages.",
+        "default": "comfortable",
+        "type": "select",
+        "id": "density-preference",
+        "choices": [
+          {
+            "value": "comfortable",
+            "label": "Comfortable"
+          },
+          {
+            "value": "compact",
+            "label": "Compact"
+          }
+        ]
+      },
+      {
+        "key": "auto-refresh",
+        "label": "Refresh automatically",
+        "description": "Check for new mail while the inbox is open.",
+        "default": "true",
+        "type": "switch",
+        "id": "auto-refresh-preference"
+      },
+      {
+        "key": "refresh-interval",
+        "label": "Refresh interval",
+        "description": "Time between automatic mail checks.",
+        "default": "60",
+        "type": "select",
+        "id": "refresh-interval-preference",
+        "choices": [
+          {
+            "value": "30",
+            "label": "30 seconds"
+          },
+          {
+            "value": "60",
+            "label": "1 minute"
+          },
+          {
+            "value": "120",
+            "label": "2 minutes"
+          },
+          {
+            "value": "300",
+            "label": "5 minutes"
+          }
+        ]
+      },
+      {
+        "key": "confirm-actions",
+        "label": "Confirm destructive actions",
+        "description": "Ask before moving mail to Trash, disconnecting, or deleting data.",
+        "default": "true",
+        "type": "switch",
+        "id": "confirm-preference"
+      },
+      {
+        "key": "message-preview",
+        "label": "Show message previews",
+        "description": "Show the message snippet after its subject.",
+        "default": "true",
+        "type": "switch",
+        "id": "message-preview-preference"
+      },
+      {
+        "key": "sender-avatar",
+        "label": "Show sender initials",
+        "description": "Show avatar circles beside emails.",
+        "default": "true",
+        "type": "switch",
+        "id": "sender-avatar-preference"
+      },
+      {
+        "key": "message-date",
+        "label": "Show message dates",
+        "description": "Show dates beside messages.",
+        "default": "true",
+        "type": "switch",
+        "id": "message-date-preference"
+      },
+      {
+        "key": "category-tabs",
+        "label": "Show Gmail categories",
+        "description": "Show Primary, Updates, and Social for Gmail inboxes.",
+        "default": "true",
+        "type": "switch",
+        "id": "category-tabs-preference"
+      },
+      {
+        "key": "folder-counts",
+        "label": "Show folder badges",
+        "description": "Show available message counts in navigation.",
+        "default": "true",
+        "type": "switch",
+        "id": "folder-counts-preference"
+      },
+      {
+        "key": "unread-emphasis",
+        "label": "Unread emphasis",
+        "description": "How unread messages stand out.",
+        "default": "both",
+        "type": "select",
+        "id": "unread-emphasis-preference",
+        "choices": [
+          {
+            "value": "both",
+            "label": "Weight and colour"
+          },
+          {
+            "value": "weight",
+            "label": "Weight only"
+          },
+          {
+            "value": "colour",
+            "label": "Colour only"
+          }
+        ]
+      },
+      {
+        "key": "reading-pane",
+        "label": "Open messages",
+        "description": "Use a reading pane on large screens or a full page.",
+        "default": "auto",
+        "type": "select",
+        "id": "reading-pane-preference",
+        "choices": [
+          {
+            "value": "auto",
+            "label": "Adaptive reading pane"
+          },
+          {
+            "value": "page",
+            "label": "Always full page"
+          }
+        ]
+      },
+      {
+        "key": "reader-width",
+        "label": "Reading pane width",
+        "description": "Preferred space for the reading pane on large screens.",
+        "default": "640",
+        "type": "select",
+        "id": "reader-width-preference",
+        "choices": [
+          {
+            "value": "480",
+            "label": "Narrow"
+          },
+          {
+            "value": "640",
+            "label": "Balanced"
+          },
+          {
+            "value": "800",
+            "label": "Wide"
+          }
+        ]
+      },
+      {
+        "key": "reader-text-size",
+        "label": "Email text size",
+        "description": "Reading size for plain and HTML email content.",
+        "default": "16",
+        "type": "select",
+        "id": "reader-text-size-preference",
+        "choices": [
+          {
+            "value": "14",
+            "label": "Small"
+          },
+          {
+            "value": "16",
+            "label": "Default"
+          },
+          {
+            "value": "18",
+            "label": "Large"
+          },
+          {
+            "value": "20",
+            "label": "Extra large"
+          }
+        ]
+      },
+      {
+        "key": "reader-line-height",
+        "label": "Email line spacing",
+        "description": "Spacing between lines of email body text.",
+        "default": "1.6",
+        "type": "select",
+        "id": "reader-line-height-preference",
+        "choices": [
+          {
+            "value": "1.4",
+            "label": "Compact"
+          },
+          {
+            "value": "1.6",
+            "label": "Comfortable"
+          },
+          {
+            "value": "1.9",
+            "label": "Spacious"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "dashboard",
+    "title": "Dashboard",
+    "icon": "dashboard",
+    "description": "Choose which overview sections you see.",
+    "settings": [
+      {
+        "key": "dashboard-welcome",
+        "label": "Welcome panel",
+        "description": "Show the dashboard greeting.",
+        "default": "true",
+        "type": "switch",
+        "id": "dashboard-welcome-preference"
+      },
+      {
+        "key": "dashboard-purpose",
+        "label": "Workspace introduction",
+        "description": "Show the communication overview illustration.",
+        "default": "true",
+        "type": "switch",
+        "id": "dashboard-purpose-preference"
+      },
+      {
+        "key": "dashboard-stats",
+        "label": "Mailbox statistics",
+        "description": "Show locally cached message statistics.",
+        "default": "true",
+        "type": "switch",
+        "id": "dashboard-stats-preference"
+      },
+      {
+        "key": "dashboard-actions",
+        "label": "Quick actions",
+        "description": "Show shortcuts to common workspace pages.",
+        "default": "true",
+        "type": "switch",
+        "id": "dashboard-actions-preference"
+      },
+      {
+        "key": "dashboard-tips",
+        "label": "Helpful tips",
+        "description": "Show the dashboard tips panel.",
+        "default": "true",
+        "type": "switch",
+        "id": "dashboard-tips-preference"
+      }
+    ]
+  },
+  {
+    "key": "pages",
+    "title": "Page details",
+    "icon": "web",
+    "description": "Small details shared by landing, authentication, and integrations.",
+    "settings": [
+      {
+        "key": "landing-decoration",
+        "label": "Landing illustrations",
+        "description": "Show decorative shapes and example-inbox artwork.",
+        "default": "true",
+        "type": "switch",
+        "id": "landing-decoration-preference"
+      },
+      {
+        "key": "auth-decoration",
+        "label": "Sign-in decorations",
+        "description": "Show decorative shapes around sign-in and registration.",
+        "default": "true",
+        "type": "switch",
+        "id": "auth-decoration-preference"
+      },
+      {
+        "key": "logo-size",
+        "label": "Logo size",
+        "description": "Size of brand artwork across the app.",
+        "default": "1",
+        "type": "select",
+        "id": "logo-size-preference",
+        "choices": [
+          {
+            "value": "0.85",
+            "label": "Small"
+          },
+          {
+            "value": "1",
+            "label": "Default"
+          },
+          {
+            "value": "1.15",
+            "label": "Large"
+          }
+        ]
+      },
+      {
+        "key": "integration-guides",
+        "label": "Show setup guides",
+        "description": "Show provider connection guides on Integrations.",
+        "default": "true",
+        "type": "switch",
+        "id": "integration-guides-preference"
+      },
+      {
+        "key": "notice-duration",
+        "label": "Page notification duration",
+        "description": "How long dismissible page messages stay visible.",
+        "default": "0",
+        "type": "select",
+        "id": "notice-duration-preference",
+        "choices": [
+          {
+            "value": "0",
+            "label": "Until dismissed"
+          },
+          {
+            "value": "5",
+            "label": "5 seconds"
+          },
+          {
+            "value": "10",
+            "label": "10 seconds"
+          },
+          {
+            "value": "20",
+            "label": "20 seconds"
+          }
+        ]
+      }
+    ]
+  }
+]

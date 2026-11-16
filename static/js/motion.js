@@ -12,12 +12,12 @@
         const seen = new WeakSet();
         const observed = new WeakSet();
         const feedbackTimes = new WeakMap();
-        const entrances = '.dashboard-welcome, .dashboard-purpose, .dashboard-stat, .dashboard-panel, .dashboard-tip, .dashboard-integrations, .settings-section, .settings-danger, .integration-heading, .integration-card, .form-panel, .reader-message, .legal-page';
+        const entrances = '[data-landing-enter], .dashboard-welcome, .dashboard-purpose, .dashboard-stat, .dashboard-panel, .dashboard-tip, .dashboard-integrations, .settings-section, .settings-danger, .integration-heading, .integration-card, .form-panel, .reader-message, .legal-page';
         const rows = '.message, .cm-connected-item, .cm-teams-message';
         const panels = '.account-menu, .quick-menu, .profile-menu, .compose-window, .mail-reader, dialog';
         const feedback = '.flash, #settings-feedback, #mail-feedback';
         const visible = element => element.isConnected && !element.closest('[hidden], template') && element.getClientRects().length > 0;
-        const duration = () => root.dataset.cmMotionStyle === 'standard' ? 220 : 340;
+        const duration = () => (root.dataset.cmMotionStyle === 'standard' ? 220 : 340) * Number(root.dataset.cmMotionSpeed || 1);
         const easing = () => root.dataset.cmMotionStyle === 'standard' ? 'cubic-bezier(.2,0,0,1)' : 'cubic-bezier(.16,1,.3,1)';
         const animate = (element, keyframes, options = {}) => {
             if (reduced() || !visible(element)) return;
@@ -28,7 +28,7 @@
             animation.onfinish = clean;
             animation.oncancel = clean;
         };
-        const enter = (element, delay = 0) => animate(element, [
+        const enter = (element, delay = 0) => root.dataset.cmEntranceMotion !== 'false' && animate(element, [
             {opacity: 0, translate: '0 12px'}, {opacity: 1, translate: '0 0'},
         ], {delay});
         const observer = new IntersectionObserver(entries => {

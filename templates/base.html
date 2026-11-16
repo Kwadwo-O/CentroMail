@@ -3,76 +3,47 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Row Project">
-    <script>
-        const savedTheme = localStorage.getItem('centromail-theme');
-        document.documentElement.dataset.theme = savedTheme === 'dark' || savedTheme === 'light'
-            ? savedTheme
-            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    </script>
-    <script>
-        (() => {
-            const root = document.documentElement;
-            const accent = localStorage.getItem('centromail-accent');
-            if (accent) {
-                root.style.setProperty('--m3e-sys-color-primary', accent);
-                root.style.setProperty('--m3e-sys-color-primary-dim', accent);
-                root.style.setProperty('--m3e-sys-color-surface-tint', accent);
-            }
-            root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
-            root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
-            const font = localStorage.getItem('centromail-font') || 'system';
-            const fontStacks = {
-                'system': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
-                'google-sans': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
-                'roboto': 'Roboto, ui-sans-serif, system-ui, sans-serif',
-                'open-sans': '"Open Sans", ui-sans-serif, system-ui, sans-serif',
-                'lato': 'Lato, ui-sans-serif, system-ui, sans-serif',
-                'montserrat': 'Montserrat, ui-sans-serif, system-ui, sans-serif',
-                'inter': 'Inter, ui-sans-serif, system-ui, sans-serif',
-                'poppins': 'Poppins, ui-sans-serif, system-ui, sans-serif',
-                'nunito': 'Nunito, ui-sans-serif, system-ui, sans-serif',
-                'playfair-display': '"Playfair Display", Georgia, serif',
-                'merriweather': 'Merriweather, Georgia, serif'
-            };
-            root.style.setProperty('--cm-font-family', fontStacks[font] || fontStacks['system']);
-            root.dataset.cmMotionStyle = localStorage.getItem('centromail-motion-style') || 'expressive';
-            root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
-        })();
-    </script>
+    <meta name="description" content="{% block description %}Your conversations, together in CentroMail.{% endblock %}">
+    {% include '_appearance.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+    <script type="module" src="{{ url_for('static', filename='js/components.js') }}"></script>
     {% block head %}{% endblock %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
     <title>{% block title %}Row Project{% endblock %}</title>
 </head>
 <body>
+    {% block header %}
+    <a class="skip-link" href="#main-content">Skip to content</a>
     {% if request.endpoint != 'login' %}
     <header class="site-header">
         <nav class="navbar container" aria-label="Main navigation">
             <a class="brand" href="{{ url_for('dashboard') }}">Centro<span>Mail</span></a>
             <div class="nav-links">
-                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Overview</a>
-                <a class="nav-link {% if request.endpoint == 'inbox' or request.endpoint == 'mail' %}active{% endif %}" href="{{ url_for('inbox') }}">Inbox</a>
-                <a class="nav-link {% if request.endpoint == 'integrations' %}active{% endif %}" href="{{ url_for('integrations') }}">Integrations</a>
-                <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">Settings</a>
+                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %} href="{{ url_for('dashboard') }}">Overview</a>
+                <a class="nav-link {% if request.endpoint == 'inbox' or request.endpoint == 'mail' %}active{% endif %}" {% if request.endpoint in ['inbox', 'mail'] %}aria-current="page"{% endif %} href="{{ url_for('inbox') }}">Inbox</a>
+                <a class="nav-link {% if request.endpoint == 'integrations' %}active{% endif %}" {% if request.endpoint == 'integrations' %}aria-current="page"{% endif %} href="{{ url_for('integrations') }}">Integrations</a>
+                <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" {% if request.endpoint == 'settings' %}aria-current="page"{% endif %} href="{{ url_for('settings') }}">Settings</a>
                 <form class="logout-form" action="{{ url_for('logout') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="nav-link" type="submit">Log out</button>
+                    <button class="nav-link m3e-button m3e-button--text" type="submit">Log out</button>
                 </form>
             </div>
         </nav>
     </header>
     {% endif %}
+    {% endblock %}
 
-    <main class="container page-content">
+    <main class="{% block main_class %}container page-content{% endblock %}" id="main-content" tabindex="-1">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-stack">
                     {% for category, message in messages %}
-                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                        <div class="flash flash-{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
@@ -83,11 +54,12 @@
             <p class="eyebrow">Welcome</p>
             <h1>Build something <span>great.</span></h1>
             <p class="intro">A clean starting point for the Row Project.</p>
-            <a class="button" href="#content">Explore the project <span aria-hidden="true">&rarr;</span></a>
+            <a class="m3e-button m3e-button--filled" href="#content">Explore the project <span aria-hidden="true">&rarr;</span></a>
         </section>
         {% endblock %}
     </main>
 
+    {% block footer %}
     {% if request.endpoint != 'login' %}
     <footer class="site-footer">
         <div class="container">
@@ -99,6 +71,7 @@
         </div>
     </footer>
     {% endif %}
+    {% endblock %}
     {% block scripts %}{% endblock %}
 </body>
 </html>

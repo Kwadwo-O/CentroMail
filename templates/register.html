@@ -5,21 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="Create your CentroMail account.">
-    <script>
-        const savedTheme = localStorage.getItem('centromail-theme');
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            document.documentElement.dataset.theme = savedTheme;
-        }
-    </script>
+    {% include '_appearance.html' %}
+    <script type="module" src="{{ url_for('static', filename='js/components.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <title>Create Account · CentroMail</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
 </head>
 <body class="page-register">
+    <a class="skip-link" href="#auth-content">Skip to account form</a>
     <div class="auth-shapes" aria-hidden="true">
         <span class="auth-shape auth-shape-one"></span>
         <span class="auth-shape auth-shape-two"></span>
@@ -31,11 +30,11 @@
         </svg>
     </div>
     {% include '_auth_loading.html' %}
-    <button class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
+    <button class="theme-toggle m3e-button m3e-button--text" type="button" aria-label="Switch to dark theme" aria-pressed="false">
         <span class="theme-toggle-icon material-symbols-rounded" aria-hidden="true">dark_mode</span>
         <span class="theme-toggle-label">Dark theme</span>
     </button>
-    <main class="auth-wrapper">
+    <main class="auth-wrapper" id="auth-content" tabindex="-1">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-stack" aria-live="polite">
@@ -46,10 +45,9 @@
             {% endif %}
         {% endwith %}
         <section class="form-panel m3e-card m3e-card--elevated" aria-labelledby="signupTitle">
-            <a class="logo" href="{{ url_for('login') }}" aria-label="CentroMail home">
-                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+            <a class="logo" href="{{ url_for('index') }}" aria-label="CentroMail home">
+                <img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="132" height="62">
             </a>
-            <p class="eyebrow">CENTROMAIL</p>
             <h1 id="signupTitle">Create account</h1>
             <p class="subtitle">Set up your space for better email.</p>
             <div class="auth-buttons">
@@ -65,49 +63,49 @@
             <p class="separator"><span>or create with email</span></p>
             <form class="auth-form" id="signupForm" method="post" action="{{ url_for('register') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
                         <input class="m3e-text-field__input" type="text" id="signupName" name="name" value="{{ name|default('', true) }}" placeholder=" " autocomplete="name" maxlength="100" required>
-                        <span class="m3e-text-field__label">Name</span>
+                        <label class="m3e-text-field__label" for="signupName">Name</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Name</span></legend>
                         </fieldset>
                     </span>
-                </label>
-                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                </div>
+                <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
                         <input class="m3e-text-field__input" type="email" id="signupEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="username" maxlength="254" required>
-                        <span class="m3e-text-field__label">Email address</span>
+                        <label class="m3e-text-field__label" for="signupEmail">Email address</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Email address</span></legend>
                         </fieldset>
                     </span>
-                </label>
-                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                </div>
+                <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
                         <input class="m3e-text-field__input" type="password" id="signupPassword" name="password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" aria-describedby="passwordHelp" required>
-                        <span class="m3e-text-field__label">Password</span>
+                        <label class="m3e-text-field__label" for="signupPassword">Password</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Password</span></legend>
                         </fieldset>
-                        <button type="button" class="password-toggle" data-password="signupPassword" aria-controls="signupPassword" aria-label="Show password" aria-pressed="false">
+                        <button type="button" class="password-toggle m3e-icon-button m3e-icon-button--standard" data-password="signupPassword" aria-controls="signupPassword" aria-label="Show password" aria-pressed="false">
                             <span class="password-icon" aria-hidden="true"></span>
                         </button>
                     </span>
-                </label>
+                </div>
                 <p class="form-help" id="passwordHelp">Use at least 12 characters.</p>
-                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
                         <input class="m3e-text-field__input" type="password" id="signupConfirmPassword" name="confirm_password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" required>
-                        <span class="m3e-text-field__label">Confirm password</span>
+                        <label class="m3e-text-field__label" for="signupConfirmPassword">Confirm password</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Confirm password</span></legend>
                         </fieldset>
-                        <button type="button" class="password-toggle" data-password="signupConfirmPassword" aria-controls="signupConfirmPassword" aria-label="Show password" aria-pressed="false">
+                        <button type="button" class="password-toggle m3e-icon-button m3e-icon-button--standard" data-password="signupConfirmPassword" aria-controls="signupConfirmPassword" aria-label="Show password" aria-pressed="false">
                             <span class="password-icon" aria-hidden="true"></span>
                         </button>
                     </span>
-                </label>
+                </div>
                 <button type="submit" class="m3e-button m3e-button--filled m3e-button--size-l main-btn">Create account</button>
             </form>
             <div class="switch-area">

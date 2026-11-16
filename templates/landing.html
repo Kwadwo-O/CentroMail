@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}CentroMail · A little more together{% endblock %}
+{% block description %}A calmer home for your email and supported messaging services. Organise your inbox, connect your accounts, and make CentroMail your own.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+<script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
+{% endblock %}
+{% block header %}
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="landing-header">
+    <nav class="landing-shell landing-nav" aria-label="Main navigation">
+        <a class="landing-brand" href="{{ url_for('index') }}" aria-label="CentroMail home">
+            <img class="landing-brand-image cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="132" height="60">
+            <span class="m3e-badge m3e-badge--large landing-beta">BETA</span>
+        </a>
+        <div class="landing-nav-links">
+            <a href="#features">The little things</a>
+            <a href="#connections">Connections</a>
+        </div>
+        <div class="landing-nav-actions">
+            <button class="m3e-icon-button m3e-icon-button--standard" id="landing-theme" type="button" aria-label="Switch colour theme">
+                <span class="m3e-icon" aria-hidden="true">contrast</span>
+            </button>
+            {% if g.user %}
+            <a class="m3e-button m3e-button--filled" href="{{ url_for('dashboard') }}">Open app<span class="m3e-icon" aria-hidden="true">arrow_forward</span></a>
+            {% else %}
+            <a class="m3e-button m3e-button--text landing-signin" href="{{ url_for('login') }}">Sign in</a>
+            <a class="m3e-button m3e-button--filled landing-start" href="{{ url_for('register') }}">Get started<span class="m3e-icon" aria-hidden="true">arrow_forward</span></a>
+            {% endif %}
+        </div>
+    </nav>
+</header>
+{% endblock %}
+{% block main_class %}landing-main page-content{% endblock %}
+{% block content %}
+<div class="landing-shell">
+    <section class="landing-hero" aria-labelledby="landing-title">
+        <div class="landing-hero-copy" data-landing-enter>
+            <h1 id="landing-title">All your conversations.<br><span>A little more calm.</span></h1>
+            <p class="landing-intro">Your email and favourite messaging services, together in one thoughtful space. Less to juggle. More room for your day.</p>
+            <div class="landing-hero-actions">
+                <a class="m3e-button m3e-button--filled m3e-button--size-m" href="{{ url_for('dashboard' if g.user else 'register') }}">{{ 'Open your workspace' if g.user else 'Find your flow' }}<span class="m3e-icon" aria-hidden="true">arrow_forward</span></a>
+                <a class="m3e-button m3e-button--outlined m3e-button--size-m" href="#features">Take a look<span class="m3e-icon" aria-hidden="true">south</span></a>
+            </div>
+            <p class="landing-hero-note"><span class="m3e-icon" aria-hidden="true">favorite</span>A work in progress, made for your everyday.</p>
+        </div>
+        <div class="landing-preview-wrap" data-landing-enter>
+            <span class="landing-preview-shape" aria-hidden="true"></span>
+            <div class="landing-preview" role="img" aria-label="Example CentroMail inbox with organised messages from Alex, Studio North, and Jamie. This is a sample, not your account.">
+                <div class="preview-topbar"><img class="preview-brand-image cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="" width="88" height="40"><span class="preview-avatar">Y</span></div>
+                <div class="preview-workspace">
+                    <div class="preview-rail" aria-hidden="true"><span class="preview-compose m3e-icon">edit</span><span class="preview-active m3e-icon">inbox</span><span class="m3e-icon">star</span><span class="m3e-icon">send</span><span class="m3e-icon">settings</span></div>
+                    <div class="preview-inbox">
+                        <div class="preview-heading"><div><small>A fresh start</small><h2>Your inbox</h2></div><span class="m3e-badge m3e-badge--large preview-count">3 new</span></div>
+                        <div class="preview-search"><span class="m3e-icon" aria-hidden="true">search</span>Find a little something…</div>
+                        <div class="preview-message preview-message-selected"><span class="preview-sender sender-green">A</span><div><strong>Alex Morgan<span>9:41</span></strong><p>Good things ahead</p><small>Fancy a coffee and a catch-up?</small></div><span class="m3e-badge preview-unread"></span></div>
+                        <div class="preview-message"><span class="preview-sender sender-purple">S</span><div><strong>Studio North<span>9:12</span></strong><p>A fresh perspective</p><small>The new designs are ready for you.</small></div></div>
+                        <div class="preview-message"><span class="preview-sender sender-peach">J</span><div><strong>Jamie Chen<span>8:30</span></strong><p>See you on Saturday ☀</p><small>A little weekend plan, just for us.</small></div></div>
+                        <div class="preview-bottom"><span class="m3e-icon" aria-hidden="true">done_all</span>Everything in its place.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="landing-floating-note"><span class="m3e-icon" aria-hidden="true">check_circle</span><div><strong>A little more together.</strong><span>Your day, with room to breathe.</span></div></div>
+            <p class="landing-preview-caption">A small peek at your next favourite space · Sample inbox</p>
+        </div>
+    </section>
+
+    <section class="landing-connections" id="connections" aria-labelledby="connections-title" data-landing-enter>
+        <div><p class="landing-kicker">GOOD COMPANY</p><h2 id="connections-title">Bring your favourites along.</h2></div>
+        <ul class="landing-provider-list" aria-label="Supported connections">
+            {% for key, label in [('gmail', 'Gmail'), ('telegram', 'Telegram'), ('whatsapp', 'WhatsApp Business'), ('discord', 'Discord')] %}
+            <li><img src="{{ url_for('static', filename='images/integrations/' ~ key ~ '.svg') }}" alt="" width="24" height="24" loading="lazy">{{ label }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="landing-features" id="features" aria-labelledby="features-title">
+        <div class="landing-section-heading" data-landing-enter><p class="landing-kicker">THE LITTLE THINGS, DONE WELL</p><h2 id="features-title">A place for everything.<br>Space for you.</h2><p>A few thoughtful details can make your whole day feel lighter.</p></div>
+        <div class="landing-feature-grid">
+            <article class="landing-feature feature-organise" data-landing-enter><span class="landing-feature-icon m3e-icon" aria-hidden="true">all_inbox</span><div class="feature-labels" aria-hidden="true"><span><span class="m3e-icon">star</span>Worth keeping</span><span><span class="m3e-icon">done</span>All sorted</span></div><h3>A clearer kind of inbox.</h3><p>Search, star, and organise your emails. Keep the important things close and find them when you need them.</p></article>
+            <article class="landing-feature feature-personal" data-landing-enter><span class="landing-feature-icon m3e-icon" aria-hidden="true">palette</span><div class="feature-swatches" aria-hidden="true"><span></span><span></span><span></span><span></span><span class="m3e-icon">check</span></div><h3>Feels a little more like you.</h3><p>Light or dark. Soft corners or crisp edges. Your favourite colours, fonts, and just the right amount of motion.</p></article>
+            <article class="landing-feature feature-flow" data-landing-enter><span class="landing-feature-icon m3e-icon" aria-hidden="true">bolt</span><div class="feature-flow-line" aria-hidden="true"><span class="m3e-icon">mail</span><span></span><span class="m3e-icon">chat</span><span></span><span class="m3e-icon">favorite</span></div><h3>Made to keep you moving.</h3><p>Emails load as you go. Open a message, get what you need, and get back to the things that matter.</p></article>
+        </div>
+    </section>
+
+    <section class="landing-faq" aria-labelledby="faq-title" data-landing-enter>
+        <div><p class="landing-kicker">A FEW GOOD QUESTIONS</p><h2 id="faq-title">Before you settle in.</h2><p>A little clarity goes a long way.</p></div>
+        <div class="landing-questions">
+            <details><summary>What can I connect?<span class="m3e-icon" aria-hidden="true">add</span></summary><p>Connect Gmail for email, and set up Telegram, WhatsApp Business, or a Discord bot from the integrations page. Some connections need a developer account or access token; the setup guides explain what you need.</p></details>
+            <details><summary>Can I make it my own?<span class="m3e-icon" aria-hidden="true">add</span></summary><p>Absolutely. Settings lets you choose your theme, accent colour, font, text size, corner style, and motion preferences. You can also reduce animations for a quieter experience.</p></details>
+            <details><summary>How does CentroMail handle my data?<span class="m3e-icon" aria-hidden="true">add</span></summary><p>CentroMail stores account details and cached messages in its application database, and talks to providers to load and send messages. You can disconnect integrations or delete your account in settings. Read our <a href="{{ url_for('privacy') }}">privacy policy</a> for the details.</p></details>
+        </div>
+    </section>
+
+    <section class="landing-cta" aria-labelledby="cta-title" data-landing-enter>
+        <span class="landing-cta-icon m3e-icon" aria-hidden="true">mark_email_read</span><p class="landing-kicker">MAKE A LITTLE ROOM</p><h2 id="cta-title">Your day. A little lighter.</h2><p>Let’s bring your conversations together.</p><a class="m3e-button m3e-button--filled m3e-button--size-m" href="{{ url_for('dashboard' if g.user else 'register') }}">{{ 'Open CentroMail' if g.user else 'Get started with CentroMail' }}<span class="m3e-icon" aria-hidden="true">arrow_forward</span></a>
+    </section>
+</div>
+{% endblock %}
+{% block footer %}
+<footer class="landing-footer landing-shell"><a class="landing-brand" href="{{ url_for('index') }}"><img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="100" height="46" loading="lazy"></a><p>A little more together.</p><nav aria-label="Legal links"><a href="{{ url_for('privacy') }}">Privacy policy</a><a href="{{ url_for('terms') }}">Terms of service</a></nav></footer>
+{% endblock %}

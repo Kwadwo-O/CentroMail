@@ -1,255 +1,74 @@
 {% extends "base.html" %}
 {% block title %}Settings | CentroMail{% endblock %}
-
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+<script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
+{% endblock %}
 {% block content %}
 <section class="settings-page">
-    <div class="form-card">
-        <h1>Account settings</h1>
-
-        <div class="settings-list">
-            <div class="setting-item">
-                <span>Account</span>
-                <strong>{{ g.user.email }}</strong>
+    <header class="settings-header">
+        <div><h1>Settings</h1><p>Make CentroMail comfortable for you.</p></div>
+        <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}"><span class="m3e-icon" aria-hidden="true">link</span>Connections</a>
+    </header>
+    <div class="settings-tools">
+        <label class="settings-search"><span class="m3e-icon" aria-hidden="true">search</span><input id="settings-search" type="search" aria-label="Search all settings" placeholder="Search settings, colours, reading…"></label>
+        <p id="settings-feedback" role="status" aria-live="polite">Changes save automatically on this browser.</p>
+    </div>
+    <div class="settings-layout">
+        <nav class="settings-navigation" aria-label="Settings categories">
+            {% for group in preference_groups %}
+            <a href="#settings-{{ group.key }}" data-settings-nav="{{ group.key }}"><span class="m3e-icon" aria-hidden="true">{{ group.icon }}</span><span class="settings-navigation-label">{{ group.title }}</span><small aria-label="{{ group.settings|length }} settings">{{ group.settings|length }}</small></a>
+            {% endfor %}
+            <a href="#settings-account" data-settings-nav="account"><span class="m3e-icon" aria-hidden="true">person</span><span class="settings-navigation-label">Account</span></a>
+            <a href="#settings-data" data-settings-nav="data"><span class="m3e-icon" aria-hidden="true">shield</span><span class="settings-navigation-label">Data and privacy</span></a>
+        </nav>
+        <div class="settings-content">
+            <div class="settings-preview" aria-label="Live appearance preview">
+                <div><span class="settings-preview-kicker">Live preview</span><h2>A space that feels like you</h2><p>Colours, text, buttons, and spacing update across CentroMail.</p></div>
+                <div class="settings-preview-actions"><button type="button" class="m3e-button m3e-button--filled" id="preview-button"><span class="m3e-icon" aria-hidden="true">favorite</span>Try a button</button><span class="m3e-badge m3e-badge--large">3</span><button type="button" class="m3e-icon-button m3e-icon-button--standard" id="preview-icon" aria-label="Preview icon"><span class="m3e-icon" aria-hidden="true">star</span></button></div>
             </div>
-            <div class="setting-item">
-                <span>Name</span>
-                <strong>{{ g.user.name or g.user.email }}</strong>
-            </div>
-            <div class="setting-item">
-                <span>Security</span>
-                <strong>Password sign-in</strong>
-            </div>
+            <p id="settings-empty" hidden>No settings match your search.</p>
+            {% for group in preference_groups %}
+            <section class="settings-section" id="settings-{{ group.key }}" data-settings-section="{{ group.key }}" aria-labelledby="{{ group.key }}-heading">
+                <header class="settings-section-heading"><div><h2 id="{{ group.key }}-heading">{{ group.title }}</h2><p>{{ group.description }}</p></div><button type="button" class="m3e-button m3e-button--text" data-reset-group="{{ group.key }}">Reset group</button></header>
+                {% for item in group.settings %}
+                <div class="settings-row" data-setting-key="{{ item.key }}" data-setting-search="{{ (item.label ~ ' ' ~ item.description ~ ' ' ~ group.title)|lower }}">
+                    <label for="{{ item.id }}"><strong id="{{ item.id }}-label">{{ item.label }}</strong><small id="{{ item.id }}-description">{{ item.description }}</small></label>
+                    {% if item.type == 'switch' %}
+                    <label class="settings-switch-control" for="{{ item.id }}"><input id="{{ item.id }}" data-preference="{{ item.key }}" type="checkbox" role="switch" aria-labelledby="{{ item.id }}-label" aria-describedby="{{ item.id }}-description" {% if item.default == 'true' %}checked{% endif %}><span class="switch-track" aria-hidden="true"></span></label>
+                    {% elif item.type == 'color' %}
+                    <div class="color-options">
+                        {% for colour, name in [('#50745c','Green'),('#456b8a','Blue'),('#805a78','Plum'),('#9a6337','Amber')] %}
+                        <button type="button" class="color-swatch m3e-icon-button m3e-icon-button--standard" data-accent="{{ colour }}" style="--swatch:{{ colour }}" aria-label="{{ name }} accent" aria-pressed="false"></button>
+                        {% endfor %}
+                        <input id="{{ item.id }}" data-preference="{{ item.key }}" type="color" value="{{ item.default }}" aria-labelledby="{{ item.id }}-label" aria-describedby="{{ item.id }}-description">
+                    </div>
+                    {% else %}
+                    <select id="{{ item.id }}" data-preference="{{ item.key }}" aria-labelledby="{{ item.id }}-label" aria-describedby="{{ item.id }}-description">{% for option in item.choices %}<option value="{{ option.value }}" {% if option.value == item.default %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </section>
+            {% endfor %}
+            <section class="settings-section" id="settings-account" data-settings-section="account" aria-labelledby="account-heading">
+                <header class="settings-section-heading"><div><h2 id="account-heading">Account</h2><p>Your profile and sign-in information.</p></div></header>
+                <div class="settings-account-row"><span>Email address</span><strong>{{ g.user.email }}</strong></div>
+                <div class="settings-account-row"><span>Name</span><strong>{{ g.user.name or g.user.email }}</strong></div>
+                <div class="settings-account-row"><span>Sign-in</span><strong>{{ 'Google connected' if g.user.google_token else 'Email and password' }}</strong></div>
+                <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
+            </section>
+            <section class="settings-section" id="settings-data" data-settings-section="data" aria-labelledby="data-heading">
+                <header class="settings-section-heading"><div><h2 id="data-heading">Data and privacy</h2><p>Save your preferences or start fresh. Account credentials stay in the application database.</p></div></header>
+                <div class="settings-storage-actions">
+                    <button class="m3e-button m3e-button--outlined" id="export-preferences" type="button">Export preferences</button>
+                    <label class="m3e-button m3e-button--outlined settings-import" for="import-preferences">Import preferences<input id="import-preferences" type="file" accept="application/json,.json"></label>
+                    <button class="m3e-button m3e-button--outlined" id="reset-customization" type="button">Reset appearance</button>
+                    <button class="m3e-button m3e-button--outlined" id="clear-settings-storage" type="button">Reset all preferences</button>
+                </div>
+                <div class="settings-danger"><h3>Delete account</h3><p>Permanently delete your account, cached email, saved connections, and locally stored messages.</p><form method="post" action="{{ url_for('delete_account') }}" data-confirm="Delete your CentroMail account and all locally stored data? This cannot be undone."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button-danger m3e-button m3e-button--filled" type="submit">Delete my account</button></form></div>
+                <nav class="settings-privacy-links" aria-label="Privacy and legal information"><a href="{{ url_for('privacy') }}">Privacy policy</a><a href="{{ url_for('terms') }}">Terms of service</a></nav>
+            </section>
         </div>
-        <section class="settings-section" aria-labelledby="appearance-heading">
-            <div class="settings-section-heading">
-                <div>
-                    <p class="eyebrow">Personalize</p>
-                    <h2 id="appearance-heading">Appearance</h2>
-                </div>
-            </div>
-            <label class="settings-switch">
-                <span><strong>Dark theme</strong><small>Switch between light and dark appearance.</small></span>
-                <input id="theme-preference" type="checkbox" role="switch" aria-label="Dark theme">
-                <span class="switch-track" aria-hidden="true"></span>
-            </label>
-            <div class="settings-control settings-color-control">
-                <span><strong>Accent color</strong><small>Choose a brand accent for buttons and highlights.</small></span>
-                <div class="color-options">
-                    <button class="color-swatch" type="button" data-accent="#50745c" style="--swatch:#50745c" aria-label="Green accent"></button>
-                    <button class="color-swatch" type="button" data-accent="#456b8a" style="--swatch:#456b8a" aria-label="Blue accent"></button>
-                    <button class="color-swatch" type="button" data-accent="#805a78" style="--swatch:#805a78" aria-label="Plum accent"></button>
-                    <button class="color-swatch" type="button" data-accent="#9a6337" style="--swatch:#9a6337" aria-label="Amber accent"></button>
-                    <label class="custom-color"><span class="sr-only">Custom accent color</span><input id="custom-accent" type="color" value="#50745c"></label>
-                </div>
-            </div>
-            <label class="settings-control">
-                <span><strong>Text size</strong><small>Adjust reading size across the workspace.</small></span>
-                <select id="text-scale-preference" aria-label="Text size">
-                    <option value="0.9">Small</option><option value="1" selected>Default</option><option value="1.1">Large</option><option value="1.2">Extra large</option>
-                </select>
-            </label>
-            <label class="settings-control">
-                <span><strong>Corner style</strong><small>Choose softer or sharper surfaces.</small></span>
-                <select id="corner-preference" aria-label="Corner style">
-                    <option value="soft">Soft</option><option value="balanced">Balanced</option><option value="sharp">Sharp</option>
-                </select>
-            </label>
-            <label class="settings-control">
-                <span><strong>Font</strong><small>Choose any Google Font for the interface.</small></span>
-                <select id="font-preference" aria-label="Font preference">
-                    <option value="system" selected>Use system font</option>
-                    <option value="google-sans">Google Sans</option>
-                    <option value="roboto">Roboto</option>
-                    <option value="open-sans">Open Sans</option>
-                    <option value="lato">Lato</option>
-                    <option value="montserrat">Montserrat</option>
-                    <option value="inter">Inter</option>
-                    <option value="poppins">Poppins</option>
-                    <option value="nunito">Nunito</option>
-                    <option value="playfair-display">Playfair Display</option>
-                    <option value="merriweather">Merriweather</option>
-                </select>
-            </label>
-            <label class="settings-control">
-                <span><strong>Inbox density</strong><small>Change the spacing of message rows.</small></span>
-                <select id="density-preference" aria-label="Inbox density">
-                    <option value="comfortable">Comfortable</option>
-                    <option value="compact">Compact</option>
-                </select>
-            </label>
-        </section>
-
-        <section class="settings-section" aria-labelledby="behavior-heading">
-            <div class="settings-section-heading">
-                <div>
-                    <p class="eyebrow">Behavior</p>
-                    <h2 id="behavior-heading">Inbox and actions</h2>
-                </div>
-            </div>
-            <label class="settings-switch">
-                <span><strong>Refresh inbox automatically</strong><small>Let the inbox check for new messages while open.</small></span>
-                <input id="auto-refresh-preference" type="checkbox">
-                <span class="switch-track" aria-hidden="true"></span>
-            </label>
-            <label class="settings-switch">
-                <span><strong>Reduce motion</strong><small>Use simpler transitions and animations.</small></span>
-                <input id="motion-preference" type="checkbox">
-                <span class="switch-track" aria-hidden="true"></span>
-            </label>
-            <label class="settings-control">
-                <span><strong>Animation style</strong><small>Choose expressive entrances or quicker, subtle transitions.</small></span>
-                <select id="motion-style-preference" aria-label="Animation style"><option value="expressive">Expressive</option><option value="standard">Subtle</option></select>
-            </label>
-            <label class="settings-switch">
-                <span><strong>Confirm destructive actions</strong><small>Ask before disconnecting integrations or deleting data.</small></span>
-                <input id="confirm-preference" type="checkbox">
-                <span class="switch-track" aria-hidden="true"></span>
-            </label>
-        </section>
-
-        <section class="settings-section" aria-labelledby="data-heading">
-            <div class="settings-section-heading">
-                <div>
-                    <p class="eyebrow">Your data</p>
-                    <h2 id="data-heading">Browser storage</h2>
-                </div>
-            </div>
-            <p class="settings-help">CentroMail stores only theme, display and non-secret integration preferences in this browser. Connection secrets remain in the local database.</p>
-            <button class="button button-secondary" id="clear-settings-storage" type="button">Clear browser preferences</button>
-            <button class="button button-secondary" id="reset-customization" type="button">Reset customization</button>
-            <p class="settings-feedback" id="settings-feedback" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="settings-danger" aria-labelledby="delete-account-heading">
-            <h2 id="delete-account-heading">Delete account</h2>
-            <p>Delete your CentroMail account and all data stored locally, including cached email, integration credentials, and messaging records. Removing an integration deletes its locally stored connection data.</p>
-            <form method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Delete your CentroMail account and all locally stored data? This cannot be undone.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="button button-danger" type="submit">Delete my account</button>
-            </form>
-        </section>
     </div>
 </section>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    (() => {
-        const font = document.querySelector('#font-preference');
-        const keys = {
-            theme: 'centromail-theme',
-            density: 'centromail-density',
-            autoRefresh: 'centromail-auto-refresh',
-            confirm: 'centromail-confirm-actions',
-            font: 'centromail-font'
-        };
-        const theme = document.querySelector('#theme-preference');
-        const density = document.querySelector('#density-preference');
-        const autoRefresh = document.querySelector('#auto-refresh-preference');
-        const confirmActions = document.querySelector('#confirm-preference');
-        const feedback = document.querySelector('#settings-feedback');
-
-        theme.checked = document.documentElement.dataset.theme === 'dark';
-        density.value = localStorage.getItem(keys.density) || 'comfortable';
-        autoRefresh.checked = localStorage.getItem(keys.autoRefresh) !== 'false';
-            confirmActions.checked = localStorage.getItem(keys.confirm) !== 'false';
-        const textScale = document.querySelector('#text-scale-preference');
-        const corner = document.querySelector('#corner-preference');
-        const motion = document.querySelector('#motion-preference');
-        const motionStyle = document.querySelector('#motion-style-preference');
-        const customAccent = document.querySelector('#custom-accent');
-        const root = document.documentElement;
-        textScale.value = localStorage.getItem('centromail-text-scale') || '1';
-        corner.value = localStorage.getItem('centromail-corners') || 'soft';
-        motion.checked = localStorage.getItem('centromail-reduce-motion') === 'true';
-        motionStyle.value = localStorage.getItem('centromail-motion-style') || 'expressive';
-        customAccent.value = localStorage.getItem('centromail-accent') || '#50745c';
-        font.value = localStorage.getItem('centromail-font') || 'system';
-
-        const fontStacks = {
-            'system': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
-            'google-sans': '"Google Sans Flex", "Google Sans", Roboto, ui-sans-serif, system-ui, sans-serif',
-            'roboto': 'Roboto, ui-sans-serif, system-ui, sans-serif',
-            'open-sans': '"Open Sans", ui-sans-serif, system-ui, sans-serif',
-            'lato': 'Lato, ui-sans-serif, system-ui, sans-serif',
-            'montserrat': 'Montserrat, ui-sans-serif, system-ui, sans-serif',
-            'inter': 'Inter, ui-sans-serif, system-ui, sans-serif',
-            'poppins': 'Poppins, ui-sans-serif, system-ui, sans-serif',
-            'nunito': 'Nunito, ui-sans-serif, system-ui, sans-serif',
-            'playfair-display': '"Playfair Display", Georgia, serif',
-            'merriweather': 'Merriweather, Georgia, serif'
-        };
-
-        const applyFont = () => {
-            const selectedFont = localStorage.getItem('centromail-font') || 'system';
-            const stack = fontStacks[selectedFont] || fontStacks['system'];
-            root.style.setProperty('--cm-font-family', stack);
-            // Load Google Font if not the system/Google Sans default
-            if (selectedFont !== 'system' && selectedFont !== 'google-sans') {
-                const fontName = selectedFont
-                    .split('-')
-                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                    .join('+');
-                if (!document.querySelector(`link[data-cm-font="${selectedFont}"]`)) {
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.dataset.cmFont = selectedFont;
-                    link.href = `https://fonts.googleapis.com/css2?family=${fontName}:wght@300;400;500;600;700;800&display=swap`;
-                    document.head.appendChild(link);
-                }
-            }
-        };
-        applyFont();
-
-        const applyCustomization = () => {
-            const accent = localStorage.getItem('centromail-accent') || '#50745c';
-            root.style.setProperty('--m3e-sys-color-primary', accent);
-            root.style.setProperty('--m3e-sys-color-primary-dim', accent);
-            root.style.setProperty('--m3e-sys-color-surface-tint', accent);
-            root.dataset.corners = localStorage.getItem('centromail-corners') || 'soft';
-            root.style.setProperty('--cm-font-scale', localStorage.getItem('centromail-text-scale') || '1');
-            root.classList.toggle('reduce-motion', localStorage.getItem('centromail-reduce-motion') === 'true');
-            root.dataset.cmMotionStyle = localStorage.getItem('centromail-motion-style') || 'expressive';
-            applyFont();
-        };
-        applyCustomization();
-        document.querySelectorAll('[data-accent]').forEach((button) => button.addEventListener('click', () => {
-            localStorage.setItem('centromail-accent', button.dataset.accent);
-            customAccent.value = button.dataset.accent;
-            applyCustomization();
-        }));
-        customAccent.addEventListener('input', () => { localStorage.setItem('centromail-accent', customAccent.value); applyCustomization(); });
-        textScale.addEventListener('change', () => { localStorage.setItem('centromail-text-scale', textScale.value); applyCustomization(); });
-        corner.addEventListener('change', () => { localStorage.setItem('centromail-corners', corner.value); applyCustomization(); });
-        motion.addEventListener('change', () => { localStorage.setItem('centromail-reduce-motion', motion.checked); applyCustomization(); });
-        motionStyle.addEventListener('change', () => { localStorage.setItem('centromail-motion-style', motionStyle.value); applyCustomization(); });
-        font.addEventListener('change', () => { localStorage.setItem('centromail-font', font.value); applyCustomization(); });
-
-        theme.addEventListener('change', () => {
-            const selectedTheme = theme.checked ? 'dark' : 'light';
-            document.documentElement.dataset.theme = selectedTheme;
-            localStorage.setItem(keys.theme, selectedTheme);
-        });
-        density.addEventListener('change', () => localStorage.setItem(keys.density, density.value));
-        autoRefresh.addEventListener('change', () => localStorage.setItem(keys.autoRefresh, autoRefresh.checked));
-        confirmActions.addEventListener('change', () => localStorage.setItem(keys.confirm, confirmActions.checked));
-
-        document.querySelector('#clear-settings-storage').addEventListener('click', () => {
-            Object.values(keys).forEach((key) => localStorage.removeItem(key));
-            density.value = 'comfortable';
-            autoRefresh.checked = true;
-            confirmActions.checked = true;
-            document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            theme.checked = document.documentElement.dataset.theme === 'dark';
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font', 'centromail-motion-style'].forEach((key) => localStorage.removeItem(key));
-            applyCustomization();
-            feedback.textContent = 'Browser preferences cleared.';
-        });
-        document.querySelector('#reset-customization').addEventListener('click', () => {
-            ['centromail-accent', 'centromail-text-scale', 'centromail-corners', 'centromail-reduce-motion', 'centromail-font', 'centromail-motion-style'].forEach((key) => localStorage.removeItem(key));
-            textScale.value = '1'; corner.value = 'soft'; motion.checked = false; motionStyle.value = 'expressive'; customAccent.value = '#50745c'; applyCustomization();
-            feedback.textContent = 'Customization reset to defaults.';
-        });
-    })();
-</script>
 {% endblock %}

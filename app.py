@@ -215,6 +215,15 @@ def find_user(email):
     ).fetchone()
 
 
+PREFERENCE_GROUPS = json.loads((Path(app.root_path) / "static/preferences.json").read_text())
+
+
+@app.context_processor
+def appearance_context():
+    return {"preference_groups": PREFERENCE_GROUPS}
+
+
+
 @app.template_global()
 def csrf_token():
     if "csrf_token" not in session:
@@ -1766,7 +1775,7 @@ def google_callback_uri():
 
 @app.route('/')
 def index():
-    return redirect(url_for('login'))
+    return render_template('landing.html')
 
 @app.get('/onboarding')
 def onboarding():

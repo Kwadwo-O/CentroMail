@@ -15,7 +15,6 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100%;
-    font-size: calc(1rem * var(--cm-font-scale, 1));
 }
 
 :root[data-corners="soft"] { --cm-radius: 1.5rem; }
@@ -59,50 +58,14 @@ img {
     max-width: 100%;
 }
 
-button,
-input,
-textarea,
-select {
-    font: inherit;
+@layer m3e.base {
+    button, input, textarea, select { font: inherit; }
 }
 
-.button {
-    align-items: center;
-    background: var(--m3e-sys-color-primary);
-    border: 0;
-    border-radius: 999px;
-    color: var(--m3e-sys-color-on-primary);
-    cursor: pointer;
-    display: inline-flex;
-    font-size: 0.88rem;
-    font-weight: 650;
-    gap: 0.45rem;
-    justify-content: center;
-    min-height: 40px;
-    padding: 0.55rem 1.35rem;
-    text-decoration: none;
-    transition: border-radius 220ms ease, background-color 160ms ease, transform 160ms ease;
-}
 
-.button:hover {
-    border-radius: 14px;
-    filter: brightness(1.04);
-}
 
-.button:active {
-    transform: scale(0.97);
-}
 
-.button-secondary {
-    background: transparent;
-    border: 1px solid var(--m3e-sys-color-outline);
-    color: var(--m3e-sys-color-primary);
-}
 
-.button-secondary:hover {
-    background: var(--m3e-sys-color-secondary-container);
-    color: var(--m3e-sys-color-on-secondary-container);
-}
 
 .container {
     margin: 0 auto;
@@ -558,7 +521,7 @@ select {
     background: var(--swatch, #50745c);
     border: 2px solid var(--m3e-sys-color-surface);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px var(--m3e-sys-color-outline);
+    outline: 1px solid var(--m3e-sys-color-outline);
     cursor: pointer;
     height: 28px;
     padding: 0;
@@ -659,10 +622,6 @@ select {
     margin: 0 0 0.8rem;
 }
 
-.button-danger {
-    background: var(--m3e-sys-color-error);
-    color: var(--m3e-sys-color-on-error);
-}
 
 .footer-links {
     display: flex;

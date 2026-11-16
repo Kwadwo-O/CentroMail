@@ -5,27 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="Get started with CentroMail.">
-    <script>
-        const savedTheme = localStorage.getItem('centromail-theme');
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            document.documentElement.dataset.theme = savedTheme;
-        }
-    </script>
+    {% include '_appearance.html' %}
+    <script type="module" src="{{ url_for('static', filename='js/components.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/m3e.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/centromail-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
     <title>Get Started · CentroMail</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
 </head>
 <body class="page-onboarding">
     {% include '_auth_loading.html' %}
-    <button class="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
+    <button class="theme-toggle m3e-button m3e-button--text" type="button" aria-label="Switch to dark theme" aria-pressed="false">
         <span class="theme-toggle-icon material-symbols-rounded" aria-hidden="true">dark_mode</span>
         <span class="theme-toggle-label">Dark theme</span>
     </button>
-    <main class="auth-wrapper">
+    <main class="auth-wrapper" id="auth-content" tabindex="-1">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-stack" aria-live="polite">
@@ -38,7 +36,7 @@
 
         <section class="form-panel onboarding-card m3e-card m3e-card--elevated" aria-labelledby="onboardingTitle">
             <div class="logo">
-                <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
+                <img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail" width="86" height="86">
             </div>
             <h1 id="onboardingTitle">Get Started with CentroMail</h1>
             <p class="subtitle">Your conversations. One place.</p>
@@ -57,15 +55,15 @@
             <p class="separator"><span>or continue with email</span></p>
             <form class="auth-form email-form" method="post" action="{{ url_for('continue_flow') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label class="m3e-text-field m3e-text-field--outlined input-group">
+                <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
                         <input class="m3e-text-field__input" type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
-                        <span class="m3e-text-field__label">Email address</span>
+                        <label class="m3e-text-field__label" for="onboardingEmail">Email address</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Email address</span></legend>
                         </fieldset>
                     </span>
-                </label>
+                </div>
                 <button class="m3e-button m3e-button--filled m3e-button--size-l main-btn" type="submit">Continue with email</button>
             </form>
 

@@ -85,6 +85,20 @@ class AuthTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 response.close()
 
+    def test_landing_is_public_and_keeps_account_actions_available(self):
+        with patch.object(application.google_requests, 'get', side_effect=AssertionError('Landing must not load email')):
+            response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'All your conversations.', response.data)
+        self.assertIn(b'href="/register"', response.data)
+        self.assertIn(b'href="/login"', response.data)
+        self.assertNotIn(b'Log out', response.data)
+        self.register()
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'href="/dashboard"', response.data)
+        self.assertNotIn(b'href="/register"', response.data)
+
     def test_register_persists_normalized_email_and_hashed_password(self):
         response = self.register(name="  Test Person  ", email="  Person@Example.COM  ")
         self.assert_redirect_path(response, "/dashboard")

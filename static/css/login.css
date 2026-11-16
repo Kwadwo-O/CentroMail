@@ -58,6 +58,7 @@
     justify-items: center;
     position: relative;
     width: min(100%, 440px);
+    min-width: 0;
     z-index: 1;
 }
 
@@ -73,6 +74,8 @@
     gap: 1rem;
     padding: clamp(1.5rem, 5vw, 2.4rem);
     width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .form-panel .logo {
@@ -82,9 +85,9 @@
 }
 
 .form-panel .logo img {
-    border-radius: 1.25rem;
-    height: 72px;
-    width: 72px;
+    height: 62px;
+    width: 132px;
+    object-fit: contain;
 }
 
 .form-panel .eyebrow {
@@ -150,6 +153,10 @@
     margin: 0;
 }
 
+.input-group:has(.password-toggle) .m3e-text-field__input {
+    padding-inline-end: 52px;
+}
+
 .password-toggle {
     align-items: center;
     background: transparent;
@@ -158,13 +165,13 @@
     color: var(--m3e-sys-color-on-surface-variant);
     cursor: pointer;
     display: inline-flex;
-    height: 38px;
+    height: 44px;
     justify-content: center;
     position: absolute;
     right: 6px;
     top: 50%;
     transform: translateY(-50%);
-    width: 38px;
+    width: 44px;
 }
 
 .password-toggle:hover {
@@ -240,7 +247,6 @@
     align-items: center;
     background: color-mix(in srgb, var(--m3e-sys-color-surface) 88%, transparent);
     border-radius: 999px;
-    box-shadow: 0 4px 18px color-mix(in srgb, #000 14%, transparent);
     display: inline-flex;
     font-size: 0.8rem;
     gap: 0.5rem;
@@ -261,15 +267,6 @@
 .auth-cancel { background: transparent; border: 0; border-radius: 999px; color: var(--m3e-sys-color-primary); cursor: pointer; font: inherit; font-weight: 600; padding: 8px 10px; }
 .auth-cancel:focus-visible { outline: 2px solid var(--m3e-sys-color-primary); }
 
-.loading-indicator {
-    animation: auth-spin 0.9s linear infinite;
-    border: 2px solid var(--m3e-sys-color-outline-variant);
-    border-radius: 50%;
-    border-top-color: var(--m3e-sys-color-primary);
-    display: inline-block;
-    height: 16px;
-    width: 16px;
-}
 
 .form-help,
 .auth-footer {
@@ -279,11 +276,7 @@
     text-align: center;
 }
 
-@keyframes auth-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
+
 
 @media (max-width: 480px) {
     .page-login,

@@ -156,6 +156,7 @@
 
 html {
     background: var(--m3e-sys-color-background);
+    font-size: calc(1rem * var(--cm-font-scale, 1));
     scroll-behavior: smooth;
 }
 
@@ -173,10 +174,24 @@ body {
     color: var(--m3e-sys-color-on-primary-container);
 }
 
-:where(a, button, input, textarea, select):focus-visible {
+/* M3E text fields draw their focus indicator around the labelled container. */
+:where(a, button, summary, input:not(.m3e-text-field__input), textarea:not(.m3e-text-field__input), select):focus-visible {
     outline: 3px solid var(--m3e-sys-color-primary);
     outline-offset: 2px;
 }
+
+.skip-link {
+    position: fixed;
+    top: 12px;
+    left: 16px;
+    z-index: 100;
+    padding: .75rem 1.25rem;
+    background: var(--m3e-sys-color-surface);
+    color: var(--m3e-sys-color-on-surface);
+    border-radius: 12px;
+    transform: translateY(-160%);
+}
+.skip-link:focus { transform: none; }
 
 /*
  * M3E ships the icon font but styles icons through its own `.m3e-icon`
@@ -226,4 +241,9 @@ body {
 /* Component display rules must respect native hidden states. */
 [hidden] {
     display: none !important;
+}
+
+/* The transparent brand artwork has black lettering. */
+:root[data-theme="dark"] .cm-brand-logo {
+    filter: brightness(0) invert(1);
 }

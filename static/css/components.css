@@ -1,0 +1,32 @@
+.mail-nav-link b.m3e-badge {
+    background: var(--m3e-sys-color-error);
+    color: var(--m3e-sys-color-on-error);
+    font-size: .75rem;
+    line-height: 1;
+}
+/* Use tonal surfaces for elevation; keep inset component outlines. */
+:root[data-theme] {
+    --m3e-sys-elevation-level0-shadow: none;
+    --m3e-sys-elevation-level1-shadow: none;
+    --m3e-sys-elevation-level2-shadow: none;
+    --m3e-sys-elevation-level3-shadow: none;
+    --m3e-sys-elevation-level4-shadow: none;
+    --m3e-sys-elevation-level5-shadow: none;
+}
+.m3e-button { min-block-size: 44px; }
+.m3e-icon-button { min-inline-size: 44px; min-block-size: 44px; }
+.m3e-icon-button > .m3e-icon, .m3e-icon-button > .material-symbols-rounded { flex-shrink: 0; }
+.m3e-button.button-danger {
+    --m3e-comp-filled-button-container-color: var(--m3e-sys-color-error);
+    --m3e-comp-filled-button-label-text-color: var(--m3e-sys-color-on-error);
+}
+.cm-loading-shell { display: inline-flex; align-items: center; flex-shrink: 0; }
+.cm-loading-shell .m3e-loading-indicator {
+    --m3e-comp-loading-indicator-container-width: 28px;
+    --m3e-comp-loading-indicator-container-height: 28px;
+}
+.mail-load-feedback { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.status-pill.m3e-badge { padding-inline: 10px; min-height: 24px; }
+@media (forced-colors: active) {
+    .cm-brand-logo { filter: none; background: white; }
+}

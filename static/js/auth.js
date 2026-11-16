@@ -7,7 +7,7 @@
         root.dataset.cmMotionStyle = localStorage.getItem('centromail-motion-style') || 'expressive';
     } catch {}
     const label = loading.querySelector('[data-auth-loading-label]');
-    const spinner = loading.querySelector('.loading-indicator');
+    const spinner = loading.querySelector('.auth-progress');
     const cancel = loading.querySelector('[data-auth-cancel]');
     const content = document.querySelector('.auth-wrapper');
     let timeout;
