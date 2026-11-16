@@ -270,7 +270,7 @@
     document.querySelector('.profile-button img')?.addEventListener('error', event => {
         event.target.hidden = true;
         const initials = document.createElement('span');
-        initials.textContent = document.querySelector('.profile-menu strong').textContent.trim()[0].toUpperCase();
+        initials.textContent = document.querySelector('.profile-button').dataset.initial;
         event.target.replaceWith(initials);
     });
 

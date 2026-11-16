@@ -14,8 +14,10 @@
     const sections = [...document.querySelectorAll('[data-settings-section]')];
     const links = [...document.querySelectorAll('[data-settings-nav]')];
     const search = document.querySelector('#settings-search');
+    const clearSearch = document.querySelector('#clear-settings-search');
     const show = () => {
         const query = search.value.trim().toLowerCase();
+        clearSearch.hidden = !search.value;
         const requested = location.hash.replace('#settings-', '');
         const category = sections.some(section => section.dataset.settingsSection === requested) ? requested : 'colours';
         let matches = 0;
@@ -31,6 +33,8 @@
     };
     links.forEach(link => link.addEventListener('click', () => { search.value = ''; }));
     search.addEventListener('input', show); window.addEventListener('hashchange', show);
+    clearSearch.addEventListener('click', () => { search.value = ''; show(); search.focus(); });
+    search.addEventListener('keydown', event => { if (event.key === 'Escape' && search.value) { event.preventDefault(); search.value = ''; show(); } });
     document.querySelectorAll('[data-reset-group]').forEach(button => button.addEventListener('click', () => change(() => appearance.reset(groups.find(group => group.key === button.dataset.resetGroup).settings.map(item => item.key)))));
     document.querySelector('#reset-customization').addEventListener('click', () => change(() => appearance.reset(appearance.definitions.filter(item => !['confirm-actions','auto-refresh','refresh-interval'].includes(item.key)).map(item => item.key))));
     document.querySelector('#clear-settings-storage').addEventListener('click', () => change(() => appearance.reset(appearance.definitions.map(item => item.key))));

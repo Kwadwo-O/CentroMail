@@ -1,0 +1,12 @@
+<m3e-menu anchor="{{ account_menu_anchor }}" id="account-menu" label="Account" data-account-menu data-settings-url="{{ url_for('settings') }}#settings-account">
+    <m3e-menu-group label="{{ g.user.name or g.user.email }}">
+        <m3e-menu-item value="settings" icon="manage_accounts" supporting-text="{{ g.user.email }}">Account settings</m3e-menu-item>
+    </m3e-menu-group>
+    <m3e-menu-group aria-label="Account actions">
+        <m3e-menu-item value="theme" icon="dark_mode" data-account-theme-menu>Dark theme</m3e-menu-item>
+        <m3e-menu-item value="logout" icon="logout">Log out</m3e-menu-item>
+    </m3e-menu-group>
+</m3e-menu>
+<form id="account-menu-logout" action="{{ url_for('logout') }}" method="post" hidden>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>

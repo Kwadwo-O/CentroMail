@@ -11,16 +11,35 @@
         <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}"><span class="m3e-icon" aria-hidden="true">link</span>Connections</a>
     </header>
     <div class="settings-tools">
-        <label class="settings-search"><span class="m3e-icon" aria-hidden="true">search</span><input id="settings-search" type="search" aria-label="Search all settings" placeholder="Search settings, colours, reading…"></label>
+        <div class="settings-search m3e-search" role="search" aria-label="Settings">
+            <div class="m3e-search__view">
+                <div class="m3e-search__field">
+                    <span class="m3e-search__leading" aria-hidden="true"><span class="m3e-icon">search</span></span>
+                    <input class="m3e-search__input" id="settings-search" type="search" aria-label="Search all settings" placeholder="Search settings…" autocomplete="off" spellcheck="false">
+                    <span class="m3e-search__trailing"><button class="m3e-icon-button m3e-icon-button--standard" id="clear-settings-search" type="button" aria-label="Clear settings search" hidden><span class="m3e-icon" aria-hidden="true">close</span></button></span>
+                </div>
+            </div>
+        </div>
         <p id="settings-feedback" role="status" aria-live="polite">Changes save automatically on this browser.</p>
     </div>
     <div class="settings-layout">
-        <nav class="settings-navigation" aria-label="Settings categories">
-            {% for group in preference_groups %}
-            <a href="#settings-{{ group.key }}" data-settings-nav="{{ group.key }}"><span class="m3e-icon" aria-hidden="true">{{ group.icon }}</span><span class="settings-navigation-label">{{ group.title }}</span><small aria-label="{{ group.settings|length }} settings">{{ group.settings|length }}</small></a>
+        <nav class="settings-navigation m3e-menu m3e-menu--baseline" aria-label="Settings categories">
+            {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
+            <div class="m3e-menu__group" aria-label="{{ label }}">
+                <span class="m3e-menu__label settings-navigation-heading">{{ label }}</span>
+                {% for group in preference_groups if group.key in keys %}
+                <a class="m3e-menu__item" href="#settings-{{ group.key }}" data-settings-nav="{{ group.key }}">
+                    <span class="m3e-menu__item-leading"><span class="m3e-icon" aria-hidden="true">{{ group.icon }}</span></span>
+                    <span class="m3e-menu__item-text settings-navigation-label">{{ group.title }}</span>
+                    <span class="m3e-menu__item-trailing"><small aria-label="{{ group.settings|length }} settings">{{ group.settings|length }}</small></span>
+                </a>
+                {% endfor %}
+            </div>
             {% endfor %}
-            <a href="#settings-account" data-settings-nav="account"><span class="m3e-icon" aria-hidden="true">person</span><span class="settings-navigation-label">Account</span></a>
-            <a href="#settings-data" data-settings-nav="data"><span class="m3e-icon" aria-hidden="true">shield</span><span class="settings-navigation-label">Data and privacy</span></a>
+            <div class="m3e-menu__group" aria-label="Account">
+                <a class="m3e-menu__item" href="#settings-account" data-settings-nav="account"><span class="m3e-menu__item-leading"><span class="m3e-icon" aria-hidden="true">person</span></span><span class="m3e-menu__item-text settings-navigation-label">Account</span></a>
+                <a class="m3e-menu__item" href="#settings-data" data-settings-nav="data"><span class="m3e-menu__item-leading"><span class="m3e-icon" aria-hidden="true">shield</span></span><span class="m3e-menu__item-text settings-navigation-label">Data and privacy</span></a>
+            </div>
         </nav>
         <div class="settings-content">
             <div class="settings-preview" aria-label="Live appearance preview">

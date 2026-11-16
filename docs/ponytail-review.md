@@ -7,8 +7,9 @@ Looks good for local use. Ship.
 Validation:
 
 - All 61 Python tests pass. New checks cover verified TLS, 25-header IMAP pages, account/folder/UIDVALIDITY isolation, safe moves, SMTP Sent-copy failures, account routing and disconnect scope, Microsoft callback ownership and page-link validation, and malformed webhook signatures.
-- Three JavaScript regression checks pass for invalid saved preferences, scoped resets, and confirmation behaviour. All nine app scripts pass syntax checks in their browser module context where required.
+- Three JavaScript regression checks pass for invalid saved preferences, scoped resets, and confirmation behaviour. All ten app scripts pass syntax checks in their browser module context where required.
 - Firefox checks cover all 59 controls, category navigation and search, group resets, validated JSON import, theme generation/reset races, shared text sizing, sidebar width, logo sizing, inbox visibility options, dashboard options, provider prefill, and confirmations.
+- Settings search now uses the M3E Search CSS contract, one rounded focus indicator, and a working clear action. Settings categories use the M3E Menu CSS contract; dashboard/inbox account and workspace dropdowns use the actual vendored M3E Menu element, including keyboard navigation and shared theme/logout handling. Browser search, menu, and accessibility checks pass.
 - Follow-up screenshot fixes centre the dashboard within a full-width page, preserve the stacked layout through 1050 pixels, and align Settings navigation icons, labels, and counts even with narrow sidebars and larger text. Firefox checks pass in light and dark themes.
 - The tested Settings, Integrations, Dashboard, Inbox, landing, login, and register pages fit 320, 390, 768, and 1440 pixels. Larger saved text also fits the tested mobile pages.
 - Axe-core found no WCAG A/AA violations in tested categories and main-page light/dark states, including high-contrast Settings. Dashboard label contrast, login overflow, and overlapping inbox link targets were corrected. No visible drop shadows remain in checked pages.

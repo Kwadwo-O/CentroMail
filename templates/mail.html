@@ -28,30 +28,23 @@
             <a class="icon-button m3e-icon-button m3e-icon-button--standard" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings"><span class="material-symbols-rounded" aria-hidden="true">settings</span></a>
             <div class="quick-menu-wrap">
                 <button class="icon-button m3e-icon-button m3e-icon-button--standard" id="quick-menu-button" type="button" aria-label="Quick menu" aria-expanded="false" aria-controls="quick-menu"><span class="material-symbols-rounded" aria-hidden="true">apps</span></button>
-                <div class="quick-menu" id="quick-menu" hidden>
-                    <a href="{{ url_for('dashboard') }}"><span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview</a>
-                    <a href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox</a>
-                    <a href="{{ url_for('integrations') }}"><span class="material-symbols-rounded" aria-hidden="true">extension</span>Integrations</a>
-                    <a href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings</a>
-                </div>
+                <m3e-menu anchor="quick-menu-button" id="quick-menu" label="Workspace" data-nav-menu>
+                    <m3e-menu-item value="{{ url_for('dashboard') }}" icon="space_dashboard">Overview</m3e-menu-item>
+                    <m3e-menu-item value="{{ url_for('inbox') }}" icon="inbox">Inbox</m3e-menu-item>
+                    <m3e-menu-item value="{{ url_for('integrations') }}" icon="extension">Integrations</m3e-menu-item>
+                    <m3e-menu-item value="{{ url_for('settings') }}" icon="settings">Settings</m3e-menu-item>
+                </m3e-menu>
             </div>
             <div class="profile-menu-wrap">
-            <button class="profile-button m3e-icon-button m3e-icon-button--standard" id="profile-button" type="button" aria-label="Account" aria-expanded="false" aria-controls="profile-menu">
+            <button class="profile-button m3e-icon-button m3e-icon-button--standard" id="profile-button" type="button" data-initial="{{ (g.user.name or g.user.email)[0]|upper }}" aria-label="Account" aria-expanded="false" aria-controls="account-menu">
                 {% if g.user.avatar_url %}
                 <img src="{{ g.user.avatar_url }}" alt="" referrerpolicy="no-referrer" width="36" height="36">
                 {% else %}
                 <span aria-hidden="true">{{ (g.user.name or g.user.email)[0]|upper }}</span>
                 {% endif %}
             </button>
-            <div class="profile-menu" id="profile-menu" hidden>
-                <strong>{{ g.user.name or g.user.email }}</strong>
-                <small>{{ g.user.email }}</small>
-                <button type="button" data-inbox-theme-toggle class="m3e-button m3e-button--text"><span class="material-symbols-rounded" aria-hidden="true" data-inbox-theme-icon>dark_mode</span><span data-inbox-theme-label>Dark theme</span></button>
-                <form method="post" action="{{ url_for('logout') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ mail_account_key }}">
-                    <button type="submit" class="m3e-button m3e-button--text"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Log out</button>
-                </form>
-            </div>
+            {% set account_menu_anchor = 'profile-button' %}
+            {% include '_account_menu.html' %}
             </div>
         </div>
     </header>
@@ -184,36 +177,6 @@
 <script>
     document.querySelector('#mail-account-select').addEventListener('change', event => event.target.form.requestSubmit());
     const compose = document.querySelector("#compose-window");
-    const menus = [
-        {button: document.querySelector("#quick-menu-button"), menu: document.querySelector("#quick-menu")},
-        {button: document.querySelector("#profile-button"), menu: document.querySelector("#profile-menu")}
-    ];
-    const closeMenus = () => menus.forEach(({button, menu}) => {
-        if (button && menu) {
-            menu.hidden = true;
-            button.setAttribute("aria-expanded", "false");
-        }
-    });
-    menus.forEach(({button, menu}) => button?.addEventListener("click", () => {
-        const open = menu.hidden;
-        closeMenus();
-        menu.hidden = !open;
-        button.setAttribute("aria-expanded", String(open));
-    }));
-    document.addEventListener("click", (event) => {
-        if (!menus.some(({button, menu}) => button?.contains(event.target) || menu?.contains(event.target))) closeMenus();
-    });
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") closeMenus();
-    });
-    const themeMenuButton = document.querySelector("[data-inbox-theme-toggle]");
-    themeMenuButton?.addEventListener("click", () => {
-        const dark = document.documentElement.dataset.theme === "dark";
-        document.documentElement.dataset.theme = dark ? "light" : "dark";
-        localStorage.setItem("centromail-theme", dark ? "light" : "dark");
-        themeMenuButton.querySelector("[data-inbox-theme-icon]").textContent = dark ? "dark_mode" : "light_mode";
-        themeMenuButton.querySelector("[data-inbox-theme-label]").textContent = dark ? "Dark theme" : "Light theme";
-    });
     const sidebar = document.querySelector("#mail-sidebar");
     const sidebarScrim = document.querySelector("#sidebar-scrim");
     const mobileMenu = document.querySelector(".mobile-menu");
