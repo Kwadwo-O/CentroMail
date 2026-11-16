@@ -12,9 +12,9 @@
         const seen = new WeakSet();
         const observed = new WeakSet();
         const feedbackTimes = new WeakMap();
-        const entrances = '[data-landing-enter], .dashboard-welcome, .dashboard-purpose, .dashboard-stat, .dashboard-panel, .dashboard-tip, .dashboard-integrations, .settings-section, .settings-danger, .integration-heading, .integration-card, .form-panel, .reader-message, .legal-page';
+        const entrances = '[data-landing-enter], .dashboard-welcome, .dashboard-purpose, .dashboard-stat, .dashboard-panel, .dashboard-tip, .dashboard-integrations, .settings-section, .settings-danger, .integration-heading, .integration-card, .form-panel, .message-page .reader-message, .legal-page';
         const rows = '.message, .cm-connected-item, .cm-teams-message';
-        const panels = '.account-menu, .quick-menu, .profile-menu, .compose-window, .mail-reader, dialog';
+        const panels = '.account-menu, .quick-menu, .profile-menu, .compose-window, dialog';
         const feedback = '.flash, #settings-feedback, #mail-feedback';
         const visible = element => element.isConnected && !element.closest('[hidden], template') && element.getClientRects().length > 0;
         const duration = () => (root.dataset.cmMotionStyle === 'standard' ? 220 : 340) * Number(root.dataset.cmMotionSpeed || 1);
@@ -53,12 +53,34 @@
         };
         const openPanel = element => {
             if (!visible(element) || (element.matches('dialog') && !element.open)) return;
-            if (element.matches('.mail-reader')) {
-                animate(element, [{opacity: 0, translate: '12px 0'}, {opacity: 1, translate: '0 0'}]);
-            } else {
-                animate(element, [{opacity: 0, scale: '.96', translate: '0 6px'}, {opacity: 1, scale: '1', translate: '0 0'}], {duration: Math.min(duration(), 260)});
-            }
+            animate(element, [{opacity: 0, scale: '.96', translate: '0 6px'}, {opacity: 1, scale: '1', translate: '0 0'}], {duration: Math.min(duration(), 260)});
         };
+        // Share the available width while opening, rather than snapping the inbox
+        // to its narrow layout before the reading pane fades in.
+        const cancelReaderLayout = () => {
+            for (const element of document.querySelectorAll('.gmail-app .inbox, #mail-reader, #reader-content')) active.get(element)?.cancel();
+        };
+        const readerLayout = update => {
+            const inbox = document.querySelector('.gmail-app .inbox');
+            const reader = document.querySelector('#mail-reader');
+            const from = inbox?.getBoundingClientRect().width;
+            const opening = reader?.hidden;
+            cancelReaderLayout();
+            update();
+            if (!opening || !from || reader.hidden || reduced() || root.dataset.cmEntranceMotion === 'false') return;
+            const to = inbox.getBoundingClientRect().width;
+            const paneWidth = reader.getBoundingClientRect().width;
+            const paneStyle = getComputedStyle(reader);
+            animate(inbox, [
+                {flexBasis: `${from}px`, flexGrow: 0, flexShrink: 0},
+                {flexBasis: `${to}px`, flexGrow: 0, flexShrink: 0},
+            ]);
+            animate(reader, [
+                {flexBasis: '0px', flexGrow: 0, flexShrink: 0, marginRight: '0px', borderWidth: '0px', opacity: 0},
+                {flexBasis: `${paneWidth}px`, flexGrow: 0, flexShrink: 0, marginRight: paneStyle.marginRight, borderWidth: paneStyle.borderTopWidth, opacity: 1},
+            ]);
+        };
+        window.addEventListener('resize', cancelReaderLayout);
         const feedbackChanged = element => {
             if (!visible(element) || !element.textContent.trim()) return;
             const now = performance.now();
@@ -107,7 +129,7 @@
             document.querySelectorAll(panels).forEach(openPanel);
         };
         Promise.race([document.fonts?.ready || Promise.resolve(), new Promise(resolve => setTimeout(resolve, 600))]).then(start);
-        window.CentroMailMotion = {enabled: () => !reduced()};
+        window.CentroMailMotion = {enabled: () => !reduced(), readerLayout, readerContent: element => enter(element)};
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
     else init();

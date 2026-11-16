@@ -1,3 +1,20 @@
+import '../vendor/m3e/ripple/index.js';
+
+// Give the same press feedback to navigation links styled as buttons.
+document.querySelectorAll('.nav-link, .mail-nav-link, .dashboard-nav-link').forEach(link => link.classList.add('m3e-state-layer'));
+
+const restoreSenderInitials = image => {
+    image.parentElement.classList.remove('has-sender-logo');
+    image.remove();
+};
+document.addEventListener('error', event => {
+    if (event.target.matches?.('img.sender-logo')) restoreSenderInitials(event.target);
+}, true);
+const syncSenderLogos = () => document.querySelectorAll('img.sender-logo').forEach(image => {
+    if (image.complete && !image.naturalWidth) restoreSenderInitials(image);
+});
+syncSenderLogos();
+
 if (document.querySelector('m3e-loading-indicator')) await import('../vendor/m3e/loading-indicator/index.js');
 
 // Generate paired Material roles for custom accents, including light/dark contrast.
@@ -65,7 +82,7 @@ const syncReaderText = () => {
 };
 document.addEventListener('centromail-appearance-change', () => { syncTheme(); syncReaderText(); });
 new MutationObserver(syncTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
-new MutationObserver(() => { syncReaderText(); syncTooltips(); }).observe(document.documentElement, {childList: true, subtree: true});
+new MutationObserver(() => { syncReaderText(); syncTooltips(); syncSenderLogos(); }).observe(document.documentElement, {childList: true, subtree: true});
 syncTheme(); syncReaderText(); syncTooltips();
 
 const messagePage = document.querySelector('.message-page');

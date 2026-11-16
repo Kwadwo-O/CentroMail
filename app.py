@@ -28,6 +28,7 @@ import imaplib
 import smtplib
 import email_providers
 import graph_mail
+from sender_logos import sender_logo_source
 import bleach
 import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
@@ -60,7 +61,7 @@ except ImportError:  # Keep the rest of CentroMail usable without Telethon.
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-load_dotenv(Path(app.root_path) / ".env")
+load_dotenv(Path(app.root_path) / "..env")
 DATABASE = os.path.join(app.root_path, "centro.db")
 app.config.update(
     DATABASE=os.environ.get("CENTROMAIL_DATABASE", DATABASE),
@@ -248,6 +249,12 @@ PREFERENCE_GROUPS = json.loads((Path(app.root_path) / "static/preferences.json")
 @app.context_processor
 def appearance_context():
     return {"preference_groups": PREFERENCE_GROUPS}
+
+
+@app.template_global()
+def sender_logo_url(email):
+    source = sender_logo_source(email)
+    return url_for('static', filename=source) if source else None
 
 
 @app.template_global()

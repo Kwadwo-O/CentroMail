@@ -42,23 +42,25 @@
         </div>
     </header>
 
-    <form class="mail-account-picker" method="get" action="{{ url_for('inbox') }}">
-        <label for="mail-account-select">Email account</label>
-        <select name="account" id="mail-account-select" aria-label="Email account">
-            {% if not mail_accounts %}<option value="gmail">Gmail · connect an account</option>{% endif %}
-            {% for account in mail_accounts %}<option value="{{ account.key }}" {% if account.key == mail_account_key %}selected{% endif %}>{{ account.name }} · {{ account.email }}</option>{% endfor %}
-        </select>
-        <button class="m3e-button m3e-button--text" type="submit">Switch</button>
-        <a class="m3e-button m3e-button--text" href="{{ url_for('authenticate',provider='google',connect=1) }}">Add Gmail</a>
-        <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Add account</a>
-    </form>
-    <div class="workspace-tabs" role="tablist" aria-label="Communication type">
-        <button class="workspace-tab active m3e-button m3e-button--text" id="workspace-tab-email" type="button" role="tab" aria-selected="true" aria-controls="workspace-email" data-workspace="email">
-            <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
-        </button>
-        <button class="workspace-tab m3e-button m3e-button--text" id="workspace-tab-apps" type="button" role="tab" aria-selected="false" aria-controls="workspace-apps" tabindex="-1" data-workspace="apps">
-            <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
-        </button>
+    <div class="mail-workspace-bar">
+        <form class="mail-account-picker" method="get" action="{{ url_for('inbox') }}">
+            <label class="sr-only" for="mail-account-select">Email account</label>
+            <select name="account" id="mail-account-select" aria-label="Email account">
+                {% if not mail_accounts %}<option value="gmail">Gmail · connect an account</option>{% endif %}
+                {% for account in mail_accounts %}<option value="{{ account.key }}" {% if account.key == mail_account_key %}selected{% endif %}>{{ account.name }} · {{ account.email }}</option>{% endfor %}
+            </select>
+            <button class="m3e-button m3e-button--text" type="submit">Switch</button>
+            <a class="m3e-button m3e-button--text" href="{{ url_for('authenticate',provider='google',connect=1) }}">Add Gmail</a>
+            <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Add account</a>
+        </form>
+        <div class="workspace-tabs" role="tablist" aria-label="Communication type">
+            <button class="workspace-tab active m3e-button m3e-button--text" id="workspace-tab-email" type="button" role="tab" aria-selected="true" aria-controls="workspace-email" data-workspace="email">
+                <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
+            </button>
+            <button class="workspace-tab m3e-button m3e-button--text" id="workspace-tab-apps" type="button" role="tab" aria-selected="false" aria-controls="workspace-apps" tabindex="-1" data-workspace="apps">
+                <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
+            </button>
+        </div>
     </div>
 
     <div class="gmail-body workspace-view" id="workspace-email" role="tabpanel" aria-labelledby="workspace-tab-email" data-workspace-view="email">
@@ -92,11 +94,10 @@
 
         <section class="inbox" id="inbox" aria-labelledby="inbox-title">
             <div class="inbox-heading">
-                <div>
-                    <p class="eyebrow">Main menu</p>
+                <div class="inbox-title-group">
                     <h1 id="inbox-title">{{ folder_title }}</h1>
+                    <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
                 </div>
-                <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
                 <label class="mail-sort-control" for="mail-sort">Sort loaded emails
                     <select id="mail-sort">
                         <option value="replyable">Replyable first</option>
@@ -194,7 +195,7 @@
     const sidebarScrim = document.querySelector("#sidebar-scrim");
     const mobileMenu = document.querySelector(".mobile-menu");
     const mobileMailbox = window.matchMedia('(max-width: 900px)');
-    const sidebarBackground = [...document.querySelectorAll('.site-header, .site-footer, .skip-link, .gmail-header, .mail-account-picker, .workspace-tabs, .inbox, .mail-reader, .apps-workspace')];
+    const sidebarBackground = [...document.querySelectorAll('.site-header, .site-footer, .skip-link, .gmail-header, .mail-workspace-bar, .inbox, .mail-reader, .apps-workspace')];
     const sidebarControls = () => [...sidebar.querySelectorAll('a[href], button, summary')].filter(element => !element.disabled && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
     const setSidebar = (open) => {
         const wasOpen = sidebar.classList.contains('is-open');

@@ -208,10 +208,20 @@
             }
         }
     };
+    const setReaderOpen = open => {
+        if (reader.hidden === !open) return;
+        const update = () => {
+            reader.hidden = !open;
+            app.classList.toggle('has-reader', open);
+        };
+        if (window.CentroMailMotion?.readerLayout) window.CentroMailMotion.readerLayout(update);
+        else update();
+    };
     const closeReader = () => {
         readerController?.abort();
-        reader.hidden = true;
-        app.classList.remove('has-reader');
+        readerController = null;
+        setReaderOpen(false);
+        readerContent.removeAttribute('aria-busy');
         rows().forEach(row => row.classList.remove('is-open'));
         const link = rows().find(row => row.dataset.messageId === readerMessageId)?.querySelector('.message-details');
         (link || list).focus();
@@ -223,10 +233,9 @@
             return;
         }
         rows().forEach(item => item.classList.toggle('is-open', item === row));
-        reader.hidden = false;
-        app.classList.add('has-reader');
+        setReaderOpen(true);
         readerMessageId = row.dataset.messageId;
-        readerContent.textContent = '';
+        readerContent.setAttribute('aria-busy', 'true');
         readerStatus.textContent = 'Opening email…';
         reader.focus();
         document.querySelector('#reader-open-page').href = row.dataset.messageUrl;
@@ -237,14 +246,25 @@
         url.searchParams.set('pane', '1');
         try {
             const response = await fetch(url, {signal: pending.signal});
+            if (readerController !== pending || pending.signal.aborted) return;
             if (response.redirected) { window.location.assign(response.url); return; }
             const html = await response.text();
-            if (readerController !== pending) return;
+            if (readerController !== pending || pending.signal.aborted || reader.hidden) return;
             readerContent.replaceChildren(document.createRange().createContextualFragment(html));
+            readerContent.scrollTop = 0;
+            window.CentroMailMotion?.readerContent?.(readerContent);
             readerStatus.textContent = response.ok ? 'Email opened.' : 'Could not open this email.';
             if (!response.ok) return;
         } catch (error) {
-            if (readerController === pending && error.name !== 'AbortError') readerStatus.textContent = 'Could not open this email. Try again.';
+            if (readerController === pending && error.name !== 'AbortError') {
+                readerStatus.textContent = 'Could not open this email. Try again.';
+                const notice = document.createElement('p');
+                notice.className = 'reader-empty';
+                notice.textContent = readerStatus.textContent;
+                readerContent.replaceChildren(notice);
+            }
+        } finally {
+            if (readerController === pending) readerContent.removeAttribute('aria-busy');
         }
     };
     const performAction = async (action, targets) => {

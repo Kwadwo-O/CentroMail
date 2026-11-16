@@ -1,8 +1,9 @@
+{% from '_sender_avatar.html' import sender_avatar %}
 {% for message in messages %}
 <article class="message{% if message.unread %} unread{% endif %}" data-message-id="{{ message.id }}" data-can-reply="{{ 'true' if message.can_reply else 'false' }}" data-no-reply="{{ 'true' if message.is_no_reply else 'false' }}" data-message-time="{{ message.internal_date|default(0) }}" data-category="{{ message.category }}" data-message-url="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
     <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select message from {{ message.sender }}: {{ message.subject }}"><span class="checkmark"></span></label>
     <button class="star-button{% if message.starred %} starred{% endif %} m3e-icon-button m3e-icon-button--standard" type="button" aria-label="{{ 'Unstar' if message.starred else 'Star' }} message: {{ message.subject }}" aria-pressed="{{ 'true' if message.starred else 'false' }}"><span class="material-symbols-rounded" aria-hidden="true">star</span></button>
-    <div class="sender-avatar" aria-hidden="true">{{ message.sender[:2]|upper }}</div>
+    {{ sender_avatar(message, 'sender-avatar') }}
     <a class="message-details" href="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
         <span class="message-read-state sr-only">{{ 'Unread: ' if message.unread else '' }}</span>
         <strong class="message-sender">{{ message.sender }}</strong>

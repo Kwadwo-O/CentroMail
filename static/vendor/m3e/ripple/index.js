@@ -1,0 +1,6 @@
+import { attachAutoRipple } from '../chunk-3HKBTTFK.js';
+export { attachAutoRipple } from '../chunk-3HKBTTFK.js';
+import '../chunk-4AKICVH3.js';
+
+// src/ripple/index.ts
+if (typeof window !== "undefined") attachAutoRipple(document, new AbortController().signal);

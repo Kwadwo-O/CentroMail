@@ -816,8 +816,8 @@
       },
       {
         "key": "sender-avatar",
-        "label": "Show sender initials",
-        "description": "Show avatar circles beside emails.",
+        "label": "Show sender icons",
+        "description": "Show sender logos or initials beside emails.",
         "default": "true",
         "type": "switch",
         "id": "sender-avatar-preference"

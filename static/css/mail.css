@@ -37,9 +37,9 @@ body:has(.gmail-app) .site-footer {
     background: var(--m3e-sys-color-surface);
     border-bottom: 1px solid var(--m3e-sys-color-outline-variant);
     display: flex;
-    gap: 14px;
-    min-height: 72px;
-    padding: 8px max(20px, calc((100% - var(--cm-content-width, 1240px)) / 2));
+    gap: 16px;
+    min-height: 68px;
+    padding: 10px 24px;
     position: sticky;
     top: var(--mail-nav-height, 0px);
     z-index: 20;
@@ -56,6 +56,12 @@ body:has(.gmail-app) .site-footer {
     min-width: 0;
     padding: 0 8px 0 16px;
     transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+@media (min-width: 901px) {
+    .gmail-header {
+        padding-left: calc(var(--cm-sidebar-width, 224px) + 16px);
+    }
 }
 
 .search-box:focus-within {
@@ -116,9 +122,9 @@ body:has(.gmail-app) .site-footer {
     color: currentColor;
     display: inline-block;
     flex-shrink: 0;
-    height: 18px;
+    height: 1em;
     vertical-align: middle;
-    width: 18px;
+    width: 1em;
 }
 
 .material-symbols-rounded {
@@ -250,8 +256,10 @@ body:has(.gmail-app) .site-footer {
 }
 
 .workspace-tabs {
-    border-bottom: 1px solid var(--m3e-sys-color-outline-variant);
-    padding-inline: 20px;
+    flex: 0 0 auto;
+    margin-left: auto;
+    overflow: visible;
+    padding: 0;
 }
 
 .workspace-tab,
@@ -310,7 +318,7 @@ body:has(.gmail-app) .site-footer {
 
 .gmail-body {
     display: flex;
-    min-height: calc(100dvh - 124px);
+    min-height: calc(100dvh - 200px);
 }
 
 .mail-sidebar {
@@ -339,7 +347,7 @@ body:has(.gmail-app) .site-footer {
 
 .mail-nav-link {
     align-items: center;
-    border-radius: 0 999px 999px 0;
+    border-radius: 999px;
     color: var(--m3e-sys-color-on-surface-variant);
     display: flex;
     font-size: 0.85rem;
@@ -426,19 +434,27 @@ body:has(.gmail-app) .site-footer {
 }
 
 .inbox-heading {
-    align-items: flex-end;
+    align-items: center;
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
     justify-content: space-between;
-    padding: 22px 22px 12px;
+    padding: 18px 22px;
 }
 
-.inbox-heading h1 {
+.inbox-heading h1,
+:root[data-theme] .inbox-heading h1 {
     color: var(--m3e-sys-color-on-surface);
-    font-size: 1.5rem;
-    letter-spacing: -0.04em;
+    font-size: calc(1.5rem * var(--cm-heading-scale, 1));
+    letter-spacing: -0.035em;
+    line-height: 1.2;
     margin: 0;
+}
+
+.inbox-title-group {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
 }
 
 .eyebrow {
@@ -453,14 +469,16 @@ body:has(.gmail-app) .site-footer {
 .page-count {
     color: var(--m3e-sys-color-on-surface-variant);
     font-size: 0.72rem;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .mail-sort-control {
     color: var(--m3e-sys-color-on-surface-variant);
-    display: grid;
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
     font-size: 0.75rem;
-    gap: 4px;
+    gap: 10px;
 }
 
 .mail-sort-control select {
@@ -734,6 +752,28 @@ body:has(.gmail-app) .site-footer {
     height: 36px;
     justify-content: center;
     width: 36px;
+}
+
+.sender-avatar.has-sender-logo,
+.reader-sender-avatar.has-sender-logo {
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.has-sender-logo .sender-initials {
+    visibility: hidden;
+}
+
+.sender-logo {
+    background: #fff;
+    border-radius: inherit;
+    height: 100%;
+    inset: 0;
+    object-fit: contain;
+    padding: 4px;
+    position: absolute;
+    width: 100%;
 }
 
 .message-details {
@@ -1171,7 +1211,7 @@ body:has(.gmail-app) .site-footer {
 
 @media (max-width: 640px) {
     .gmail-header {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 8px;
         min-height: 0;
         padding: 8px 10px 10px;
@@ -1179,10 +1219,10 @@ body:has(.gmail-app) .site-footer {
     }
 
     .search-box {
-        flex: 1 0 100%;
+        flex: 1 1 0;
         height: 42px;
         max-width: none;
-        order: 10;
+        order: 0;
     }
 
     .header-actions {
@@ -1208,14 +1248,18 @@ body:has(.gmail-app) .site-footer {
     }
 
     .inbox-heading {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 2px;
-        padding: 16px 14px 10px;
+        gap: 12px;
+        padding: 16px 14px;
     }
 
-    .inbox-heading h1 {
-        font-size: 1.3rem;
+    :root[data-theme] .inbox-heading h1 {
+        font-size: calc(1.3rem * var(--cm-heading-scale, 1));
+    }
+
+    .mail-sort-control {
+        display: grid;
+        gap: 6px;
+        font-size: 0.7rem;
     }
 
     .inbox-toolbar {
@@ -1344,7 +1388,7 @@ body:has(.gmail-app) .site-footer {
 .mail-more summary::-webkit-details-marker { display: none; }
 .mail-more[open] .more-icon { transform: rotate(180deg); }
 .mail-more-folders { display: grid; gap: 2px; }
-.inbox-toolbar { gap: 4px; min-height: 60px; padding-block: 8px; }
+.inbox-toolbar { gap: 4px; min-height: 56px; padding-block: 6px; }
 .inbox-toolbar .toolbar-button { height: 44px; margin: 0; width: 44px; }
 .inbox-toolbar .toolbar-button .material-symbols-rounded { font-size: 21px; }
 .inbox-toolbar .refresh-button { flex-shrink: 0; min-width: 130px; padding-inline: 12px; width: 130px; }
@@ -1362,7 +1406,7 @@ body:has(.gmail-app) .site-footer {
 .inbox-tabs { display: flex; gap: 8px; }
 .inbox-tabs .inbox-tab { min-height: 42px; }
 .inbox-tabs .material-symbols-rounded { font-size: 20px; }
-.message { gap: 12px; grid-template-columns: 44px 44px 36px minmax(0, 1fr) auto; min-height: 80px; padding: 12px 18px; }
+.message { gap: 8px; grid-template-columns: 44px 44px 36px minmax(0, 1fr) auto; min-height: 72px; padding: 10px 14px; }
 .message .sender-avatar { font-size: 0.75rem; height: 36px; line-height: 1; width: 36px; }
 .message .message-details { color: var(--m3e-sys-color-on-surface); display: block; min-width: 0; overflow: hidden; text-decoration: none; }
 .message .message-sender { display: block; font-size: 0.9rem; font-weight: 550; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1370,7 +1414,7 @@ body:has(.gmail-app) .site-footer {
 .message-summary { color: var(--m3e-sys-color-on-surface-variant); display: block; font-size: 0.83rem; line-height: 1.5; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .message-subject { color: var(--m3e-sys-color-on-surface); font-weight: 500; }
 .message.unread .message-subject { font-weight: 650; }
-.message-date { align-self: start; color: var(--m3e-sys-color-on-surface-variant); font-size: 0.72rem; padding-top: 2px; white-space: nowrap; }
+.message-date { align-self: start; color: var(--m3e-sys-color-on-surface-variant); font-size: 0.72rem; padding-top: 2px; margin-left: 12px; white-space: nowrap; }
 .star-button .material-symbols-rounded { font-size: 21px; font-variation-settings: "FILL" 0; }
 .star-button.starred { color: var(--m3e-sys-color-primary); }
 .star-button.starred .material-symbols-rounded { font-variation-settings: "FILL" 1; }
@@ -1388,7 +1432,8 @@ body:has(.gmail-app) .site-footer {
 .reader-toolbar > div { display: flex; gap: 4px; }
 .reader-toolbar a { color: var(--m3e-sys-color-on-surface); text-decoration: none; }
 .reader-back { align-items: center; display: inline-flex; gap: 10px; min-height: 44px; }
-.reader-content { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.reader-content { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; transition: opacity 120ms ease; }
+.reader-content[aria-busy="true"] { opacity: .55; }
 :root[data-theme] .mail-reader.m3e-card { padding: 0; }
 .reader-message { padding: calc(24px * var(--cm-spacing, 1)); }
 :root[data-theme] .reader-message-header.m3e-card { flex-direction: row; align-items: center; display: flex; flex-wrap: wrap; gap: 12px; padding: calc(16px * var(--cm-spacing, 1)); margin-bottom: 16px; background: var(--m3e-sys-color-surface-container-low); border: 0; }
@@ -1422,6 +1467,7 @@ body:has(.message-page) .site-footer { display: none; }
     .message-page .reader-plain-body { max-width: 76ch; margin-inline: auto; }
     .gmail-app.has-reader .inbox { flex: 0 1 420px; }
     .has-reader .inbox-heading { align-items: center; gap: 12px; padding: 16px; }
+    .has-reader .inbox-title-group { flex: 1 0 100%; }
     .has-reader .inbox-heading .eyebrow { display: none; }
     :root[data-theme] .has-reader .inbox-heading h1 { font-size: calc(1.25rem * var(--cm-heading-scale)); letter-spacing: -.02em; }
     .has-reader .mail-sort-control { align-items: center; display: flex; flex: 1 0 100%; justify-content: space-between; gap: 8px; }
@@ -1449,11 +1495,11 @@ body:has(.message-page) .site-footer { display: none; }
     .mail-selection-actions { flex-wrap: wrap; }
     .inbox-tabs { gap: 6px; }
     .inbox-tabs .inbox-tab { font-size: 0.78rem; gap: 5px; padding-inline: 8px; }
-    .message { gap: 8px; grid-template-columns: 44px 44px 32px minmax(0, 1fr) auto; min-height: 76px; padding: 10px; }
+    .message { gap: 4px; grid-template-columns: 44px 44px 32px minmax(0, 1fr) auto; min-height: 72px; padding: 10px 8px; }
     .message .sender-avatar { height: 32px; width: 32px; }
     .message .message-sender { font-size: 0.84rem; }
     .message-summary { font-size: 0.78rem; }
-    .message-date { font-size: 0.67rem; }
+    .message-date { font-size: 0.67rem; margin-left: 4px; }
     .reader-message { padding: 18px 14px; }
     .message-page .reader-toolbar { padding-inline: 14px; }
     :root[data-theme] .reader-subject { font-size: calc(1.3rem * var(--cm-heading-scale)); }
@@ -1463,10 +1509,52 @@ body:has(.message-page) .site-footer { display: none; }
     .refresh-button[aria-busy="true"] .material-symbols-rounded { animation: none; }
 }
 
-.mail-account-picker { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 20px; border-bottom:1px solid var(--border); }
-.mail-account-picker label { font-size:.8125rem; color:var(--muted); }
-.mail-account-picker select { min-height:44px; max-width:100%; border:1px solid var(--border); border-radius:12px; color:var(--text); background:var(--surface); padding:8px 12px; font:inherit; }
-@media(max-width:640px) { .mail-account-picker { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:10px; } .mail-account-picker label,.mail-account-picker select { grid-column:1 / -1; } .mail-account-picker select { width:100%; min-width:0; font-size:.8125rem; } .mail-account-picker .m3e-button { min-width:0; padding-inline:8px; } }
+/* Account controls and workspace tabs share one compact, wrapping row. */
+.mail-workspace-bar {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    padding: 10px 24px;
+}
+
+.mail-account-picker {
+    align-items: center;
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin: 0;
+    min-width: 0;
+}
+
+.mail-account-picker select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font: inherit;
+    font-size: .8125rem;
+    max-width: min(100%, 340px);
+    min-height: 44px;
+    min-width: 0;
+    padding: 8px 12px;
+    text-overflow: ellipsis;
+}
+
+.mail-account-picker .m3e-button {
+    font-size: .8125rem;
+    padding-inline: 12px;
+}
+
+@media (max-width: 640px) {
+    .mail-workspace-bar { gap: 8px; padding: 10px; }
+    .mail-account-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+    .mail-account-picker select { grid-column: 1 / -1; max-width: none; width: 100%; }
+    .mail-account-picker .m3e-button { min-width: 0; padding-inline: 8px; }
+    .mail-workspace-bar .workspace-tabs { flex: 1 0 100%; padding: 0; }
+}
 .apps-workspace.workspace-view:not([hidden]):has(.apps-feed-panel) { display:grid; grid-template-columns:minmax(220px,28%) minmax(0,1fr); }
 .apps-heading h2 { margin:0; font-size:1.4rem; }
 .apps-connection.m3e-button { border-radius:var(--m3e-sys-shape-corner-medium); justify-content:flex-start; padding:16px; text-align:left; white-space:normal; width:calc(100% - 24px); margin:4px 12px; }

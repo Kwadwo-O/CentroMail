@@ -1,0 +1,7 @@
+{% macro sender_avatar(message, class_name) -%}
+{% set logo = sender_logo_url(message.email|default('')) %}
+<div class="{{ class_name }}{% if logo %} has-sender-logo{% endif %}" aria-hidden="true">
+    <span class="sender-initials">{{ message.sender[:2]|upper }}</span>
+    {% if logo %}<img class="sender-logo" src="{{ logo }}" alt="" width="40" height="40" loading="lazy" decoding="async" referrerpolicy="no-referrer">{% endif %}
+</div>
+{%- endmacro %}
