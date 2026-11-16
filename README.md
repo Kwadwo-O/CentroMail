@@ -223,7 +223,7 @@ On screens at least 1200 pixels wide, selecting an email opens a reading pane be
 
 Archiving, moving to Trash, changing read status and starring messages require Google’s `gmail.modify` permission. Accounts connected before this permission was added must reconnect Google and accept the updated access request.
 
-Microsoft sign-in still requires OAuth integration.
+Microsoft Outlook mail now connects to an existing CentroMail account through OAuth and Microsoft Graph. Gmail OAuth and 51 IMAP/SMTP provider options are available in Integrations. See [Email provider setup](docs/email-provider-setup.md) for credentials, app registration, regional servers, Proton Bridge, and provider limitations.
 
 ### Local integrations
 
@@ -235,7 +235,7 @@ Connections are stored in `centro.db` on this machine, and non-secret UI state i
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Gmail    | Google OAuth with the Gmail API enabled.                                                                                                                                                                                   |
 | Telegram | A Telegram account plus an API ID/API hash from my.telegram.org/apps. CentroMail signs in to your own account and stores the session locally; a login code and, if enabled, a two-step verification password are required. |
-| WhatsApp | A Meta WhatsApp Cloud API phone number ID and access token. Personal WhatsApp accounts do not have an official API. Inbound messages require a publicly reachable webhook URL, for example through a tunnel.               |
+| WhatsApp | A Meta WhatsApp Cloud API phone number ID and access token. Personal WhatsApp accounts do not have an official API. Inbound messages require a publicly reachable webhook URL and WHATSAPP_APP_SECRET set to the Meta app secret. Unsigned callbacks are rejected.               |
 | Discord  | A Discord application bot token plus a channel ID. Invite the bot with View Channels, Read Message History and Send Messages. Discord does not permit automating personal user accounts.                                   |
 
 Telegram account support uses the `telethon` package from `requirements.txt`.
