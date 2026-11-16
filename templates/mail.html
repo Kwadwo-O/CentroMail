@@ -6,18 +6,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">
 {% endblock %}
 
-{% block navigation %}
-<a class="nav-link" href="{{ url_for('dashboard') }}">Home</a>
-<a class="nav-link active" href="{{ url_for('mail') }}">Mail</a>
-{% endblock %}
+{% block main_class %}mail-page{% endblock %}
 
 {% block content %}
 <div class="gmail-app" data-folder="{{ folder }}" data-account="{{ mail_account_key }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" data-google-url="{{ url_for('authenticate', provider='google') if mail_kind == 'gmail' else url_for('integrations') }}" data-csrf="{{ csrf_token() }}">
     <header class="gmail-header">
         <button class="icon-button mobile-menu m3e-icon-button m3e-icon-button--standard" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><span class="material-symbols-rounded ui-icon" aria-hidden="true">menu</span></button>
-        <a class="gmail-logo" href="{{ url_for('mail') }}">
-            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo cm-brand-logo">
-        </a>
         <label class="search-box">
             <span class="material-symbols-rounded ui-icon" aria-hidden="true">search</span>
             <input id="mail-search" type="search" placeholder="Search mail" aria-label="Search mail">

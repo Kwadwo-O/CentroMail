@@ -12,12 +12,11 @@ body:has(.gmail-app) {
     color: var(--m3e-sys-color-on-surface);
 }
 
-body:has(.gmail-app) .site-header,
 body:has(.gmail-app) .site-footer {
     display: none;
 }
 
-body:has(.gmail-app) .page-content {
+.mail-page {
     margin: 0;
     max-width: none;
     min-height: 100dvh;
@@ -42,22 +41,8 @@ body:has(.gmail-app) .page-content {
     min-height: 72px;
     padding: 8px 20px;
     position: sticky;
-    top: 0;
+    top: var(--mail-nav-height, 0px);
     z-index: 20;
-}
-
-.gmail-logo {
-    align-items: center;
-    display: flex;
-    flex: 0 0 auto;
-    text-decoration: none;
-}
-
-.header-logo {
-    display: block;
-    height: 46px;
-    object-fit: contain;
-    width: 92px;
 }
 
 .search-box {
@@ -1085,11 +1070,6 @@ body:has(.gmail-app) .page-content {
         display: inline-flex;
     }
 
-    .header-logo {
-        height: 42px;
-        width: 82px;
-    }
-
     .header-actions > .icon-button {
         display: none;
     }
@@ -1395,7 +1375,7 @@ body:has(.message-page) .page-content { margin: 0 auto; max-width: 1100px; paddi
 .mail-help-dialog h2 { font-size: 1.3rem; margin: 0; }
 @media (min-width: 1200px) {
     .gmail-app.has-reader .inbox { flex: 0 1 420px; }
-    .mail-reader { align-self: flex-start; max-height: calc(100dvh - 108px); position: sticky; top: 88px; }
+    .mail-reader { align-self: flex-start; max-height: calc(100dvh - var(--mail-nav-height, 0px) - var(--mail-search-height, 88px) - 48px); position: sticky; top: calc(var(--mail-nav-height, 0px) + var(--mail-search-height, 88px)); }
     .has-reader .message { gap: 8px; grid-template-columns: 44px 44px 32px minmax(0, 1fr); padding-inline: 12px; }
     .has-reader .message-date { display: none; }
     .has-reader .message .sender-avatar { height: 32px; width: 32px; }

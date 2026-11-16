@@ -1,6 +1,18 @@
 (() => {
     const app = document.querySelector('.gmail-app');
     if (!app) return;
+    const navigation = document.querySelector('.site-header');
+    const masthead = app.querySelector('.gmail-header');
+    const syncHeaders = () => {
+        for (const [element, property] of [[navigation, '--mail-nav-height'], [masthead, '--mail-search-height']]) {
+            app.style.setProperty(property, getComputedStyle(element).position === 'sticky' ? element.getBoundingClientRect().height + 'px' : '0px');
+        }
+    };
+    const headerObserver = new ResizeObserver(syncHeaders);
+    headerObserver.observe(navigation);
+    headerObserver.observe(masthead);
+    document.addEventListener('centromail-appearance-change', syncHeaders);
+    syncHeaders();
     const folder = app.dataset.folder;
     const list = document.querySelector('#message-list');
     const search = document.querySelector('#mail-search');
