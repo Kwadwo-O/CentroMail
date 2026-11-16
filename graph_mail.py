@@ -47,7 +47,10 @@ def metadata(config,item,folder):
     if folder=='trash':labels.append('TRASH')
     if folder=='spam':labels.append('SPAM')
     return {'id':message_id(config,item['id']),'labelIds':labels,'internalDate':str(timestamp),'snippet':item.get('bodyPreview',''),
-        'payload':{'headers':[{'name':'From','value':f"{sender.get('name','')} <{sender.get('address','')}>"}, {'name':'Subject','value':item.get('subject','')}, {'name':'Date','value':datetime.fromtimestamp(timestamp/1000).astimezone().strftime('%a, %d %b %Y %H:%M:%S %z') if timestamp else ''}]}}
+        'payload':{'headers':[{'name':'From','value':f"{sender.get('name','')} <{sender.get('address','')}>"}, {'name':'Subject','value':item.get('subject','')}, {'name':'Date','value':datetime.fromtimestamp(timestamp/1000).astimezone().strftime('%a, %d %b %Y %H:%M:%S %z') if timestamp else ''},
+            {'name':'Reply-To','value':', '.join(entry['emailAddress']['address'] for entry in item.get('replyTo',[]))},
+            {'name':'To','value':', '.join(entry['emailAddress']['address'] for entry in item.get('toRecipients',[]))},
+            {'name':'Message-ID','value':item.get('internetMessageId','')}]}}
 
 
 def list_messages(token,config,folder,query='',cursor=''):
@@ -87,3 +90,7 @@ def change_messages(token,config,ids,action):
 
 def send_message(token,recipient,subject,body):
     request(token,'POST','/me/sendMail',payload={'message':{'subject':subject,'body':{'contentType':'Text','content':body},'toRecipients':[{'emailAddress':{'address':recipient}}]},'saveToSentItems':True})
+
+
+def reply_message(token,config,identifier,recipient,subject,body):
+    request(token,'POST','/me/messages/'+raw_id(config,identifier)+'/reply',payload={'message':{'subject':subject,'body':{'contentType':'Text','content':body},'toRecipients':[{'emailAddress':{'address':recipient}}]}})

@@ -164,21 +164,13 @@
         <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page.</p>
         <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
     </dialog>
-    <form class="compose-window" id="compose-window" aria-labelledby="compose-title" method="post" action="{{ url_for('compose') }}" hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ mail_account_key }}">
-        <div class="compose-title"><strong id="compose-title">New Message</strong><button type="button" class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
-        <input type="email" name="to" placeholder="Recipients" aria-label="Recipients" required>
-        <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
-        <textarea name="body" placeholder="Write a message..." aria-label="Message" required></textarea>
-        <div class="compose-footer"><button class="m3e-button m3e-button--filled send-button" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span>Send</button><button class="m3e-button m3e-button--outlined discard-button" type="button" id="discard-compose"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Discard</button></div>
-    </form>
+    {% include '_compose.html' %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.querySelector('#mail-account-select').addEventListener('change', event => event.target.form.requestSubmit());
-    const compose = document.querySelector("#compose-window");
     const sidebar = document.querySelector("#mail-sidebar");
     const sidebarScrim = document.querySelector("#sidebar-scrim");
     const mobileMenu = document.querySelector(".mobile-menu");
@@ -220,17 +212,7 @@
     });
     mobileMailbox.addEventListener('change', () => setSidebar(false));
     setSidebar(false);
-    const showCompose = (show) => {
-        compose.hidden = !show;
-        if (show) {
-            setSidebar(false);
-            compose.querySelector('[name="to"]').focus();
-        } else (mobileMailbox.matches ? mobileMenu : document.querySelector('#open-compose')).focus();
-    };
-    document.querySelector("#open-compose").addEventListener("click", () => showCompose(true));
-    document.querySelector("#close-compose").addEventListener("click", () => showCompose(false));
-    document.querySelector("#discard-compose").addEventListener("click", () => showCompose(false));
-    compose.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); showCompose(false); } });
+    document.addEventListener('centromail:compose-open', () => setSidebar(false));
     const workspaceTabs = [...document.querySelectorAll('.workspace-tab')];
     workspaceTabs.forEach((tab, index) => {
       tab.addEventListener("click", () => {
@@ -258,5 +240,6 @@
       });
     });
 </script>
+<script src="{{ url_for('static', filename='js/compose.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
 {% endblock %}

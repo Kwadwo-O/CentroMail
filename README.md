@@ -221,6 +221,8 @@ Sidebar links open Inbox, Starred, Snoozed, Sent and Drafts, with additional fol
 
 On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. HTML emails use an isolated reader that preserves safe typography and table formatting.
 
+Open an email and choose **Reply** to fill in its recipient and subject. Replies use the account that received the message and follow its Reply-To address when present. Gmail and IMAP/SMTP replies include conversation headers; Outlook uses Microsoft Graph's reply action. The editor fills the screen on phones, preserves a draft when closed, and keeps it available after a failed send.
+
 Archiving, moving to Trash, changing read status and starring messages require Google’s `gmail.modify` permission. Accounts connected before this permission was added must reconnect Google and accept the updated access request.
 
 Microsoft Outlook mail now connects to an existing CentroMail account through OAuth and Microsoft Graph. Gmail OAuth and 51 IMAP/SMTP provider options are available in Integrations. See [Email provider setup](docs/email-provider-setup.md) for credentials, app registration, regional servers, Proton Bridge, and provider limitations.

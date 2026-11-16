@@ -17,6 +17,8 @@ Connections use verified TLS or verified STARTTLS. Unencrypted mail login is una
 
 If delivery succeeds but the Sent copy fails, CentroMail reports that the message was sent. Do not send it again. Correct the server's Sent folder or automatic-save option instead. Disconnect and reconnect an account to change its saved server settings.
 
+To reply, open an email and choose **Reply** in the reading pane or full message page. CentroMail selects that mailbox as the sender and fills the recipient and `Re:` subject. This action replies to one recipient; you can edit the address before sending. Existing mail read/send permissions cover replies, so there is no extra provider setup. Conversation threading is sent using Gmail's thread ID and mail headers, Microsoft's reply endpoint, or IMAP/SMTP mail headers, depending on the connected account. Live delivery still needs a connected account with valid credentials.
+
 ## Gmail and Google Workspace OAuth
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/), select/create a project, and enable **Gmail API**.

@@ -982,18 +982,37 @@ body:has(.gmail-app) .page-content {
     border: 1px solid var(--m3e-sys-color-outline);
     border-bottom: 0;
     border-radius: 1.25rem 1.25rem 0 0;
-    bottom: 0;
-    display: grid;
+    color: var(--m3e-sys-color-on-surface);
+    inset: auto 32px 0 auto;
+    margin: 0;
+    max-height: calc(100dvh - 24px);
     max-width: 540px;
-    overflow: hidden;
+    overflow: auto;
+    padding: 0;
     position: fixed;
-    right: 32px;
     width: calc(100% - 64px);
     z-index: 40;
 }
 
-.compose-window[hidden] {
+.compose-window:not([open]) {
     display: none;
+}
+
+.compose-window::backdrop {
+    background: rgb(0 0 0 / 35%);
+}
+
+.compose-window form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.compose-account {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.78rem;
+    margin: 0;
+    overflow-wrap: anywhere;
+    padding: 10px 18px;
 }
 
 .compose-title {
@@ -1010,13 +1029,9 @@ body:has(.gmail-app) .page-content {
     font-size: 0.9rem;
 }
 
-.compose-title .icon-button {
-    height: 34px;
-    width: 34px;
-}
-
 .compose-window input,
 .compose-window textarea {
+    min-width: 0;
     background: var(--m3e-sys-color-surface);
     border: 0;
     border-bottom: 1px solid var(--m3e-sys-color-outline-variant);
@@ -1239,11 +1254,17 @@ body:has(.gmail-app) .page-content {
 
     .compose-window {
         border-radius: 0;
-        grid-template-rows: auto auto auto minmax(0, 1fr) auto;
         height: 100dvh;
+        inset: 0;
+        max-height: 100dvh;
         max-width: none;
         right: 0;
         width: 100%;
+    }
+
+    .compose-window form {
+        grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+        height: 100%;
     }
 
     .compose-window textarea {
@@ -1359,6 +1380,7 @@ body:has(.gmail-app) .page-content {
 .reader-sender span, .reader-message-header time { color: var(--m3e-sys-color-on-surface-variant); font-size: 0.78rem; }
 .reader-message-header time { flex-basis: 100%; }
 .reader-subject { color: var(--m3e-sys-color-on-surface); font-size: 1.4rem; line-height: 1.35; margin: 24px 0; overflow-wrap: anywhere; }
+.reader-actions { margin-bottom: 20px; }
 .reader-plain-body { border-top: 1px solid var(--m3e-sys-color-outline-variant); color: var(--m3e-sys-color-on-surface); font-size: 0.95rem; line-height: 1.65; overflow-wrap: anywhere; padding-top: 20px; white-space: pre-wrap; }
 .email-body-frame { background: white; border: 1px solid var(--m3e-sys-color-outline-variant); border-radius: 12px; display: block; height: max(440px, calc(100dvh - 340px)); width: 100%; }
 .reader-empty { padding: 24px; text-align: center; }

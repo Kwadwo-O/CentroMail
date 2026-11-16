@@ -118,7 +118,7 @@ def message_payload(raw, flags, message_id, folder):
     if folder == 'trash': labels.append('TRASH')
     if folder == 'spam': labels.append('SPAM')
     return {'id':message_id,'labelIds':labels,'internalDate':str(timestamp),'snippet':'',
-        'payload':{'headers':[{'name':name,'value':str(message.get(name,''))} for name in ('From','Subject','Date')]}}
+        'payload':{'headers':[{'name':name,'value':str(message.get(name,''))} for name in ('From','Subject','Date','Reply-To','To','Message-ID','References')]}}
 
 
 def list_messages(config, cursor='', query='', folder='inbox', limit=25):

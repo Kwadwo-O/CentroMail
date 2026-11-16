@@ -17,7 +17,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.message import EmailMessage
-from email.utils import parsedate_to_datetime
+from email.utils import parsedate_to_datetime, parseaddr, getaddresses
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -650,6 +650,11 @@ def gmail_metadata_from_payload(payload, fallback_id):
         "sender": gmail_sender(sender),
         "email": gmail_sender_email(sender),
         "subject": gmail_header(message_headers, "Subject") or "(No subject)",
+        "reply_to": gmail_header(message_headers, "Reply-To"),
+        "to": gmail_header(message_headers, "To"),
+        "message_id": gmail_header(message_headers, "Message-ID"),
+        "references": gmail_header(message_headers, "References"),
+        "thread_id": payload.get("threadId", ""),
         "preview": payload.get("snippet", ""),
         "time": gmail_message_time(gmail_header(message_headers, "Date")),
         "date": gmail_message_full_time(gmail_header(message_headers, "Date")),
@@ -692,6 +697,10 @@ def _fetch_gmail_detail(headers, message_id):
             ("metadataHeaders", "From"),
             ("metadataHeaders", "Subject"),
             ("metadataHeaders", "Date"),
+            ("metadataHeaders", "Reply-To"),
+            ("metadataHeaders", "To"),
+            ("metadataHeaders", "Message-ID"),
+            ("metadataHeaders", "References"),
         ],
         timeout=(5, 15),
     )
@@ -699,11 +708,11 @@ def _fetch_gmail_detail(headers, message_id):
     return gmail_metadata_from_payload(detail.json(), message_id)
 
 
-def fetch_gmail_message(user, message_id):
+def fetch_gmail_message(user, message_id, *, for_reply=False):
     """Fetch and decode one complete Gmail message for the detail view."""
     metadata = gmail_cache_get(user["id"], message_id)
     body = gmail_cache_get(user["id"], message_id, body=True)
-    if metadata is not None and body is not None:
+    if metadata is not None and body is not None and not (for_reply and "thread_id" not in metadata):
         return {**metadata, "date": gmail_message_date(metadata), "body": body}
 
     access_token = get_gmail_access_token(user)
@@ -723,7 +732,24 @@ def fetch_gmail_message(user, message_id):
     return {**metadata, "date": gmail_message_date(metadata), "body": body}
 
 
-def send_gmail_message(user, recipient, subject, body):
+def add_reply_headers(email, original):
+    """Copy only well-formed message IDs from the received email into the reply."""
+    pattern = r"<[^<>\s\x00-\x1f\x7f]+@[^<>\s\x00-\x1f\x7f]+>"
+    parent_ids = re.findall(pattern, original.get("message_id", ""))
+    if parent_ids:
+        email["In-Reply-To"] = parent_ids[0]
+        references = re.findall(pattern, original.get("references", ""))
+        email["References"] = " ".join(dict.fromkeys([*references, parent_ids[0]]))
+
+
+def reply_address(message, account):
+    address = message.get("reply_to") or message.get("email", "")
+    if not message.get("reply_to") and normalize_email(parseaddr(address)[1]) == normalize_email(account["email"]):
+        address = message.get("to", "")
+    return next((normalize_email(email) for _, email in getaddresses([address]) if valid_email(email)), "")
+
+
+def send_gmail_message(user, recipient, subject, body, *, reply=None):
     access_token = get_gmail_access_token(user)
     if not access_token:
         raise RuntimeError("Google sign-in must be re-authorized before sending email.")
@@ -731,12 +757,17 @@ def send_gmail_message(user, recipient, subject, body):
     email["To"] = recipient
     email["Subject"] = subject or "(No subject)"
     email["From"] = user["email"]
+    if reply:
+        add_reply_headers(email, reply)
     email.set_content(body)
     raw = base64.urlsafe_b64encode(email.as_bytes()).decode().rstrip("=")
+    payload = {"raw": raw}
+    if reply and reply.get("thread_id"):
+        payload["threadId"] = reply["thread_id"]
     response = google_requests.post(
         "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
         headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-        json={"raw": raw},
+        json=payload,
         timeout=10,
     )
     response.raise_for_status()
@@ -1836,7 +1867,7 @@ GMAIL_FOLDERS = {
 
 def requested_mail_folder():
     account = active_email_account(g.user)
-    folder = request.args.get("folder", "inbox")
+    folder = request.args.get("folder") or request.form.get("folder") or "inbox"
     if folder not in GMAIL_FOLDERS:
         abort(404)
     if account["kind"] == "imap" and folder not in {"inbox","starred",*account["config"]["folders"]}:
@@ -2103,7 +2134,7 @@ def paginate_messages(messages, page):
 
 
 @app.route('/inbox')
-def inbox():
+def inbox(compose_draft=None):
     folder = requested_mail_folder()
     account = active_email_account(g.user)
     messages = cached_mail_preview(g.user, folder)
@@ -2113,6 +2144,7 @@ def inbox():
     return render_template(
         'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=email_accounts(g.user), mail_account_key=account['key'], mail_kind=account['kind'],
         folder_title=GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages),
+        compose_draft=compose_draft, mail_account_email=account['email'],
     )
 
 
@@ -2121,21 +2153,31 @@ def mail():
     return inbox()
 
 
+def fetch_email_message(user, account, message_id, folder):
+    if account["kind"] == "gmail":
+        if message_id.startswith(("imap-", "ms-")):
+            raise ValueError("This email belongs to a different account.")
+        return fetch_gmail_message(user, message_id, for_reply=True)
+    config = account["config"]
+    if account["kind"] == "imap":
+        email_providers.parse_id(config, message_id, folder=folder)
+        payload = email_providers.read_message(config, message_id, folder)
+    else:
+        graph_mail.raw_id(config, message_id)
+        payload = graph_mail.read_message(microsoft_access_token(account), config, message_id, folder)
+    metadata = gmail_metadata_from_payload(payload, message_id)
+    metadata['mail_folder'] = 'inbox' if folder == 'starred' and account['kind'] == 'imap' else folder
+    body = decode_gmail_body(payload.get("payload", {}))
+    gmail_cache_put(user["id"], message_id, metadata=metadata, body=body)
+    return {**metadata, "body": body}
+
+
 @app.route('/message/<message_id>')
 def message_detail(message_id):
     folder = requested_mail_folder()
+    account = active_email_account(g.user)
     try:
-        account = active_email_account(g.user)
-        if account["kind"] == "gmail":
-            message = fetch_gmail_message(g.user, message_id)
-        else:
-            config=account["config"]
-            payload=email_providers.read_message(config,message_id,folder) if account["kind"] == "imap" else graph_mail.read_message(microsoft_access_token(account),config,message_id,folder)
-            metadata=gmail_metadata_from_payload(payload,message_id)
-            metadata['mail_folder']='inbox' if folder=='starred' and account['kind']=='imap' else folder
-            body=decode_gmail_body(payload.get("payload",{}))
-            gmail_cache_put(g.user["id"],message_id,metadata=metadata,body=body)
-            message={**metadata,"body":body}
+        message = fetch_email_message(g.user, account, message_id, folder)
         if message is None:
             raise RuntimeError("Connect Google to read this email.")
     except (RuntimeError, requests.RequestException, KeyError, ValueError, OSError, imaplib.IMAP4.error) as error:
@@ -2147,7 +2189,9 @@ def message_detail(message_id):
         )
     return render_template(
         'message_pane.html' if request.args.get("pane") == "1" else 'message.html',
-        message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"], mail_account_key=active_email_account(g.user)['key'],
+        message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"], mail_account_key=account['key'],
+        mail_account_email=account['email'], reply_to=reply_address(message, account),
+        reply_subject=message['subject'] if re.match(r'^re\s*:', message['subject'], re.I) else 'Re: ' + message['subject'],
     )
 
 
@@ -2157,6 +2201,9 @@ def compose():
     recipient = normalize_email(request.form.get('to', ''))
     subject = request.form.get('subject') or 'No subject'
     body = request.form.get('body') or ''
+    account = active_email_account(g.user)
+    folder = requested_mail_folder()
+    reply_id = request.form.get('reply_id', '')
     if not valid_email(recipient):
         flash("Enter a valid recipient email address.", "error")
     elif '\r' in subject or '\n' in subject:
@@ -2166,19 +2213,27 @@ def compose():
     else:
         try:
             sent_warning=None
-            account=active_email_account(g.user)
-            if account["kind"] == "gmail": send_gmail_message(g.user, recipient, subject, body)
-            elif account["kind"] == "microsoft": graph_mail.send_message(microsoft_access_token(account),recipient,subject,body)
+            original = fetch_email_message(g.user, account, reply_id, folder) if reply_id else None
+            if reply_id and original is None:
+                raise RuntimeError("Reconnect the email account before replying.")
+            if account["kind"] == "gmail":
+                if original: send_gmail_message(g.user, recipient, subject, body, reply=original)
+                else: send_gmail_message(g.user, recipient, subject, body)
+            elif account["kind"] == "microsoft":
+                if original: graph_mail.reply_message(microsoft_access_token(account),account['config'],reply_id,recipient,subject,body)
+                else: graph_mail.send_message(microsoft_access_token(account),recipient,subject,body)
             else:
                 email=EmailMessage(); email["From"]=account["email"]; email["To"]=recipient; email["Subject"]=subject; email.set_content(body)
+                if original: add_reply_headers(email, original)
                 sent_warning=email_providers.send_message(account["config"],email)
         except RuntimeError as error:
             flash(str(error), "error")
-        except (requests.RequestException,OSError,imaplib.IMAP4.error,smtplib.SMTPException):
+        except (ValueError, requests.RequestException,OSError,imaplib.IMAP4.error,smtplib.SMTPException):
             flash("The mail server could not send the message. Please try again.", "error")
         else:
             flash(sent_warning or f"Message sent to {recipient} successfully.", "info" if sent_warning else "success")
-    return redirect(url_for('inbox'))
+            return redirect(url_for('inbox', account=account['key'], folder=folder))
+    return inbox(compose_draft={'to': recipient, 'subject': subject, 'body': body, 'reply_id': reply_id})
 
 
 @app.route('/settings')

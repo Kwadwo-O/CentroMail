@@ -7,5 +7,7 @@
         <a class="reader-back" href="{{ url_for('inbox', folder=folder, account=mail_account_key) }}"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to {{ folder_title }}</a>
     </header>
     {% include 'message_pane.html' %}
+    {% include '_compose.html' %}
 </section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/compose.js') }}"></script>{% endblock %}

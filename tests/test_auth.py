@@ -220,6 +220,7 @@ class AuthTests(unittest.TestCase):
     def mail_metadata(message_id, labels=None):
         labels = labels if labels is not None else ["INBOX", "UNREAD"]
         return {"id": message_id, "sender": "Test Sender", "email": "sender@example.com",
+                "thread_id": "thread-" + message_id, "reply_to": "", "to": "person@example.com", "message_id": "<" + message_id + "@example.com>", "references": "",
                 "subject": "Subject " + message_id, "preview": "Message preview", "time": "Nov 15",
                 "date": "Nov 15, 2026", "internal_date": 123, "label_ids": labels,
                 "unread": "UNREAD" in labels, "starred": "STARRED" in labels, "category": "primary"}
