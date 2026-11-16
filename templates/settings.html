@@ -33,13 +33,13 @@
                 {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
                 <m3e-menu-group label="{{ label }}">
                     {% for group in preference_groups if group.key in keys %}
-                    <m3e-menu-item type="radio" value="{{ group.key }}" icon="{{ group.icon }}" checked-icon="check">{{ group.title }}</m3e-menu-item>
+                    <m3e-menu-item type="radio" value="{{ group.key }}" icon="{{ group.icon }}">{{ group.title }}</m3e-menu-item>
                     {% endfor %}
                 </m3e-menu-group>
                 {% endfor %}
                 <m3e-menu-group label="Account">
-                    <m3e-menu-item type="radio" value="account" icon="person" checked-icon="check">Account</m3e-menu-item>
-                    <m3e-menu-item type="radio" value="data" icon="shield" checked-icon="check">Data and privacy</m3e-menu-item>
+                    <m3e-menu-item type="radio" value="account" icon="person">Account</m3e-menu-item>
+                    <m3e-menu-item type="radio" value="data" icon="shield">Data and privacy</m3e-menu-item>
                 </m3e-menu-group>
             </m3e-menu>
         </nav>

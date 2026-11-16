@@ -16,7 +16,13 @@
 .settings-category-button { width: 100%; min-height: 56px; justify-content: start; gap: 12px; text-align: left; }
 .settings-category-button [data-settings-category-label] { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .settings-category-button[aria-expanded=true] > .m3e-icon:last-child { transform: rotate(180deg); }
-#settings-category-menu > .m3e-menu { max-block-size: calc(100dvh - 24px); max-inline-size: calc(100vw - 24px); }
+#settings-category-menu > .m3e-menu { inline-size: min(320px,calc(100vw - 32px)); max-block-size: min(560px,calc(100dvh - 32px)); max-inline-size: calc(100vw - 32px); padding: 8px; border: 1px solid var(--border); border-radius: var(--cm-custom-radius,var(--m3e-sys-shape-corner-extra-large,28px)); background: var(--surface-container); box-shadow: none; }
+#settings-category-menu .m3e-menu__group + .m3e-menu__group { margin-top: 8px; border-block-start: 0; }
+#settings-category-menu .m3e-menu__label { min-block-size: 28px; padding-inline: 12px; color: var(--muted); font-size: .75rem; font-weight: 600; letter-spacing: .02em; }
+#settings-category-menu .m3e-menu__item { min-inline-size: 0; max-inline-size: 100%; min-block-size: 44px; gap: 12px; padding: 6px 12px; border-radius: var(--m3e-sys-shape-corner-medium,12px); font-size: .875rem; }
+#settings-category-menu .m3e-menu__item[aria-checked=true] { background: var(--highlight); color: var(--m3e-sys-color-on-secondary-container); font-weight: 600; }
+#settings-category-menu .m3e-menu__item[aria-checked=true] :is(.m3e-menu__item-leading,.m3e-menu__item-trailing) { color: inherit; }
+#settings-category-menu .m3e-menu__item:focus-visible { outline: var(--cm-focus-width,3px) solid var(--primary); outline-offset: -3px; }
 .settings-navigation { display: grid; gap: 6px; position: sticky; top: 96px; }
 .settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; padding: 6px; border-radius: var(--m3e-sys-shape-corner-extra-large,28px); --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
 .settings-navigation .m3e-menu__group { display: grid; gap: 4px; padding: 6px; background: transparent; border-radius: 16px; box-shadow: none; }

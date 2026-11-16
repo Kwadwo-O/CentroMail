@@ -46,7 +46,11 @@
         });
         links.forEach(link => { if (!query && link.dataset.settingsNav === category) link.setAttribute('aria-current','location'); else link.removeAttribute('aria-current'); });
         const categoryItems = [...categoryMenu.querySelectorAll('m3e-menu-item')];
-        categoryItems.forEach(item => item.toggleAttribute('checked', !query && item.getAttribute('value') === category));
+        categoryItems.forEach(item => {
+            const selected = !query && item.getAttribute('value') === category;
+            item.toggleAttribute('checked', selected);
+            item.setAttribute('trailing-icon', selected ? 'check' : '');
+        });
         const current = categoryItems.find(item => item.getAttribute('value') === category);
         const label = query ? 'Search results' : current.textContent.trim();
         categoryButton.querySelector('[data-settings-category-label]').textContent = label;

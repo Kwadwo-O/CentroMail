@@ -97,11 +97,11 @@ img {
     font-weight: 750;
     letter-spacing: -0.045em;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
-.brand span {
-    color: var(--m3e-sys-color-primary);
-}
+:root[data-theme] .brand .cm-brand-logo { max-width: 100%; max-height: 56px; }
 
 .nav-links {
     align-items: center;
@@ -729,18 +729,17 @@ img {
     }
 
     .navbar {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 0.65rem;
-        padding: 0.85rem 0;
+        display: grid;
+        grid-template-columns: minmax(0,1.1fr) minmax(0,.7fr) minmax(0,1.25fr) minmax(0,.95fr);
+        align-items: center;
+        gap: 4px;
+        padding: 8px 0;
     }
 
-    .nav-links {
-        display: grid;
-        gap: 0.25rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: 100%;
-    }
+    .navbar .brand { grid-column: 1 / 4; grid-row: 1; justify-self: start; }
+    .nav-links { display: contents; }
+    .nav-links > .nav-link { grid-row: 2; display: grid; place-items: center; align-self: stretch; min-width: 0; min-height: 44px; padding: 8px 3px; font-size: .75rem; text-align: center; overflow-wrap: anywhere; }
+    .navbar .logout-form { grid-column: 4; grid-row: 1; justify-self: end; }
 
     .nav-link,
     .logout-form button {

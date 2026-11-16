@@ -23,7 +23,7 @@
     {% if request.endpoint != 'login' %}
     <header class="site-header">
         <nav class="navbar container" aria-label="Main navigation">
-            <a class="brand" href="{{ url_for('dashboard') }}">Centro<span>Mail</span></a>
+            <a class="brand" href="{{ url_for('dashboard') }}"><img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="862" height="400"></a>
             <div class="nav-links">
                 <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %} href="{{ url_for('dashboard') }}">Overview</a>
                 <a class="nav-link {% if request.endpoint == 'inbox' or request.endpoint == 'mail' %}active{% endif %}" {% if request.endpoint in ['inbox', 'mail'] %}aria-current="page"{% endif %} href="{{ url_for('inbox') }}">Inbox</a>

@@ -26,4 +26,6 @@ Axe-core found no violations for the tested WCAG A/AA rules on Landing, Login, R
 
 The mobile Settings follow-up uses a compact M3E section menu below the sticky app header and a collapsible live preview. All ten categories, search, controls, and larger text fit the tested 320, 390, 600, 768, and 900-pixel widths. The menu stays inside a 320×480 viewport, with keyboard navigation scrolling the focused item into view. Desktop light/dark and 200% zoom checks also passed.
 
+The shared mobile header now uses the existing transparent `Logo_compact.png` artwork and keeps the four page links in one row, with Log out beside the logo. Settings menu polish adds padded group headings, rounded rows, a wider surface, and a trailing selection check that preserves each category icon. Light/dark, larger text/logo, short-screen keyboard, and accessibility checks passed for the updated header and menu; the shared header was also checked on Integrations, Privacy, and Terms.
+
 Manual screen-reader and user testing were not performed. Browser checks used local message fixtures; arbitrary received HTML emails depend on their sender's markup. These checks do not establish full WCAG conformance.
