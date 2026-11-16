@@ -13,8 +13,8 @@
 #settings-feedback { flex: 1; color: var(--muted); font-size: .875rem; margin: 0; min-width: 220px; }
 .settings-layout { display: grid; grid-template-columns: 224px minmax(0,1fr); gap: 32px; align-items: start; }
 .settings-navigation { display: grid; gap: 6px; position: sticky; top: 96px; }
-.settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
-.settings-navigation .m3e-menu__group { display: grid; gap: 4px; padding: 6px; background: var(--surface-container); border-radius: 16px; box-shadow: none; }
+.settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; padding: 6px; border-radius: var(--m3e-sys-shape-corner-extra-large,28px); --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
+.settings-navigation .m3e-menu__group { display: grid; gap: 4px; padding: 6px; background: transparent; border-radius: 16px; box-shadow: none; }
 .settings-navigation-heading { display: block; margin: 0; padding: 8px 12px 4px; color: var(--muted); font-size: .6875rem; letter-spacing: .04em; }
 .settings-navigation a { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px; text-decoration: none; border-radius: 12px; color: var(--text); font-size: .8125rem; line-height: 1.4; border: 1px solid transparent; transition: background-color 160ms ease, border-color 160ms ease; }
 .settings-navigation a:hover { background: var(--surface-container); }
