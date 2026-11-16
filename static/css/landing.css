@@ -103,7 +103,7 @@
 .landing-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding-block: 36px; }
 .landing-footer .landing-brand { font-size: 1.125rem; }
 .landing-footer > p { color: var(--muted); font-size: 0.75rem; margin: 0; }
-.landing-footer nav { display: flex; gap: 24px; margin-left: auto; }
+.landing-footer nav { display: flex; flex-wrap: wrap; gap: 24px; margin-left: auto; }
 @media (max-width: 1050px) {
     .landing-nav-links { display: none; }
     .landing-hero { gap: 20px; }

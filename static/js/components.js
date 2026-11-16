@@ -4,6 +4,13 @@ import '../vendor/m3e/ripple/index.js';
 document.querySelectorAll('.nav-link, .mail-nav-link, .dashboard-nav-link').forEach(link => link.classList.add('m3e-state-layer'));
 
 const restoreSenderInitials = image => {
+    const fallback = image.dataset.logoFallback;
+    if (fallback) {
+        delete image.dataset.logoFallback;
+        image.referrerPolicy = 'no-referrer';
+        image.src = fallback;
+        return;
+    }
     image.parentElement.classList.remove('has-sender-logo');
     image.remove();
 };

@@ -98,5 +98,5 @@
 </div>
 {% endblock %}
 {% block footer %}
-<footer class="landing-footer landing-shell"><a class="landing-brand" href="{{ url_for('index') }}"><img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="100" height="46" loading="lazy"></a><p>A little more together.</p><nav aria-label="Legal links"><a href="{{ url_for('privacy') }}">Privacy policy</a><a href="{{ url_for('terms') }}">Terms of service</a></nav></footer>
+<footer class="landing-footer landing-shell"><a class="landing-brand" href="{{ url_for('index') }}"><img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="100" height="46" loading="lazy"></a><p>A little more together.</p><nav aria-label="Legal links"><a href="{{ url_for('privacy') }}">Privacy policy</a><a href="{{ url_for('terms') }}">Terms of service</a>{% if logo_provider_enabled %}<a href="https://logo.dev" target="_blank" rel="noopener noreferrer">Logos by Logo.dev</a>{% endif %}</nav></footer>
 {% endblock %}

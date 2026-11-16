@@ -1,8 +1,9 @@
 """Sender identity, domain boundaries, and offline logo selection."""
 
 import unittest
+from urllib.parse import parse_qs, urlparse
 
-from sender_logos import sender_logo_source
+from sender_logos import logo_cdn_enabled, sender_logo_domain, sender_logo_source
 
 
 class SenderLogoTests(unittest.TestCase):
@@ -69,6 +70,46 @@ class SenderLogoTests(unittest.TestCase):
         for value in values:
             with self.subTest(value=value):
                 self.assertIsNone(sender_logo_source(value))
+
+    def test_domain_extraction_normalizes_case_fqdn_and_international_names(self):
+        self.assertEqual(sender_logo_domain('Updates <news@MAIL.ACME.CO.UK.>'), 'mail.acme.co.uk')
+        self.assertEqual(sender_logo_domain('Updates <news@bücher.de>'), 'xn--bcher-kva.de')
+
+    def test_cdn_uses_only_organization_domain_and_publishable_key(self):
+        key = 'pk_fixture_public-key_123'
+        value = 'Private Person <private.name+mail@MAIL.ACME.CO.UK>'
+        source = sender_logo_source(value, key)
+        url = urlparse(source)
+        self.assertEqual((url.scheme, url.netloc, url.path), ('https', 'img.logo.dev', '/mail.acme.co.uk'))
+        self.assertEqual(parse_qs(url.query), {'token': [key], 'size': ['80'], 'format': ['png'], 'fallback': ['404']})
+        self.assertNotIn('Private', source)
+        self.assertNotIn('private.name', source)
+        self.assertNotIn('@', source)
+
+    def test_configured_cdn_supports_known_brands_and_idna_domains(self):
+        for address, domain in (
+            ('LinkedIn <jobs@e.linkedin.com>', 'e.linkedin.com'),
+            ('Updates <news@bücher.de>', 'xn--bcher-kva.de'),
+        ):
+            with self.subTest(address=address):
+                self.assertEqual(urlparse(sender_logo_source(address, 'pk_fixture')).path, '/' + domain)
+
+    def test_cdn_excludes_personal_nonpublic_and_unsafe_domains(self):
+        for value in ('LinkedIn <person@gmail.com>', 'user@outlook.com', 'user@example.com',
+                      'user@service.test', 'user@internal.lan', 'user@127.0.0.1',
+                      'user@[IPv6:::1]', 'user@company.com/path', 'user@company.com?token=x',
+                      'user@company.com\r\nInjected: yes', None):
+            with self.subTest(value=value):
+                self.assertIsNone(sender_logo_source(value, 'pk_fixture'))
+
+    def test_invalid_and_secret_keys_preserve_local_fallbacks(self):
+        for key in (None, '', 123, {}, 'sk_fixture_secret', 'PK_fixture', 'pk_',
+                    ' pk_fixture', 'pk_fixture ', 'pk_fixture\n', 'pk_value&other=1'):
+            with self.subTest(key=key):
+                self.assertFalse(logo_cdn_enabled(key))
+                self.assertEqual(sender_logo_source('jobs@linkedin.com', key), 'images/senders/linkedin.png')
+                self.assertIsNone(sender_logo_source('person@acme.co.uk', key))
+        self.assertTrue(logo_cdn_enabled('pk_fixture_public-key_123'))
 
 
 if __name__ == '__main__':

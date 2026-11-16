@@ -350,6 +350,12 @@ The aim is to create an interface that feels:
 
 * Accessible — clear navigation, readable typography and intuitive controls.
 
+### Sender logos
+
+Set `CDN_PUBLIC_KEY` to your Logo.dev publishable key (`pk_...`) in the project-root `.env`, then restart the app. Inbox rows and opened emails load company logos by sender domain. The browser uses the publishable key; `LOGO_API_SECRET_KEY` is never sent to the browser and is not needed for displaying logos.
+
+If Logo.dev has no image or cannot load, CentroMail falls back to a bundled logo or sender initials. Without a publishable key, bundled logos continue to work. Personal email providers keep initials. No full sender address or email content is included in logo requests.
+
 ### Project status
 
 CentroMail is actively being developed. Its features, integrations and overall design may change as the project evolves.

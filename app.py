@@ -28,7 +28,7 @@ import imaplib
 import smtplib
 import email_providers
 import graph_mail
-from sender_logos import sender_logo_source
+from sender_logos import logo_cdn_enabled, sender_logo_source
 import bleach
 import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
@@ -61,7 +61,7 @@ except ImportError:  # Keep the rest of CentroMail usable without Telethon.
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-load_dotenv(Path(app.root_path) / "..env")
+load_dotenv(Path(app.root_path) / ".env")
 DATABASE = os.path.join(app.root_path, "centro.db")
 app.config.update(
     DATABASE=os.environ.get("CENTROMAIL_DATABASE", DATABASE),
@@ -78,6 +78,7 @@ app.config.update(
     GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
     GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
     GOOGLE_REDIRECT_URI=os.environ.get("GOOGLE_REDIRECT_URI"),
+    CDN_PUBLIC_KEY=os.environ.get("CDN_PUBLIC_KEY"),
 )
 oauth = OAuth(app)
 google = oauth.register(
@@ -248,13 +249,17 @@ PREFERENCE_GROUPS = json.loads((Path(app.root_path) / "static/preferences.json")
 
 @app.context_processor
 def appearance_context():
-    return {"preference_groups": PREFERENCE_GROUPS}
+    return {"preference_groups": PREFERENCE_GROUPS,
+            "logo_provider_enabled": logo_cdn_enabled(app.config.get('CDN_PUBLIC_KEY'))}
 
 
 @app.template_global()
-def sender_logo_url(email):
-    source = sender_logo_source(email)
-    return url_for('static', filename=source) if source else None
+def sender_logo_url(email, local_only=False):
+    key = None if local_only else app.config.get('CDN_PUBLIC_KEY')
+    source = sender_logo_source(email, key)
+    if not source:
+        return None
+    return source if source.startswith('https://img.logo.dev/') else url_for('static', filename=source)
 
 
 @app.template_global()

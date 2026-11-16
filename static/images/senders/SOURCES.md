@@ -1,4 +1,5 @@
-Sender logos are stored locally and never fetched using message data.
+These bundled sender-logo fallbacks are stored locally. When `CDN_PUBLIC_KEY`
+is configured, Logo.dev supplies primary images using the sender's domain.
 
 - `linkedin.png`: logo reference supplied by the user.
 - `amazon.ico`: https://www.amazon.co.uk/favicon.ico

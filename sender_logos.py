@@ -2,6 +2,7 @@
 
 import re
 from email.utils import parseaddr
+from urllib.parse import urlencode
 
 
 _BRAND_LOGOS = {
@@ -60,19 +61,15 @@ _NONPUBLIC_DOMAINS = frozenset({
     'internal', 'intranet', 'lan', 'home', 'corp', 'private', 'onion', 'alt', 'arpa',
 })
 _DNS_LABEL = re.compile(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z')
+_PUBLISHABLE_KEY = re.compile(r'pk_[A-Za-z0-9_-]+\Z')
 
 
 def _within(domain, root):
     return domain == root or domain.endswith('.' + root)
 
 
-def sender_logo_source(value):
-    """Return a local static filename or ``None`` for the initials fallback.
-
-    Known brands use bundled images. Personal, unknown, and nonpublic addresses
-    keep the initials fallback; display names never select a logo. No sender
-    information is included in external URLs.
-    """
+def sender_logo_domain(value):
+    """Return the normalized public organization domain from a From address."""
     if not isinstance(value, str) or not value or any(ord(char) < 32 for char in value):
         return None
     try:
@@ -93,6 +90,28 @@ def sender_logo_source(value):
         return None
     if any(_within(domain, root) for root in _NONPUBLIC_DOMAINS | _PERSONAL_DOMAINS):
         return None
+    return domain
+
+
+def logo_cdn_enabled(publishable_key):
+    """Accept a publishable Logo.dev CDN token, never a secret API key."""
+    return isinstance(publishable_key, str) and bool(_PUBLISHABLE_KEY.fullmatch(publishable_key))
+
+
+def sender_logo_source(value, publishable_key=None):
+    """Return a CDN URL, local static filename, or initials fallback (``None``).
+
+    A configured publishable key enables Logo.dev for public organizations.
+    Otherwise known brands use bundled images. Personal and nonpublic addresses
+    keep initials; display names never select a logo. Only the sender's domain
+    enters the CDN URL, and this helper performs no requests.
+    """
+    domain = sender_logo_domain(value)
+    if domain is None:
+        return None
+    if logo_cdn_enabled(publishable_key):
+        query = urlencode({'token': publishable_key, 'size': 80, 'format': 'png', 'fallback': '404'})
+        return f'https://img.logo.dev/{domain}?{query}'
     for root, logo in _BRAND_LOGOS.items():
         if _within(domain, root):
             return logo
