@@ -21,6 +21,15 @@ const syncTheme = async () => {
     style.textContent = createTheme(options).cssText; lastTheme = key;
 };
 const originalFrames = new WeakMap();
+let tooltipModule;
+const syncTooltips = () => {
+    if (document.querySelector('m3e-tooltip')) tooltipModule ??= import('../vendor/m3e/tooltip/index.js');
+};
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const tooltip = document.querySelector('m3e-tooltip[open]');
+    if (tooltip) { tooltip.hide(); event.preventDefault(); event.stopPropagation(); }
+}, {capture:true});
 const syncReaderText = () => document.querySelectorAll('.email-body-frame').forEach(frame => {
     if (!originalFrames.has(frame)) originalFrames.set(frame, frame.getAttribute('srcdoc'));
     const size = window.CentroMailAppearance.get('reader-text-size');
@@ -30,8 +39,8 @@ const syncReaderText = () => document.querySelectorAll('.email-body-frame').forE
 });
 document.addEventListener('centromail-appearance-change', () => { syncTheme(); syncReaderText(); });
 new MutationObserver(syncTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
-new MutationObserver(syncReaderText).observe(document.documentElement, {childList: true, subtree: true});
-syncTheme(); syncReaderText();
+new MutationObserver(() => { syncReaderText(); syncTooltips(); }).observe(document.documentElement, {childList: true, subtree: true});
+syncTheme(); syncReaderText(); syncTooltips();
 
 // Stop indeterminate morphs when an indicator is hidden or motion is reduced.
 const indicatorMotion = matchMedia('(prefers-reduced-motion: reduce)');

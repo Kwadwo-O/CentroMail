@@ -3,6 +3,33 @@
     status.className = 'sr-only';
     status.setAttribute('role', 'status');
     document.body.append(status);
+    const pendingReads = new WeakSet();
+    const markOpenedEmails = () => document.querySelectorAll('[data-mark-email-read="true"]').forEach(async article => {
+        if (pendingReads.has(article) || article.closest('[hidden]')) return;
+        pendingReads.add(article);
+        try {
+            const response = await fetch(article.dataset.readUrl, {method:'POST',body:new URLSearchParams({
+                action:'read',account:article.dataset.readAccount,folder:article.dataset.readFolder,
+                message_ids:article.dataset.readMessageId,csrf_token:article.dataset.readCsrf,
+            })});
+            if (response.redirected) { location.assign(response.url); return; }
+            if (!response.ok) throw new Error('Read status could not be saved.');
+            article.dataset.markEmailRead = 'false';
+            document.querySelectorAll('.message').forEach(row => {
+                if (row.dataset.messageId !== article.dataset.readMessageId) return;
+                row.classList.remove('unread');
+                row.querySelector('.message-read-state').textContent = '';
+            });
+            document.dispatchEvent(new CustomEvent('centromail-mail-read', {detail:{account:article.dataset.readAccount}}));
+            status.textContent = 'Email marked as read.';
+        } catch {
+            const warning = document.createElement('p'); warning.className = 'reply-unavailable'; warning.setAttribute('role','status');
+            warning.textContent = 'Email opened, but its read status could not be saved. Use Mark as read in the inbox to try again.';
+            article.querySelector('.reader-actions').append(warning);
+        }
+    });
+    markOpenedEmails();
+    new MutationObserver(markOpenedEmails).observe(document.body, {childList:true,subtree:true});
     document.addEventListener('click', async event => {
         const button = event.target.closest('[data-copy-code]');
         if (!button) return;

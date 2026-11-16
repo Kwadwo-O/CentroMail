@@ -1490,5 +1490,9 @@ body:has(.message-page) .page-content { margin: 0 auto; max-width: 1100px; paddi
 .telegram-send-form textarea { resize:vertical; width:100%; box-sizing:border-box; padding:12px; font:inherit; border:1px solid var(--m3e-sys-color-outline); border-radius:var(--m3e-sys-shape-corner-medium); background:var(--m3e-sys-color-surface); color:var(--m3e-sys-color-on-surface); }
 .telegram-send-form .m3e-button { justify-self:end; }
 .telegram-mobile-picker { display:none; }
+.reply-button-wrap { display:inline-flex; border-radius:var(--m3e-sys-shape-corner-full); }
+.reply-button-wrap[aria-disabled="true"] > button { pointer-events:none; }
+.reply-button-wrap:focus-visible { outline:var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary); outline-offset:3px; }
+m3e-tooltip:not(:defined) { display:none; }
 @media(max-width:1100px) { .telegram-workspace:not([hidden]) { grid-template-columns:1fr; } .telegram-conversations { display:none; } .telegram-mobile-picker { display:block; } }
 @media(max-width:700px) { .apps-workspace.workspace-view:not([hidden]):has(.apps-feed-panel) { grid-template-columns:1fr; } .apps-sidebar { border-right:0; border-bottom:1px solid var(--m3e-sys-color-outline-variant); } .apps-feed-panel { padding:12px; } }

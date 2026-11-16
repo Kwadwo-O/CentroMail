@@ -1,4 +1,4 @@
-<article class="reader-message">
+<article class="reader-message" data-mark-email-read="{{ 'true' if message.unread else 'false' }}" data-read-message-id="{{ message.id }}" data-read-account="{{ mail_account_key }}" data-read-folder="{{ folder }}" data-read-url="{{ url_for('mail_action') }}" data-read-csrf="{{ csrf_token() }}">
     <header class="reader-message-header">
         <div class="reader-sender-avatar" aria-hidden="true">{{ message.sender[:2]|upper }}</div>
         <div class="reader-sender"><strong>{{ message.sender }}</strong><span>{{ message.email }}</span></div>
@@ -7,8 +7,14 @@
     {% set subject_heading = 'h2' if request.args.get('pane') == '1' else 'h1' %}
     <{{ subject_heading }} class="reader-subject">{{ message.subject }}</{{ subject_heading }}>
     <div class="reader-actions">
-        <button class="m3e-button m3e-button--tonal" type="button" data-email-reply data-reply-id="{{ message.id }}" data-reply-to="{{ reply_to }}" data-reply-subject="{{ reply_subject }}" data-reply-account="{{ mail_account_key }}" data-reply-folder="{{ folder }}" {% if not message.can_reply %}disabled aria-describedby="reply-unavailable"{% endif %}><span class="m3e-icon" aria-hidden="true">reply</span>Reply</button>
-        {% if not message.can_reply %}<p class="reply-unavailable" id="reply-unavailable">{{ 'This email uses a no-reply address. Replies are disabled.' if message.is_no_reply else 'This email has no usable reply address. Replies are disabled.' }}</p>{% endif %}
+        <span class="reply-button-wrap" {% if not message.can_reply %}id="reply-tooltip-trigger" tabindex="0" role="group" aria-label="Reply unavailable" aria-disabled="true" aria-describedby="reply-unavailable"{% endif %}>
+            <button class="m3e-button m3e-button--tonal" type="button" data-email-reply data-reply-id="{{ message.id }}" data-reply-to="{{ reply_to }}" data-reply-subject="{{ reply_subject }}" data-reply-account="{{ mail_account_key }}" data-reply-folder="{{ folder }}" {% if not message.can_reply %}disabled aria-describedby="reply-unavailable"{% endif %}><span class="m3e-icon" aria-hidden="true">reply</span>Reply</button>
+        </span>
+        {% if not message.can_reply %}
+        {% set reply_unavailable = 'You cannot reply to this email because it uses a no-reply address.' if message.is_no_reply else 'You cannot reply because this email has no usable reply address.' %}
+        <m3e-tooltip anchor="reply-tooltip-trigger" position="above">{{ reply_unavailable }}</m3e-tooltip>
+        <p class="reply-unavailable" id="reply-unavailable">{{ 'This email uses a no-reply address. Replies are disabled.' if message.is_no_reply else 'This email has no usable reply address. Replies are disabled.' }}</p>
+        {% endif %}
         {% if message.otp_code %}<button class="m3e-button m3e-button--tonal" type="button" data-copy-code="{{ message.otp_code }}" aria-label="Copy verification code {{ message.otp_code }}"><span class="m3e-icon" aria-hidden="true">content_copy</span>Copy code <code>{{ message.otp_code }}</code></button>{% endif %}
     </div>
     {% if message.body is mapping and message.body.html %}

@@ -221,6 +221,8 @@ Sidebar links open Inbox, Starred, Snoozed, Sent and Drafts, with additional fol
 
 On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. HTML emails use an isolated reader that preserves safe typography and table formatting.
 
+Successfully opening an unread email saves its read status to the connected provider and refreshes the inbox count. If that update fails, the email stays available to read and the reader explains how to retry. Disabled Reply buttons show an M3E tooltip on hover or keyboard focus explaining the no-reply restriction.
+
 Open an email and choose **Reply** to fill in its recipient and subject. Replies use the account that received the message and follow its Reply-To address when present. Gmail and IMAP/SMTP replies include conversation headers; Outlook uses Microsoft Graph's reply action. The editor fills the screen on phones, preserves a draft when closed, and keeps it available after a failed send.
 
 Explicit no-reply addresses are labelled **No reply** and their Reply button is disabled. A usable Reply-To address allows replies even when the sender is no-reply. **Sort loaded emails** puts replyable messages first by default; newest-first and no-reply-first are also available and saved in your preferences. Sorting covers the messages loaded so far, including new batches as you scroll.

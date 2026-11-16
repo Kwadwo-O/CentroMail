@@ -1,4 +1,4 @@
-"""Copy the installed loading indicator, menus, and their dependencies for Flask."""
+"""Copy the installed loading indicator, menus, tooltips and their dependencies for Flask."""
 import json
 import re
 import shutil
@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 package = root / 'node_modules/@kyralabs/m3e-elements'
 source = package / 'dist'
 destination = root / 'static/vendor/m3e'
-pending = [source / 'loading-indicator/index.js', source / 'menu/index.js']
+pending = [source / 'loading-indicator/index.js', source / 'menu/index.js', source / 'tooltip/index.js']
 copied = set()
 while pending:
     path = pending.pop().resolve()
@@ -27,6 +27,7 @@ for filename in ('LICENSE', 'NOTICE'):
 (destination / 'VERSION').write_text(json.loads((package / 'package.json').read_text())['version'] + '\n')
 assert (destination / 'loading-indicator/index.js').is_file()
 assert (destination / 'menu/index.js').is_file()
+assert (destination / 'tooltip/index.js').is_file()
 tokens = root / 'node_modules/@kyralabs/m3e-tokens'
 theme = (tokens / 'dist/theme.js').read_text()
 assert not re.search(r'^import\s', theme, flags=re.M), 'Theme module must be self-contained.'

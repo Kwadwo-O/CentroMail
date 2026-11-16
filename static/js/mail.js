@@ -99,6 +99,7 @@
             });
         } catch { /* Existing counts remain when Gmail is unavailable. */ }
     };
+    document.addEventListener('centromail-mail-read', event => { if (event.detail.account === app.dataset.account) loadCounts(true); });
     const loadMessages = async ({reset = false, force = false} = {}) => {
         if (reset) {
             generation += 1;

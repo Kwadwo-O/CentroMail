@@ -54,6 +54,7 @@ class MailFeatureTests(IntegrationFixture):
 
     def test_no_reply_buttons_are_disabled_in_both_readers_and_otp_is_copyable(self):
         payload=self.payload()
+        payload['labelIds'].append('UNREAD')
         with a.app.app_context():a.gmail_cache_put(self.user_id,'sample',metadata=a.gmail_metadata_from_payload(payload,'sample'),body={'text':'Your verification code is 012345'})
         for suffix in ('','?pane=1'):
             response=self.client.get('/message/sample'+suffix)
@@ -63,6 +64,10 @@ class MailFeatureTests(IntegrationFixture):
             self.assertEqual(reply['aria-describedby'],'reply-unavailable')
             self.assertIn(b'data-copy-code="012345"',response.data)
             self.assertIn(b'Replies are disabled',response.data)
+            trigger=next(attrs for _,attrs,_ in elements if attrs.get('id')=='reply-tooltip-trigger')
+            self.assertEqual(trigger['tabindex'],'0')
+            self.assertIn(b'<m3e-tooltip anchor="reply-tooltip-trigger"',response.data)
+            self.assertIn(b'data-mark-email-read="true"',response.data)
 
     def test_no_reply_post_is_blocked_for_all_mail_providers(self):
         for kind in ('gmail','imap','microsoft'):
