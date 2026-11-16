@@ -68,6 +68,16 @@ new MutationObserver(syncTheme).observe(document.documentElement, {attributes: t
 new MutationObserver(() => { syncReaderText(); syncTooltips(); }).observe(document.documentElement, {childList: true, subtree: true});
 syncTheme(); syncReaderText(); syncTooltips();
 
+const messagePage = document.querySelector('.message-page');
+if (messagePage) {
+    const navigation = document.querySelector('.site-header');
+    const syncReaderToolbar = () => messagePage.style.setProperty('--message-nav-height',
+        getComputedStyle(navigation).position === 'sticky' ? `${navigation.getBoundingClientRect().height}px` : '0px');
+    new ResizeObserver(syncReaderToolbar).observe(navigation);
+    document.addEventListener('centromail-appearance-change', syncReaderToolbar);
+    syncReaderToolbar();
+}
+
 // Stop indeterminate morphs when an indicator is hidden or motion is reduced.
 const indicatorMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const syncIndicators = () => document.querySelectorAll('m3e-loading-indicator').forEach(indicator => {
