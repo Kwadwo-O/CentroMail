@@ -540,17 +540,19 @@ body:has(.gmail-app) .page-content {
     cursor: pointer;
     display: inline-flex;
     flex: 0 0 auto;
-    height: 30px;
+    height: 44px;
     justify-content: center;
     position: relative;
-    width: 30px;
+    width: 44px;
 }
 
 .checkbox-wrap input {
-    height: 0;
+    height: 100%;
+    inset: 0;
+    margin: 0;
     opacity: 0;
     position: absolute;
-    width: 0;
+    width: 100%;
 }
 
 .checkmark {
@@ -1032,6 +1034,11 @@ body:has(.gmail-app) .page-content {
     opacity: 1;
 }
 
+.compose-window input:focus-visible, .compose-window textarea:focus-visible {
+    outline: var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary);
+    outline-offset: -3px;
+}
+
 .compose-window textarea {
     min-height: 170px;
 }
@@ -1086,6 +1093,7 @@ body:has(.gmail-app) .page-content {
         position: fixed;
         top: 0;
         transform: translateX(-102%);
+        visibility: hidden;
         transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
         width: min(300px, 84vw);
         z-index: 50;
@@ -1093,6 +1101,7 @@ body:has(.gmail-app) .page-content {
 
     .mail-sidebar.is-open {
         transform: translateX(0);
+        visibility: visible;
     }
 
     .sidebar-scrim {
@@ -1317,7 +1326,7 @@ body:has(.gmail-app) .page-content {
 .inbox-tabs { display: flex; gap: 8px; }
 .inbox-tabs .inbox-tab { min-height: 42px; }
 .inbox-tabs .material-symbols-rounded { font-size: 20px; }
-.message { gap: 12px; grid-template-columns: 28px 44px 36px minmax(0, 1fr) auto; min-height: 80px; padding: 12px 18px; }
+.message { gap: 12px; grid-template-columns: 44px 44px 36px minmax(0, 1fr) auto; min-height: 80px; padding: 12px 18px; }
 .message .sender-avatar { font-size: 0.75rem; height: 36px; line-height: 1; width: 36px; }
 .message .message-details { color: var(--m3e-sys-color-on-surface); display: block; min-width: 0; overflow: hidden; text-decoration: none; }
 .message .message-sender { display: block; font-size: 0.9rem; font-weight: 550; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1333,6 +1342,9 @@ body:has(.gmail-app) .page-content {
 .compact-mail .message { min-height: 62px; padding-block: 8px; }
 .mail-load-footer { color: var(--m3e-sys-color-on-surface-variant); font-size: 0.82rem; padding: 16px; text-align: center; }
 #mail-load-sentinel { height: 1px; }
+.close-mail-sidebar { display: none; }
+@media (max-width: 900px) { .close-mail-sidebar { display: inline-flex; margin-left: auto; margin-bottom: 8px; } }
+.message-list:focus-visible, .mail-reader:focus-visible, .workspace-view:focus-visible { outline: var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary); outline-offset: -3px; }
 .mail-reader[hidden] { display: none; }
 .mail-reader { background: var(--m3e-sys-color-surface); border: 1px solid var(--m3e-sys-color-outline-variant); border-radius: 24px; display: flex; flex: 1 1 0; flex-direction: column; margin: 16px 16px 28px 0; min-width: 0; overflow: hidden; }
 .reader-toolbar { align-items: center; background: var(--m3e-sys-color-surface); border-bottom: 1px solid var(--m3e-sys-color-outline-variant); display: flex; gap: 16px; justify-content: space-between; min-height: 60px; padding: 10px 16px; }
@@ -1362,7 +1374,7 @@ body:has(.message-page) .page-content { margin: 0 auto; max-width: 1100px; paddi
 @media (min-width: 1200px) {
     .gmail-app.has-reader .inbox { flex: 0 1 420px; }
     .mail-reader { align-self: flex-start; max-height: calc(100dvh - 108px); position: sticky; top: 88px; }
-    .has-reader .message { gap: 8px; grid-template-columns: 24px 44px 32px minmax(0, 1fr); padding-inline: 12px; }
+    .has-reader .message { gap: 8px; grid-template-columns: 44px 44px 32px minmax(0, 1fr); padding-inline: 12px; }
     .has-reader .message-date { display: none; }
     .has-reader .message .sender-avatar { height: 32px; width: 32px; }
 }
@@ -1377,7 +1389,7 @@ body:has(.message-page) .page-content { margin: 0 auto; max-width: 1100px; paddi
     .inbox-toolbar .toolbar-button:not(.refresh-button) { height: 36px; width: 34px; }
     .inbox-tabs { gap: 6px; }
     .inbox-tabs .inbox-tab { font-size: 0.78rem; gap: 5px; padding-inline: 8px; }
-    .message { gap: 8px; grid-template-columns: 22px 44px 32px minmax(0, 1fr) auto; min-height: 76px; padding: 10px; }
+    .message { gap: 8px; grid-template-columns: 44px 44px 32px minmax(0, 1fr) auto; min-height: 76px; padding: 10px; }
     .message .sender-avatar { height: 32px; width: 32px; }
     .message .message-sender { font-size: 0.84rem; }
     .message-summary { font-size: 0.78rem; }

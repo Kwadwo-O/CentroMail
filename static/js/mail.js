@@ -12,10 +12,11 @@
     const selectAll = document.querySelector('#select-all');
     const reader = document.querySelector('#mail-reader');
     const readerContent = document.querySelector('#reader-content');
+    const readerStatus = document.querySelector('#reader-status');
     const desktop = window.matchMedia('(min-width: 1200px)');
     let cursor = null, hasMore = true, loading = false, failed = false;
     let generation = 0, controller, searchTimer, readerController;
-    let actionPending = false;
+    let actionPending = false, readerMessageId;
     const rows = () => [...list.querySelectorAll('.message')];
     const selected = () => rows().filter(row => row.querySelector('.message-check').checked);
     const showFeedback = (message, reconnect = false) => {
@@ -87,7 +88,8 @@
         loadingIndicator.hidden = false;
         list.setAttribute('aria-busy', 'true');
         status.textContent = reset ? 'Loading messages…' : 'Loading more messages…';
-        more.hidden = true;
+        more.setAttribute('aria-disabled', 'true');
+        more.hidden = document.activeElement !== more;
         if (force) setRefreshBusy(true);
         const url = new URL(app.dataset.messagesUrl, location.origin);
         url.searchParams.set('folder', folder);
@@ -132,8 +134,11 @@
                 loading = false;
                 loadingIndicator.hidden = true;
                 list.setAttribute('aria-busy', 'false');
+                const restoreMoreFocus = document.activeElement === more && !hasMore && !failed;
                 more.hidden = !hasMore && !failed;
+                more.removeAttribute('aria-disabled');
                 more.textContent = failed ? 'Try again' : 'Load more';
+                if (restoreMoreFocus) list.focus();
                 setRefreshBusy(false);
             }
         }
@@ -143,6 +148,9 @@
         reader.hidden = true;
         app.classList.remove('has-reader');
         rows().forEach(row => row.classList.remove('is-open'));
+        const link = rows().find(row => row.dataset.messageId === readerMessageId)?.querySelector('.message-details');
+        (link || list).focus();
+        readerMessageId = null;
     };
     const openMessage = async row => {
         if (!desktop.matches || window.CentroMailAppearance.get('reading-pane') === 'page') {
@@ -152,7 +160,10 @@
         rows().forEach(item => item.classList.toggle('is-open', item === row));
         reader.hidden = false;
         app.classList.add('has-reader');
-        readerContent.textContent = 'Opening email…';
+        readerMessageId = row.dataset.messageId;
+        readerContent.textContent = '';
+        readerStatus.textContent = 'Opening email…';
+        reader.focus();
         document.querySelector('#reader-open-page').href = row.dataset.messageUrl;
         readerController?.abort();
         const pending = new AbortController();
@@ -165,9 +176,10 @@
             const html = await response.text();
             if (readerController !== pending) return;
             readerContent.replaceChildren(document.createRange().createContextualFragment(html));
+            readerStatus.textContent = response.ok ? 'Email opened.' : 'Could not open this email.';
             if (!response.ok) return;
         } catch (error) {
-            if (error.name !== 'AbortError') readerContent.textContent = 'Could not open this email. Try again.';
+            if (readerController === pending && error.name !== 'AbortError') readerStatus.textContent = 'Could not open this email. Try again.';
         }
     };
     const performAction = async (action, targets) => {
@@ -182,17 +194,22 @@
         try {
             await readJson(await fetch(app.dataset.actionsUrl, {method: 'POST', body: data}));
             targets.forEach(row => {
-                if (action === 'read' || action === 'unread') row.classList.toggle('unread', action === 'unread');
+                if (action === 'read' || action === 'unread') {
+                    row.classList.toggle('unread', action === 'unread');
+                    row.querySelector('.message-read-state').textContent = action === 'unread' ? 'Unread: ' : '';
+                }
                 if (action === 'star' || action === 'unstar') {
                     const star = row.querySelector('.star-button');
                     star.classList.toggle('starred', action === 'star');
                     star.setAttribute('aria-pressed', String(action === 'star'));
-                    star.setAttribute('aria-label', action === 'star' ? 'Unstar message' : 'Star message');
+                    star.setAttribute('aria-label', `${action === 'star' ? 'Unstar' : 'Star'} message: ${row.querySelector('.message-subject').textContent}`);
                 }
                 if ((action === 'trash' && folder !== 'trash') || (action === 'archive' && folder === 'inbox') ||
                     (action === 'restore' && folder === 'trash') || (action === 'unstar' && folder === 'starred')) {
                     if (row.classList.contains('is-open')) closeReader();
+                    const restoreFocus = row.contains(document.activeElement);
                     row.remove();
+                    if (restoreFocus) list.focus();
                 }
                 row.querySelector('.message-check').checked = false;
             });
@@ -260,6 +277,7 @@
         observer.observe(document.querySelector('#mail-load-sentinel'));
     }
     document.querySelector('#close-reader').addEventListener('click', closeReader);
+    reader.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); closeReader(); } });
     desktop.addEventListener('change', () => {
         if (!desktop.matches && !reader.hidden) window.location.assign(document.querySelector('#reader-open-page').href);
     });
@@ -279,7 +297,7 @@
     clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
         if (localStorage.getItem('centromail-auto-refresh') !== 'false' && document.visibilityState === 'visible' &&
-            !search.disabled && !loading && !actionPending && selected().length === 0 && rows().length <= 25 && !search.value.trim()) {
+            !search.disabled && !loading && !actionPending && !list.contains(document.activeElement) && !reader.contains(document.activeElement) && selected().length === 0 && rows().length <= 25 && !search.value.trim()) {
             loadMessages({reset: true, force: true});
         }
     }, Number(window.CentroMailAppearance.get('refresh-interval')) * 1000);

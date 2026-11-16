@@ -34,10 +34,12 @@ new MutationObserver(syncReaderText).observe(document.documentElement, {childLis
 syncTheme(); syncReaderText();
 
 // Stop indeterminate morphs when an indicator is hidden or motion is reduced.
+const indicatorMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const syncIndicators = () => document.querySelectorAll('m3e-loading-indicator').forEach(indicator => {
-    const still = document.documentElement.classList.contains('reduce-motion') || !!indicator.closest('[hidden]');
+    const still = indicatorMotion.matches || document.documentElement.classList.contains('reduce-motion') || !!indicator.closest('[hidden]');
     if (still) indicator.setAttribute('progress', '0');
     else indicator.removeAttribute('progress');
 });
+indicatorMotion.addEventListener('change', syncIndicators);
 syncIndicators();
 new MutationObserver(syncIndicators).observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ['hidden', 'class']});

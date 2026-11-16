@@ -59,16 +59,17 @@
         <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Add account</a>
     </form>
     <div class="workspace-tabs" role="tablist" aria-label="Communication type">
-        <button class="workspace-tab active m3e-button m3e-button--text" type="button" role="tab" aria-selected="true" data-workspace="email">
+        <button class="workspace-tab active m3e-button m3e-button--text" id="workspace-tab-email" type="button" role="tab" aria-selected="true" aria-controls="workspace-email" data-workspace="email">
             <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
         </button>
-        <button class="workspace-tab m3e-button m3e-button--text" type="button" role="tab" aria-selected="false" data-workspace="apps">
+        <button class="workspace-tab m3e-button m3e-button--text" id="workspace-tab-apps" type="button" role="tab" aria-selected="false" aria-controls="workspace-apps" tabindex="-1" data-workspace="apps">
             <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
         </button>
     </div>
 
-    <div class="gmail-body workspace-view" data-workspace-view="email">
-        <aside class="mail-sidebar" id="mail-sidebar">
+    <div class="gmail-body workspace-view" id="workspace-email" role="tabpanel" aria-labelledby="workspace-tab-email" data-workspace-view="email">
+        <aside class="mail-sidebar" id="mail-sidebar" aria-label="Mailbox menu">
+            <button class="close-mail-sidebar icon-button m3e-icon-button m3e-icon-button--standard" id="close-mail-sidebar" type="button" aria-label="Close mailbox menu"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
                 {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] if key in folders %}
@@ -95,11 +96,11 @@
         </aside>
         <button class="sidebar-scrim" id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close mailbox menu"></button>
 
-        <main class="inbox" id="inbox">
+        <section class="inbox" id="inbox" aria-labelledby="inbox-title">
             <div class="inbox-heading">
                 <div>
                     <p class="eyebrow">Main menu</p>
-                    <h1>{{ folder_title }}</h1>
+                    <h1 id="inbox-title">{{ folder_title }}</h1>
                 </div>
                 <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
             </div>
@@ -130,7 +131,7 @@
                 <button class="inbox-tab m3e-button m3e-button--text" id="mail-tab-social" type="button" data-tab="social" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">group</span>Social</button>
             </div>
             {% endif %}
-            <div class="message-list" id="message-list" {% if folder == 'inbox' and mail_kind == 'gmail' %}role="tabpanel" aria-labelledby="mail-tab-primary"{% endif %}>
+            <div class="message-list" id="message-list" tabindex="0" {% if folder == 'inbox' and mail_kind == 'gmail' %}role="tabpanel" aria-labelledby="mail-tab-primary"{% endif %}>
                 {% include 'mail_rows.html' %}
             </div>
             <p class="empty-state" id="empty-state" hidden>No messages in this folder.</p>
@@ -139,14 +140,15 @@
                 <button class="m3e-button m3e-button--tonal" id="load-more-mail" type="button" hidden>Load more</button>
                 <div id="mail-load-sentinel" aria-hidden="true"></div>
             </div>
-        </main>
-        <aside class="mail-reader" id="mail-reader" aria-label="Email reading pane" hidden>
+        </section>
+        <aside class="mail-reader" id="mail-reader" aria-label="Email reading pane" tabindex="-1" hidden>
             <header class="reader-toolbar"><strong>Email</strong><div><a class="icon-button m3e-icon-button m3e-icon-button--standard" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
-            <div class="reader-content" id="reader-content" aria-live="polite"></div>
+            <p class="sr-only" id="reader-status" role="status"></p>
+            <div class="reader-content" id="reader-content"></div>
         </aside>
     </div>
 
-    <section class="apps-workspace workspace-view" data-workspace-view="apps" hidden aria-label="Messaging connections">
+    <section class="apps-workspace workspace-view" id="workspace-apps" role="tabpanel" aria-labelledby="workspace-tab-apps" tabindex="0" data-workspace-view="apps" hidden>
         <div class="chat-empty">
             <span class="material-symbols-rounded" aria-hidden="true">forum</span>
             <h2>Messaging connections</h2>
@@ -162,9 +164,9 @@
         <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page.</p>
         <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
     </dialog>
-    <form class="compose-window" id="compose-window" method="post" action="{{ url_for('compose') }}" hidden>
+    <form class="compose-window" id="compose-window" aria-labelledby="compose-title" method="post" action="{{ url_for('compose') }}" hidden>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ mail_account_key }}">
-        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+        <div class="compose-title"><strong id="compose-title">New Message</strong><button type="button" class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
         <input type="email" name="to" placeholder="Recipients" aria-label="Recipients" required>
         <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
         <textarea name="body" placeholder="Write a message..." aria-label="Message" required></textarea>
@@ -180,35 +182,64 @@
     const sidebar = document.querySelector("#mail-sidebar");
     const sidebarScrim = document.querySelector("#sidebar-scrim");
     const mobileMenu = document.querySelector(".mobile-menu");
+    const mobileMailbox = window.matchMedia('(max-width: 900px)');
+    const sidebarBackground = [...document.querySelectorAll('.site-header, .site-footer, .skip-link, .gmail-header, .mail-account-picker, .workspace-tabs, .inbox, .mail-reader, .apps-workspace')];
+    const sidebarControls = () => [...sidebar.querySelectorAll('a[href], button, summary')].filter(element => !element.disabled && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
     const setSidebar = (open) => {
-        if (!sidebar) return;
+        const wasOpen = sidebar.classList.contains('is-open');
+        open = open && mobileMailbox.matches;
         sidebar.classList.toggle("is-open", open);
-        sidebarScrim?.classList.toggle("is-open", open);
-        mobileMenu?.setAttribute("aria-expanded", String(open));
+        sidebar.inert = mobileMailbox.matches && !open;
+        sidebarScrim.classList.toggle("is-open", open);
+        mobileMenu.setAttribute("aria-expanded", String(open));
+        sidebarBackground.forEach(element => { element.inert = open; });
+        if (open) {
+            sidebar.setAttribute('role', 'dialog');
+            sidebar.setAttribute('aria-modal', 'true');
+            sidebarControls()[0].focus();
+        } else {
+            sidebar.removeAttribute('role');
+            sidebar.removeAttribute('aria-modal');
+            if (wasOpen) (mobileMailbox.matches ? mobileMenu : document.querySelector('#open-compose')).focus();
+        }
         document.body.style.overflow = open ? "hidden" : "";
     };
     mobileMenu?.addEventListener("click", () => setSidebar(!sidebar.classList.contains("is-open")));
     sidebarScrim?.addEventListener("click", () => setSidebar(false));
+    document.querySelector('#close-mail-sidebar').addEventListener('click', () => setSidebar(false));
     sidebar?.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setSidebar(false)));
     document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") setSidebar(false);
+        if (!sidebar.classList.contains('is-open')) return;
+        if (event.key === "Escape") { event.preventDefault(); setSidebar(false); }
+        if (event.key === 'Tab') {
+            const controls = sidebarControls();
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
     });
-    window.addEventListener("resize", () => {
-        if (window.innerWidth > 900) setSidebar(false);
-    });
+    mobileMailbox.addEventListener('change', () => setSidebar(false));
+    setSidebar(false);
     const showCompose = (show) => {
         compose.hidden = !show;
-        if (show) compose.querySelector("input").focus();
+        if (show) {
+            setSidebar(false);
+            compose.querySelector('[name="to"]').focus();
+        } else (mobileMailbox.matches ? mobileMenu : document.querySelector('#open-compose')).focus();
     };
     document.querySelector("#open-compose").addEventListener("click", () => showCompose(true));
     document.querySelector("#close-compose").addEventListener("click", () => showCompose(false));
     document.querySelector("#discard-compose").addEventListener("click", () => showCompose(false));
-    document.querySelectorAll(".workspace-tab").forEach((tab) => tab.addEventListener("click", () => {
+    compose.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); showCompose(false); } });
+    const workspaceTabs = [...document.querySelectorAll('.workspace-tab')];
+    workspaceTabs.forEach((tab, index) => {
+      tab.addEventListener("click", () => {
         const workspace = tab.dataset.workspace;
         document.querySelectorAll(".workspace-tab").forEach((item) => {
             const active = item === tab;
             item.classList.toggle("active", active);
             item.setAttribute("aria-selected", active ? "true" : "false");
+            item.tabIndex = active ? 0 : -1;
         });
         document.querySelectorAll(".workspace-view").forEach((view) => {
             view.hidden = view.dataset.workspaceView !== workspace;
@@ -216,7 +247,16 @@
         const search = document.querySelector("#mail-search");
         search.disabled = workspace === "apps";
         search.placeholder = workspace === "apps" ? "Search is available in Email" : "Search mail";
-    }));
+      });
+      tab.addEventListener('keydown', event => {
+          let next;
+          if (event.key === 'ArrowRight') next = (index + 1) % workspaceTabs.length;
+          if (event.key === 'ArrowLeft') next = (index + workspaceTabs.length - 1) % workspaceTabs.length;
+          if (event.key === 'Home') next = 0;
+          if (event.key === 'End') next = workspaceTabs.length - 1;
+          if (next !== undefined) { event.preventDefault(); workspaceTabs[next].focus(); workspaceTabs[next].click(); }
+      });
+    });
 </script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
 {% endblock %}

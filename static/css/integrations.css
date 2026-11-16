@@ -387,7 +387,11 @@
 
 .telegram-form input:focus {
     border-color: var(--m3e-sys-color-primary);
-    outline: 0;
+}
+
+.telegram-form input:focus-visible {
+    outline: var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary);
+    outline-offset: 2px;
 }
 
 .integration-actions {

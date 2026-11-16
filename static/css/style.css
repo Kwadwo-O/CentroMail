@@ -686,6 +686,11 @@ img {
     overflow-x: auto;
 }
 
+.legal-table-wrap:focus-visible {
+    outline: var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary);
+    outline-offset: 2px;
+}
+
 .legal-table {
     border-collapse: collapse;
     min-width: 620px;

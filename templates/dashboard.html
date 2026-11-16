@@ -17,7 +17,7 @@
             <input type="search" placeholder="Search your workspace" aria-label="Search your workspace">
         </div>
         <div class="dashboard-account">
-            <button class="account-trigger m3e-button m3e-button--text" id="account-menu-button" type="button" aria-expanded="false" aria-controls="account-menu">
+            <button class="account-trigger m3e-button m3e-button--text" id="account-menu-button" type="button" aria-label="{{ g.user.name or g.user.email }} account menu" aria-expanded="false" aria-controls="account-menu">
                 <span class="account-name">{{ g.user.name or g.user.email }}</span>
                 {% if g.user.avatar_url %}
                 <img class="account-avatar" src="{{ g.user.avatar_url }}" alt="">
@@ -56,7 +56,7 @@
             </div>
         </aside>
 
-        <main class="dashboard-main">
+        <div class="dashboard-main">
             <section class="dashboard-welcome">
                 <div>
                     <p class="dashboard-kicker">Communication, simplified</p>
@@ -140,7 +140,7 @@
                     <span><span class="material-symbols-rounded" aria-hidden="true">forum</span>Messaging</span>
                 </div>
             </section>
-        </main>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -10,18 +10,22 @@
     const spinner = loading.querySelector('.auth-progress');
     const cancel = loading.querySelector('[data-auth-cancel]');
     const content = document.querySelector('.auth-wrapper');
-    let timeout;
+    let timeout, returnFocus;
     const reset = () => {
+        const restoreFocus = !loading.hidden && loading.contains(document.activeElement);
         clearTimeout(timeout);
         loading.hidden = true;
         spinner.hidden = false;
         document.body.classList.remove('auth-page-exit');
         content?.setAttribute('aria-busy', 'false');
+        if (restoreFocus && returnFocus?.isConnected) returnFocus.focus();
     };
     const show = message => {
         reset();
+        returnFocus = document.activeElement;
         label.textContent = message;
         loading.hidden = false;
+        cancel.focus();
         content?.setAttribute('aria-busy', 'true');
         timeout = setTimeout(() => {
             spinner.hidden = true;

@@ -37,7 +37,7 @@
 :root[data-theme] .cm-loading-shell .m3e-loading-indicator { --m3e-comp-loading-indicator-container-width:var(--cm-loader-size); --m3e-comp-loading-indicator-container-height:var(--cm-loader-size); }
 :root[data-cm-message-preview=false] .message-preview { display:none; }
 :root[data-cm-sender-avatar=false] .message .sender-avatar { display:none; }
-:root[data-cm-sender-avatar=false] .message { grid-template-columns:28px 44px minmax(0,1fr) auto; }
+:root[data-cm-sender-avatar=false] .message { grid-template-columns:44px 44px minmax(0,1fr) auto; }
 :root[data-cm-message-date=false] .message-date { display:none; }
 :root[data-cm-category-tabs=false] .inbox-tabs { display:none; }
 :root[data-cm-folder-counts=false] :is([data-folder-count],.dashboard-nav-link .m3e-badge) { display:none; }
@@ -57,6 +57,6 @@
 .flash { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 @media(min-width:901px) { :root[data-theme] .mail-sidebar { flex-basis:var(--cm-sidebar-width); width:var(--cm-sidebar-width); } :root[data-theme] .settings-layout { grid-template-columns:var(--cm-sidebar-width) minmax(0,1fr); } }
 @media(min-width:1051px) { :root[data-theme] .dashboard-layout { grid-template-columns:var(--cm-sidebar-width) minmax(0,1fr); } }
-@media(min-width:1200px) { :root[data-theme] .mail-reader { flex-basis:var(--cm-reader-width); } :root[data-cm-sender-avatar=false] .has-reader .message { grid-template-columns:24px 44px minmax(0,1fr); } }
-@media(max-width:760px) { :root[data-theme] :is(.m3e-card,.settings-section,.settings-preview,.landing-feature) { padding:min(var(--cm-card-padding),24px); } :root[data-theme] .form-panel h1 { font-size:calc(1.75rem * var(--cm-heading-scale)); } :root[data-cm-sender-avatar=false] .message { grid-template-columns:22px 44px minmax(0,1fr) auto; } }
+@media(min-width:1200px) { :root[data-theme] .mail-reader { flex-basis:var(--cm-reader-width); } :root[data-cm-sender-avatar=false] .has-reader .message { grid-template-columns:44px 44px minmax(0,1fr); } }
+@media(max-width:760px) { :root[data-theme] :is(.m3e-card,.settings-section,.settings-preview,.landing-feature) { padding:min(var(--cm-card-padding),24px); } :root[data-theme] .form-panel h1 { font-size:calc(1.75rem * var(--cm-heading-scale)); } :root[data-cm-sender-avatar=false] .message { grid-template-columns:44px 44px minmax(0,1fr) auto; } }
 @media(max-width:700px) { :root[data-theme] .container { width:min(var(--cm-content-width),calc(100% - 1.5rem)); } }
