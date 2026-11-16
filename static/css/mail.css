@@ -1414,7 +1414,7 @@ body:has(.message-page) .site-footer { display: none; }
 .mail-help-dialog .reader-toolbar { background: transparent; padding: 0 0 12px; }
 .mail-help-dialog h2 { font-size: 1.3rem; margin: 0; }
 @media (min-width: 1200px) {
-    body:has(.gmail-app, .message-page) .navbar.container { max-width: none; padding-inline: 20px; width: 100%; }
+    body:has(.gmail-app) .navbar.container { max-width: none; padding-inline: 20px; width: 100%; }
     .message-detail-page { padding: 24px 24px 40px; }
     .message-page { border: var(--cm-border-width, 1px) solid var(--m3e-sys-color-outline-variant); border-radius: var(--cm-custom-radius, var(--m3e-sys-shape-corner-extra-large)); max-width: min(1100px, var(--cm-content-width, 1240px)); min-height: 0; }
     .message-page > .reader-toolbar { border-start-start-radius: inherit; border-start-end-radius: inherit; }
