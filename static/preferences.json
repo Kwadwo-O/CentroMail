@@ -734,6 +734,19 @@
     "description": "Mail preferences apply to every connected email account.",
     "settings": [
       {
+        "key": "mail-sort",
+        "label": "Email order",
+        "description": "Sort loaded emails as more messages arrive.",
+        "default": "replyable",
+        "type": "select",
+        "id": "mail-sort-preference",
+        "choices": [
+          {"value": "replyable", "label": "Replyable first"},
+          {"value": "newest", "label": "Newest first"},
+          {"value": "noreply", "label": "No-reply first"}
+        ]
+      },
+      {
         "key": "density",
         "label": "Message density",
         "description": "Space between messages.",

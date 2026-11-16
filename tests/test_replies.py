@@ -68,7 +68,7 @@ class ReplyTests(IntegrationFixture):
         self.assertEqual(message.get_content().strip(), self.draft['body'])
 
     def test_old_gmail_cache_refreshes_headers_before_reply(self):
-        with application.app.app_context():
+        with application.app.test_request_context():
             application.gmail_cache_put(self.user_id, 'old', metadata={'id': 'old', 'email': 'sender@example.com'}, body={'text': 'Old cached email.'})
             user = application.find_user('integrations@example.com')
             response = Mock()

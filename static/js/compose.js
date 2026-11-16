@@ -33,7 +33,7 @@
     };
     document.addEventListener('click', event => {
         const trigger = event.target.closest('#open-compose, [data-email-reply]');
-        if (trigger) open(trigger, trigger.hasAttribute('data-email-reply'));
+        if (trigger && !trigger.disabled) open(trigger, trigger.hasAttribute('data-email-reply'));
     });
     composer.querySelector('#close-compose').addEventListener('click', () => composer.close());
     composer.querySelector('#discard-compose').addEventListener('click', () => {

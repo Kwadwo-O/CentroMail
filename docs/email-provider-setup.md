@@ -19,6 +19,10 @@ If delivery succeeds but the Sent copy fails, CentroMail reports that the messag
 
 To reply, open an email and choose **Reply** in the reading pane or full message page. CentroMail selects that mailbox as the sender and fills the recipient and `Re:` subject. This action replies to one recipient; you can edit the address before sending. Existing mail read/send permissions cover replies, so there is no extra provider setup. Conversation threading is sent using Gmail's thread ID and mail headers, Microsoft's reply endpoint, or IMAP/SMTP mail headers, depending on the connected account. Live delivery still needs a connected account with valid credentials.
 
+CentroMail recognises common explicit no-reply addresses such as `noreply@` and `do-not-reply@`, labels them, and blocks replies in both the interface and the send endpoint. A valid, replyable Reply-To address overrides a no-reply sender. This is an address heuristic; ordinary `notifications@` senders are not assumed to reject mail. Inbox sorting applies to loaded messages, with replyable-first, newest-first, and no-reply-first choices saved in settings.
+
+Verification and sign-in emails can show a **Copy code** button. The local detector looks for a single code near explicit OTP or verification wording and ignores conflicting candidates. It uses previews for the inbox and the full readable body when opened. It does not check code validity, expiry, or authenticity. These inbox tools require no extra provider setup.
+
 ## Gmail and Google Workspace OAuth
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/), select/create a project, and enable **Gmail API**.
@@ -33,6 +37,8 @@ GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
 ```
 
 Keep browser and callback hostnames consistent: `localhost` and `127.0.0.1` have different cookies. For a hosted deployment, register and configure its exact HTTPS callback. Google may require verification before a public app can request Gmail scopes.
+
+For multiple Gmail accounts, sign in to CentroMail first, then use **Add Gmail** in Inbox or Integrations. Choose the additional Google account and approve access. The new mailbox belongs to the same CentroMail user; it has separate tokens, cached messages, folder pages, and counts. Reconnecting the same address updates its connection. Additional Gmail connections can be disconnected individually in Integrations. Use the existing OAuth app configuration above; no second client or redirect URI is needed. If CentroMail redirects between local hostnames, sign in on the configured callback host before adding a mailbox.
 
 The **Google Workspace / Gmail IMAP** preset is an alternative when your account permits app passwords. Usually this requires two-step verification; organisational policy and Advanced Protection can disable app passwords. Your normal Google password does not work for IMAP. Prefer OAuth where app passwords are unavailable.
 

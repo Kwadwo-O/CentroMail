@@ -213,7 +213,7 @@ Keep the client secret private.
 
 Google sign-in creates a CentroMail account for a new verified email or signs into an existing account with the same email, then opens the dashboard.
 
-The same Google token is used by the Gmail inbox, message reader and composer; the Gmail API must be enabled for the Google Cloud project.
+To connect another Gmail address, sign in to CentroMail and choose **Add Gmail** in the inbox or Integrations. Google opens its account picker. Each Gmail connection has its own token and local message cache, and adding one keeps your existing CentroMail login. Use **Email account** in the inbox to switch mailboxes. The Gmail API must be enabled for the Google Cloud project.
 
 The inbox opens from a small local preview and loads Gmail in batches of 25 messages as you scroll. Refresh checks the current folder again; search and the Primary, Updates and Social tabs query Gmail across the mailbox.
 
@@ -223,6 +223,10 @@ On screens at least 1200 pixels wide, selecting an email opens a reading pane be
 
 Open an email and choose **Reply** to fill in its recipient and subject. Replies use the account that received the message and follow its Reply-To address when present. Gmail and IMAP/SMTP replies include conversation headers; Outlook uses Microsoft Graph's reply action. The editor fills the screen on phones, preserves a draft when closed, and keeps it available after a failed send.
 
+Explicit no-reply addresses are labelled **No reply** and their Reply button is disabled. A usable Reply-To address allows replies even when the sender is no-reply. **Sort loaded emails** puts replyable messages first by default; newest-first and no-reply-first are also available and saved in your preferences. Sorting covers the messages loaded so far, including new batches as you scroll.
+
+Emails with one clearly identified verification or sign-in code show a **Copy code** button in the list and reader. Detection runs locally on the subject, preview, and opened message. It preserves leading zeroes and avoids offering ambiguous codes; it does not validate whether a code is still usable.
+
 Archiving, moving to Trash, changing read status and starring messages require Google’s `gmail.modify` permission. Accounts connected before this permission was added must reconnect Google and accept the updated access request.
 
 Microsoft Outlook mail now connects to an existing CentroMail account through OAuth and Microsoft Graph. Gmail OAuth and 51 IMAP/SMTP provider options are available in Integrations. See [Email provider setup](docs/email-provider-setup.md) for credentials, app registration, regional servers, Proton Bridge, and provider limitations.
@@ -230,6 +234,8 @@ Microsoft Outlook mail now connects to an existing CentroMail account through OA
 ### Local integrations
 
 Open Integrations after signing in.
+
+Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram shows recent conversations, Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail.
 
 Connections are stored in `centro.db` on this machine, and non-secret UI state is mirrored to browser `localStorage`.
 

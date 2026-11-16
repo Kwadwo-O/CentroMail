@@ -30,6 +30,23 @@
     let generation = 0, controller, searchTimer, readerController;
     let actionPending = false, readerMessageId;
     const rows = () => [...list.querySelectorAll('.message')];
+    const sort = document.querySelector('#mail-sort');
+    const sortMessages = () => {
+        const active = document.activeElement;
+        const order = row => sort.value === 'replyable' ? Number(row.dataset.canReply !== 'true') :
+            sort.value === 'noreply' ? Number(row.dataset.noReply !== 'true') : 0;
+        const sorted = rows().sort((a, b) => order(a) - order(b) || Number(b.dataset.messageTime) - Number(a.dataset.messageTime));
+        sorted.forEach((row, index) => {
+            if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
+        });
+        if (list.contains(active) && document.activeElement !== active) active.focus({preventScroll: true});
+    };
+    const syncSort = () => {
+        sort.value = window.CentroMailAppearance.get('mail-sort');
+        sortMessages();
+    };
+    sort.addEventListener('change', () => window.CentroMailAppearance.set('mail-sort', sort.value));
+    document.addEventListener('centromail-appearance-change', syncSort);
     const selected = () => rows().filter(row => row.querySelector('.message-check').checked);
     const showFeedback = (message, reconnect = false) => {
         feedback.textContent = message;
@@ -123,6 +140,7 @@
                 });
                 list.append(fragment);
             }
+            sortMessages();
             const previousCursor = cursor;
             cursor = data.next_cursor;
             hasMore = Boolean(cursor) && cursor !== previousCursor;
@@ -316,6 +334,7 @@
     };
     document.addEventListener('centromail-appearance-change', scheduleRefresh);
     scheduleRefresh();
+    syncSort();
     updateSelection();
     loadMessages({reset: true, force: new URLSearchParams(location.search).get('refresh') === '1'});
     loadCounts();

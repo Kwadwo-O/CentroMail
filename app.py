@@ -219,6 +219,9 @@ def init_db():
                 PRIMARY KEY (user_id, message_id)
             )"""
         )
+        db.execute("""CREATE TABLE IF NOT EXISTS gmail_account_counts (
+            user_id INTEGER NOT NULL, account_key TEXT NOT NULL, counts TEXT NOT NULL,
+            updated_at REAL NOT NULL, PRIMARY KEY (user_id, account_key))""")
 
 
 with app.app_context():
@@ -379,7 +382,10 @@ def get_google_token(user):
 
 
 def get_gmail_access_token(user):
-    token = get_google_token(user)
+    account = active_email_account(user)
+    if account["kind"] != "gmail":
+        return None
+    token = account["config"]["token"] if account["key"] != "gmail" else get_google_token(user)
     if not token:
         return None
     expires_at = token.get("expires_at", 0)
@@ -402,8 +408,35 @@ def get_gmail_access_token(user):
     refreshed = response.json()
     token["access_token"] = refreshed["access_token"]
     token["expires_at"] = datetime.now(timezone.utc).timestamp() + refreshed.get("expires_in", 3600)
-    store_google_token(user["id"], token)
+    if account["key"] == "gmail":
+        store_google_token(user["id"], token)
+    else:
+        account["config"]["token"] = token
+        save_integration(user["id"], account["key"], account["config"])
     return token["access_token"]
+
+
+def gmail_message_key(account, raw_id):
+    return raw_id if account["key"] == "gmail" else "gm-" + account["config"]["account_id"] + "-" + raw_id
+
+
+def gmail_raw_message_id(account, identifier):
+    if account["key"] == "gmail":
+        raw_id = identifier
+        if raw_id.startswith(("gm-", "imap-", "ms-")):
+            raise ValueError("This email belongs to a different account.")
+    else:
+        prefix = "gm-" + account["config"]["account_id"] + "-"
+        if not identifier.startswith(prefix):
+            raise ValueError("This email belongs to a different account.")
+        raw_id = identifier[len(prefix):]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", raw_id):
+        raise ValueError("Invalid Gmail message identifier.")
+    return raw_id
+
+
+def gmail_folder_key(account, folder):
+    return folder if account["key"] == "gmail" else "gm:" + account["config"]["account_id"] + ":" + folder
 
 
 GMAIL_METADATA_TTL = 12 * 60 * 60
@@ -641,11 +674,27 @@ def decode_gmail_body(payload):
     return {"text": plain_text, "html": safe_html}
 
 
+def extract_otp_code(subject, text):
+    """Return one unambiguous code next to explicit sign-in or verification wording."""
+    marker = r"(?:one[\s-]*time[\s-]*(?:password|code|passcode)|otp|passcode|(?:verification|security|authentication|login|sign[\s-]*in|two[\s-]*factor|2fa)[\s-]*(?:code|pin))"
+    code = r"(?<![A-Za-z0-9])(?:\d{3}[ -]\d{3}|\d{4,8}|[A-Za-z0-9]{6,8})(?![A-Za-z0-9])"
+    content = html.unescape(subject + "\n" + (text or '')[:30000])
+    content = re.split(r"(?im)^\s*(?:On .+ wrote:|[-]+\s*Original message\s*[-]+)", content)[0]
+    candidates = []
+    for pattern in (marker + r"(?:\s+is)?[\s:=\-–]*?(" + code + ")", "(" + code + r")\s+(?:is\s+)?(?:your\s+)?" + marker):
+        candidates.extend(re.findall(pattern, content, re.I))
+    if re.search(marker, subject, re.I):
+        candidates.extend(re.findall(r"(?m)^\s*(" + code + r")\s*$", content))
+        candidates.extend(re.findall(r"\bcode(?:\s+is)?[\s:]+(" + code + ")", content, re.I))
+    candidates = {value.replace(" ", "").replace("-", "") for value in candidates if any(char.isdigit() for char in value)}
+    return next(iter(candidates)) if len(candidates) == 1 else None
+
+
 def gmail_metadata_from_payload(payload, fallback_id):
     message_headers = payload.get("payload", {}).get("headers", [])
     label_ids = set(payload.get("labelIds", []))
     sender = gmail_header(message_headers, "From")
-    return {
+    metadata = {
         "id": payload.get("id", fallback_id),
         "sender": gmail_sender(sender),
         "email": gmail_sender_email(sender),
@@ -666,6 +715,7 @@ def gmail_metadata_from_payload(payload, fallback_id):
             "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
         ),
     }
+    return {**metadata, **email_reply_info(metadata), "otp_code": extract_otp_code(metadata['subject'], metadata['preview'])}
 
 
 def load_cached_gmail_messages(user):
@@ -710,6 +760,8 @@ def _fetch_gmail_detail(headers, message_id):
 
 def fetch_gmail_message(user, message_id, *, for_reply=False):
     """Fetch and decode one complete Gmail message for the detail view."""
+    account = active_email_account(user)
+    raw_id = gmail_raw_message_id(account, message_id)
     metadata = gmail_cache_get(user["id"], message_id)
     body = gmail_cache_get(user["id"], message_id, body=True)
     if metadata is not None and body is not None and not (for_reply and "thread_id" not in metadata):
@@ -719,7 +771,7 @@ def fetch_gmail_message(user, message_id, *, for_reply=False):
     if not access_token:
         return None
     response = google_requests.get(
-        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{raw_id}",
         headers={"Authorization": "Bearer " + access_token},
         params={"userId": "me", "format": "full"},
         timeout=(5, 20),
@@ -727,6 +779,7 @@ def fetch_gmail_message(user, message_id, *, for_reply=False):
     response.raise_for_status()
     payload = response.json()
     metadata = gmail_metadata_from_payload(payload, message_id)
+    metadata['id'] = message_id
     body = decode_gmail_body(payload.get("payload", {}))
     gmail_cache_put(user["id"], message_id, metadata=metadata, body=body)
     return {**metadata, "date": gmail_message_date(metadata), "body": body}
@@ -742,11 +795,21 @@ def add_reply_headers(email, original):
         email["References"] = " ".join(dict.fromkeys([*references, parent_ids[0]]))
 
 
-def reply_address(message, account):
+NO_REPLY_ADDRESS_RE = re.compile(r"(?:^|[._+\-])(?:no[._\-]*reply|do[._\-]*not[._\-]*reply)(?=$|[._+\-]|\d)", re.I)
+
+
+def email_reply_info(message, account=None):
+    """Recognise explicit no-reply addresses, allowing a usable Reply-To override."""
     address = message.get("reply_to") or message.get("email", "")
-    if not message.get("reply_to") and normalize_email(parseaddr(address)[1]) == normalize_email(account["email"]):
+    if account and not message.get("reply_to") and normalize_email(parseaddr(address)[1]) == normalize_email(account["email"]):
         address = message.get("to", "")
-    return next((normalize_email(email) for _, email in getaddresses([address]) if valid_email(email)), "")
+    addresses = [normalize_email(email) for _, email in getaddresses([address]) if valid_email(email)]
+    target = next((email for email in addresses if not NO_REPLY_ADDRESS_RE.search(email.partition('@')[0])), "")
+    return {"reply_address": target, "can_reply": bool(target), "is_no_reply": bool(addresses) and not target}
+
+
+def reply_address(message, account):
+    return email_reply_info(message, account)["reply_address"]
 
 
 def send_gmail_message(user, recipient, subject, body, *, reply=None):
@@ -756,7 +819,7 @@ def send_gmail_message(user, recipient, subject, body, *, reply=None):
     email = EmailMessage()
     email["To"] = recipient
     email["Subject"] = subject or "(No subject)"
-    email["From"] = user["email"]
+    email["From"] = active_email_account(user)["email"]
     if reply:
         add_reply_headers(email, reply)
     email.set_content(body)
@@ -1838,7 +1901,7 @@ def delete_account():
     user_id = g.user["id"]
     db = get_db()
     for table in (
-        "gmail_cache", "gmail_sync_state", "gmail_folder_pages", "gmail_mailbox_counts",
+        "gmail_cache", "gmail_sync_state", "gmail_folder_pages", "gmail_mailbox_counts", "gmail_account_counts",
         "whatsapp_messages", "integrations",
     ):
         db.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
@@ -1891,7 +1954,7 @@ def cached_mail_preview(user, folder):
     page = get_db().execute(
         "SELECT message_ids FROM gmail_folder_pages "
         "WHERE user_id = ? AND folder = ? AND query = '' AND cursor = ''",
-        (user["id"], folder),
+        (user["id"], gmail_folder_key(account, folder)),
     ).fetchone()
     if page:
         ids = json.loads(page["message_ids"])[:MAIL_BATCH_SIZE]
@@ -1904,11 +1967,12 @@ def cached_mail_preview(user, folder):
     rows = get_db().execute(
         """SELECT metadata FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL
            AND message_id NOT LIKE 'imap-%' AND message_id NOT LIKE 'ms-%'
+           AND ((? = 'gmail' AND message_id NOT LIKE 'gm-%') OR (? != 'gmail' AND message_id LIKE ?))
            AND (? = 'all' OR EXISTS (
                SELECT 1 FROM json_each(COALESCE(json_extract(metadata, '$.label_ids'), '["INBOX"]'))
                WHERE value = ?))
            ORDER BY CAST(json_extract(metadata, '$.internal_date') AS INTEGER) DESC LIMIT ?""",
-        (user["id"], folder, label, MAIL_BATCH_SIZE),
+        (user["id"], account['key'], account['key'], gmail_message_key(account, '') + '%', folder, label, MAIL_BATCH_SIZE),
     ).fetchall()
     return [json.loads(row["metadata"]) for row in rows]
 
@@ -1932,9 +1996,10 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
         raise RuntimeError("Connect Google to load your email.")
     headers = {"Authorization": "Bearer " + token}
     db = get_db()
+    folder_key = gmail_folder_key(account, folder)
     cached = db.execute(
         "SELECT * FROM gmail_folder_pages WHERE user_id = ? AND folder = ? AND query = ? AND cursor = ?",
-        (user["id"], folder, query, cursor),
+        (user["id"], folder_key, query, cursor),
     ).fetchone()
     if cached and not refresh and time.time() - cached["listed_at"] < GMAIL_LIST_TTL:
         ids = json.loads(cached["message_ids"])
@@ -1955,7 +2020,7 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
         )
         response.raise_for_status()
         payload = response.json()
-        ids = [item["id"] for item in payload.get("messages", []) if item.get("id")][:MAIL_BATCH_SIZE]
+        ids = [gmail_message_key(account, item["id"]) for item in payload.get("messages", []) if item.get("id")][:MAIL_BATCH_SIZE]
         next_cursor = payload.get("nextPageToken")
         total = payload.get("resultSizeEstimate", len(ids))
         db.execute(
@@ -1963,19 +2028,21 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
                ON CONFLICT(user_id, folder, query, cursor) DO UPDATE SET
                message_ids = excluded.message_ids, next_cursor = excluded.next_cursor,
                total = excluded.total, listed_at = excluded.listed_at""",
-            (user["id"], folder, query, cursor, json.dumps(ids), next_cursor, total, time.time()),
+            (user["id"], folder_key, query, cursor, json.dumps(ids), next_cursor, total, time.time()),
         )
         db.commit()
     messages, missing = {}, []
     for message_id in ids:
         metadata = None if refresh else gmail_cache_get(user["id"], message_id)
+        if metadata is not None and "reply_to" not in metadata:
+            metadata = None
         if metadata is not None:
             messages[message_id] = metadata
         else:
             missing.append(message_id)
     # At most 25 metadata requests per page; other pages wait for scrolling.
     with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {executor.submit(_fetch_gmail_detail, headers, item): item for item in missing}
+        futures = {executor.submit(_fetch_gmail_detail, headers, gmail_raw_message_id(account, item)): item for item in missing}
         for future in as_completed(futures):
             message_id = futures[future]
             try:
@@ -1984,6 +2051,7 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
                 if gmail_error_status(error) in {404, 410}:
                     continue
                 raise
+            metadata['id'] = message_id
             gmail_cache_put(user["id"], message_id, metadata=metadata)
             messages[message_id] = metadata
     return [messages[item] for item in ids if item in messages], next_cursor, total
@@ -2009,7 +2077,7 @@ def mailbox_messages():
         app.logger.warning("Could not load mail page for user id=%s", g.user["id"])
         return jsonify(error="Could not load messages. Please try again."), 502
     return jsonify(
-        html=render_template('mail_rows.html', messages=messages, folder=folder, mail_account_key=active_email_account(g.user)["key"]),
+        html=render_template('mail_rows.html', messages=[{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in messages], folder=folder, mail_account_key=active_email_account(g.user)["key"]),
         next_cursor=next_cursor, total=total, count=len(messages),
     )
 
@@ -2031,6 +2099,8 @@ def mailbox_counts():
             return jsonify({})
     cached = get_db().execute(
         "SELECT counts, updated_at FROM gmail_mailbox_counts WHERE user_id = ?", (g.user["id"],)
+    ).fetchone() if account['key'] == 'gmail' else get_db().execute(
+        "SELECT counts, updated_at FROM gmail_account_counts WHERE user_id=? AND account_key=?", (g.user['id'],account['key'])
     ).fetchone()
     if cached and time.time() - cached["updated_at"] < 60 and request.args.get("refresh") != "1":
         return jsonify(json.loads(cached["counts"]))
@@ -2047,10 +2117,10 @@ def mailbox_counts():
             response.raise_for_status()
             info = response.json()
             counts[folder] = info.get("messagesUnread", 0) if folder == "inbox" else info.get("messagesTotal", 0)
-        get_db().execute(
-            "INSERT OR REPLACE INTO gmail_mailbox_counts VALUES (?, ?, ?)",
-            (g.user["id"], json.dumps(counts), time.time()),
-        )
+        if account['key'] == 'gmail':
+            get_db().execute("INSERT OR REPLACE INTO gmail_mailbox_counts VALUES (?, ?, ?)", (g.user["id"], json.dumps(counts), time.time()))
+        else:
+            get_db().execute("INSERT OR REPLACE INTO gmail_account_counts VALUES (?, ?, ?, ?)", (g.user['id'],account['key'],json.dumps(counts),time.time()))
         get_db().commit()
         return jsonify(counts)
     except (requests.RequestException, KeyError, ValueError):
@@ -2091,20 +2161,21 @@ def mail_action():
         return jsonify(action=action,ids=ids)
     add, remove = changes[action]
     try:
+        raw_ids = [gmail_raw_message_id(account, identifier) for identifier in ids]
         token = get_gmail_access_token(g.user)
         if not token:
             return jsonify(error="Connect Google to change your email.", reconnect=True), 409
         response = google_requests.post(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
             headers={"Authorization": "Bearer " + token},
-            json={"ids": ids, "addLabelIds": add, "removeLabelIds": remove}, timeout=(5, 20),
+            json={"ids": raw_ids, "addLabelIds": add, "removeLabelIds": remove}, timeout=(5, 20),
         )
         response.raise_for_status()
     except requests.HTTPError as error:
         if gmail_error_status(error) in {401, 403}:
             return jsonify(error="Reconnect Google to allow archiving, starring and changing messages.", reconnect=True), 403
         return jsonify(error=gmail_error_message(error)), 502
-    except requests.RequestException:
+    except (ValueError, requests.RequestException):
         return jsonify(error="The message action failed. Please try again."), 502
     db = get_db()
     for message_id in ids:
@@ -2113,8 +2184,13 @@ def mail_action():
             labels = (set(metadata.get("label_ids", ["INBOX"])) | set(add)) - set(remove)
             metadata.update(label_ids=sorted(labels), unread="UNREAD" in labels, starred="STARRED" in labels)
             gmail_cache_put(g.user["id"], message_id, metadata=metadata)
-    for table in ("gmail_folder_pages", "gmail_mailbox_counts", "gmail_sync_state"):
-        db.execute(f"DELETE FROM {table} WHERE user_id = ?", (g.user["id"],))
+    if account['key'] == 'gmail':
+        db.execute("DELETE FROM gmail_folder_pages WHERE user_id=? AND folder NOT LIKE 'gm:%'", (g.user['id'],))
+        for table in ('gmail_mailbox_counts','gmail_sync_state'):
+            db.execute(f"DELETE FROM {table} WHERE user_id=?", (g.user['id'],))
+    else:
+        db.execute("DELETE FROM gmail_folder_pages WHERE user_id=? AND folder LIKE ?", (g.user['id'],gmail_folder_key(account,'')+'%'))
+        db.execute("DELETE FROM gmail_account_counts WHERE user_id=? AND account_key=?", (g.user['id'],account['key']))
     db.commit()
     return jsonify(action=action, ids=ids)
 
@@ -2137,15 +2213,29 @@ def paginate_messages(messages, page):
 def inbox(compose_draft=None):
     folder = requested_mail_folder()
     account = active_email_account(g.user)
-    messages = cached_mail_preview(g.user, folder)
+    messages = [{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in cached_mail_preview(g.user, folder)]
     available = GMAIL_FOLDERS
     if account["kind"] == "imap": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"inbox","starred",*account["config"]["folders"]}}
     elif account["kind"] == "microsoft": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"all","starred",*graph_mail.FOLDERS}}
     return render_template(
         'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=email_accounts(g.user), mail_account_key=account['key'], mail_kind=account['kind'],
         folder_title=GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages),
-        compose_draft=compose_draft, mail_account_email=account['email'],
+        compose_draft=compose_draft, mail_account_email=account['email'], app_connections=workspace_connections(g.user),
     )
+
+
+def workspace_connections(user):
+    connections = []
+    for provider, name in [('telegram','Telegram'), ('discord','Discord'), ('whatsapp','WhatsApp')]:
+        config = get_integration(user['id'], provider)
+        if not config or (provider == 'telegram' and config.get('stage') != 'connected'):
+            continue
+        subtitle = config.get('channel_name') or config.get('display_phone_number') or (config.get('account') or {}).get('username') or 'Recent conversations'
+        connections.append({'key':provider,'name':name,'subtitle':subtitle,'messages_url':url_for('integration_messages',provider=provider)})
+    for spec in SOCIAL_PROVIDERS:
+        if get_integration(user['id'],'social:'+spec['key']):
+            connections.append({'key':spec['key'],'name':spec['name'],'subtitle':'Connected integration','messages_url':''})
+    return connections
 
 
 @app.route('/mail')
@@ -2180,6 +2270,9 @@ def message_detail(message_id):
         message = fetch_email_message(g.user, account, message_id, folder)
         if message is None:
             raise RuntimeError("Connect Google to read this email.")
+        message = {**message, **email_reply_info(message, account)}
+        body_text = message['body'].get('text','') if isinstance(message['body'],dict) else str(message['body'])
+        message['otp_code'] = extract_otp_code(message['subject'], body_text)
     except (RuntimeError, requests.RequestException, KeyError, ValueError, OSError, imaplib.IMAP4.error) as error:
         if request.args.get("pane") == "1":
             return render_template('message_error.html', error="Could not open this email. Check the account connection and try again."), 502
@@ -2204,18 +2297,21 @@ def compose():
     account = active_email_account(g.user)
     folder = requested_mail_folder()
     reply_id = request.form.get('reply_id', '')
+    error_message = ''
     if not valid_email(recipient):
-        flash("Enter a valid recipient email address.", "error")
+        error_message = "Enter a valid recipient email address."
     elif '\r' in subject or '\n' in subject:
-        flash("The email subject must be a single line.","error")
+        error_message = "The email subject must be a single line."
     elif not body.strip():
-        flash("Write a message before sending.", "error")
+        error_message = "Write a message before sending."
     else:
         try:
             sent_warning=None
             original = fetch_email_message(g.user, account, reply_id, folder) if reply_id else None
             if reply_id and original is None:
                 raise RuntimeError("Reconnect the email account before replying.")
+            if original and (not email_reply_info(original, account)["can_reply"] or email_reply_info({"email": recipient})["is_no_reply"]):
+                raise RuntimeError("Replies are disabled for this email because it has no usable reply address.")
             if account["kind"] == "gmail":
                 if original: send_gmail_message(g.user, recipient, subject, body, reply=original)
                 else: send_gmail_message(g.user, recipient, subject, body)
@@ -2227,13 +2323,14 @@ def compose():
                 if original: add_reply_headers(email, original)
                 sent_warning=email_providers.send_message(account["config"],email)
         except RuntimeError as error:
-            flash(str(error), "error")
+            error_message = str(error)
         except (ValueError, requests.RequestException,OSError,imaplib.IMAP4.error,smtplib.SMTPException):
-            flash("The mail server could not send the message. Please try again.", "error")
+            error_message = "The mail server could not send the message. Please try again."
         else:
             flash(sent_warning or f"Message sent to {recipient} successfully.", "info" if sent_warning else "success")
             return redirect(url_for('inbox', account=account['key'], folder=folder))
-    return inbox(compose_draft={'to': recipient, 'subject': subject, 'body': body, 'reply_id': reply_id})
+    flash(error_message,'error')
+    return inbox(compose_draft={'to': recipient, 'subject': subject, 'body': body, 'reply_id': reply_id, 'error':error_message})
 
 
 @app.route('/settings')
@@ -2278,9 +2375,10 @@ def integrations():
 
         social_cards=social_cards,
         social_state=social_state,
-        google_connected=bool(get_google_token(g.user)),
-        google_email=session.get("user_email"),
-        email_presets=email_providers.PROVIDERS, email_connections=[account for account in email_accounts(g.user) if account["kind"] != "gmail"],
+        google_connected=any(account['kind']=='gmail' for account in email_accounts(g.user)),
+        google_email=next((account['email'] for account in email_accounts(g.user) if account['kind']=='gmail'),None),
+        google_account_key=next((account['key'] for account in email_accounts(g.user) if account['kind']=='gmail'),'gmail'),
+        email_presets=email_providers.PROVIDERS, email_connections=[account for account in email_accounts(g.user) if account["key"] != "gmail"],
     )
 
 
@@ -2318,10 +2416,13 @@ def connect_email():
 @app.post('/integrations/email/disconnect')
 def disconnect_email():
     key=request.form.get("account","")
-    account=next((account for account in email_accounts(g.user) if account["key"]==key and account["kind"]!="gmail"),None)
+    account=next((account for account in email_accounts(g.user) if account["key"]==key and account["key"]!="gmail"),None)
     if account is None: abort(404)
-    prefix=("imap-" if account["kind"]=="imap" else "ms-")+account["config"]["account_id"]+"-%"
+    prefix={"imap":"imap-","microsoft":"ms-","gmail":"gm-"}[account['kind']]+account["config"]["account_id"]+"-%"
     db=get_db(); db.execute("DELETE FROM gmail_cache WHERE user_id=? AND message_id LIKE ?",(g.user["id"],prefix))
+    if account['kind']=='gmail':
+        db.execute("DELETE FROM gmail_folder_pages WHERE user_id=? AND folder LIKE ?",(g.user['id'],gmail_folder_key(account,'')+'%'))
+        db.execute("DELETE FROM gmail_account_counts WHERE user_id=? AND account_key=?",(g.user['id'],key))
     db.execute("DELETE FROM integrations WHERE user_id=? AND provider=?",(g.user["id"],key));db.commit()
     if session.get("mail_account")==key:session.pop("mail_account")
     flash("Email account disconnected and its local cache removed.","info")
@@ -2349,7 +2450,7 @@ def microsoft_callback():
 
 @app.get('/api/integrations/<provider>/messages')
 def integration_messages(provider):
-    if provider not in {"telegram", "discord"}:
+    if provider not in {"telegram", "discord", "whatsapp"}:
         abort(404)
     config = get_integration(g.user["id"], provider)
     if config is None or (provider == "telegram" and config.get("stage") != "connected"):
@@ -2357,8 +2458,10 @@ def integration_messages(provider):
     try:
         if provider == "telegram":
             _, messages = telegram_snapshot(config, g.user["id"])
-        else:
+        elif provider == 'discord':
             messages = discord_recent_messages(config)
+        else:
+            messages = whatsapp_recent_messages(g.user['id'])
     except Exception as error:
         app.logger.warning("%s message preview failed for user id=%s", provider, g.user["id"])
         return jsonify(error=telegram_error_text(error) if provider == "telegram" else "Messages could not be loaded. Try again."), 502
@@ -2714,6 +2817,9 @@ def authenticate(provider):
     if provider not in {'google', 'microsoft'}:
         abort(404)
     if provider == "google":
+        if request.args.get('connect')=='1' and g.user is None:
+            flash("Sign in to CentroMail first, then add Gmail from Integrations.","info")
+            return redirect(url_for('login'))
         if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
             flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
             return redirect(url_for('login'))
@@ -2726,10 +2832,16 @@ def authenticate(provider):
         if (callback.hostname in loopback and origin.hostname in loopback
                 and callback.scheme == origin.scheme and callback.port == origin.port
                 and callback.netloc != origin.netloc):
-            return redirect(f"{callback.scheme}://{callback.netloc}{url_for('authenticate', provider='google')}")
+            path = url_for('authenticate', provider='google', connect=1) if g.user is not None or request.args.get('connect') == '1' else url_for('authenticate', provider='google')
+            return redirect(f"{callback.scheme}://{callback.netloc}{path}")
+        if g.user is not None:
+            session['google_connect_user']=g.user['id']
         try:
+            if g.user is not None:
+                return google.authorize_redirect(callback_uri, prompt='select_account consent', access_type='offline')
             return google.authorize_redirect(callback_uri)
         except (requests.RequestException, OAuthError, ValueError):
+            session.pop('google_connect_user',None)
             flash("Could not connect to Google. Please try signing in again.", "error")
             return redirect(url_for('login'))
 
@@ -2754,6 +2866,9 @@ def authenticate(provider):
 
 @app.get('/auth/google/callback')
 def google_callback():
+    connect_user = session.pop('google_connect_user', None)
+    if connect_user is not None and (g.user is None or g.user['id'] != connect_user):
+        abort(400, description="Sign in to the account that started this Gmail connection.")
     if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
         flash("Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", "error")
         return redirect(url_for('login'))
@@ -2784,6 +2899,24 @@ def google_callback():
     if not valid_email(email):
         flash("Google did not provide a valid email address.", "error")
         return redirect(url_for('onboarding'))
+
+    if connect_user is not None:
+        if email == g.user['email']:
+            previous = get_google_token(g.user) or {}
+            if not token.get('refresh_token'):
+                token['refresh_token'] = previous.get('refresh_token')
+            store_google_token(g.user['id'], token)
+            key = 'gmail'
+        else:
+            account_id = hashlib.sha256(email.encode()).hexdigest()[:12]
+            key = 'email:gmail:' + account_id
+            previous = get_integration(g.user['id'], key) or {}
+            if not token.get('refresh_token'):
+                token['refresh_token'] = previous.get('token',{}).get('refresh_token')
+            save_integration(g.user['id'], key, {'kind':'gmail','name':'Gmail','email':email,'account_id':account_id,'token':token})
+        session['mail_account'] = key
+        flash(f"Gmail connected: {email}.", 'success')
+        return redirect(url_for('inbox', account=key))
 
     user = find_user(email)
     avatar_url = profile.get("picture")

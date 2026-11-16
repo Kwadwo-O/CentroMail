@@ -55,7 +55,7 @@ def metadata(config,item,folder):
 
 def list_messages(token,config,folder,query='',cursor=''):
     path='/me/messages' if folder in {'all','starred'} else '/me/mailFolders/'+FOLDERS[folder]+'/messages'
-    params={'$top':25,'$select':'id,from,subject,bodyPreview,receivedDateTime,isRead,flag'}
+    params={'$top':25,'$select':'id,from,subject,bodyPreview,receivedDateTime,isRead,flag,replyTo,toRecipients'}
     if query: params['$search']='"'+query.replace('\\','\\\\').replace('"','\\"')+'"'
     else: params['$orderby']='receivedDateTime desc'
     if folder=='starred' and not query:

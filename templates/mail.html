@@ -15,7 +15,6 @@
         <label class="search-box">
             <span class="material-symbols-rounded ui-icon" aria-hidden="true">search</span>
             <input id="mail-search" type="search" placeholder="Search mail" aria-label="Search mail">
-            <span class="material-symbols-rounded search-hint" aria-hidden="true">search</span>
         </label>
         <div class="header-actions">
             <button class="icon-button m3e-icon-button m3e-icon-button--standard" id="mail-help-button" type="button" aria-label="Help" title="Inbox help"><span class="material-symbols-rounded" aria-hidden="true">help</span></button>
@@ -50,6 +49,7 @@
             {% for account in mail_accounts %}<option value="{{ account.key }}" {% if account.key == mail_account_key %}selected{% endif %}>{{ account.name }} · {{ account.email }}</option>{% endfor %}
         </select>
         <button class="m3e-button m3e-button--text" type="submit">Switch</button>
+        <a class="m3e-button m3e-button--text" href="{{ url_for('authenticate',provider='google',connect=1) }}">Add Gmail</a>
         <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Add account</a>
     </form>
     <div class="workspace-tabs" role="tablist" aria-label="Communication type">
@@ -97,6 +97,13 @@
                     <h1 id="inbox-title">{{ folder_title }}</h1>
                 </div>
                 <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
+                <label class="mail-sort-control" for="mail-sort">Sort loaded emails
+                    <select id="mail-sort">
+                        <option value="replyable">Replyable first</option>
+                        <option value="newest">Newest first</option>
+                        <option value="noreply">No-reply first</option>
+                    </select>
+                </label>
             </div>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
@@ -143,12 +150,29 @@
     </div>
 
     <section class="apps-workspace workspace-view" id="workspace-apps" role="tabpanel" aria-labelledby="workspace-tab-apps" tabindex="0" data-workspace-view="apps" hidden>
+        {% if app_connections %}
+        <aside class="apps-sidebar" aria-label="Connected apps">
+            <div class="apps-heading"><h2>Apps</h2><a class="m3e-icon-button m3e-icon-button--standard" href="{{ url_for('integrations') }}" aria-label="Connect an app"><span class="m3e-icon" aria-hidden="true">add</span></a></div>
+            {% for connection in app_connections %}
+            <button class="m3e-button m3e-button--text apps-connection" type="button" data-app-provider="{{ connection.key }}" data-app-name="{{ connection.name }}" data-app-feed="{{ connection.messages_url }}" aria-pressed="false" aria-controls="apps-feed-panel"><img src="{{ url_for('static',filename='images/integrations/' + connection.key + '.svg') }}" width="32" height="32" alt=""><span><strong>{{ connection.name }}</strong><small>{{ connection.subtitle }}</small><small>Connected</small></span></button>
+            {% endfor %}
+        </aside>
+        <section class="apps-feed-panel" id="apps-feed-panel" aria-labelledby="apps-feed-title">
+            <header class="apps-feed-header"><div><h2 id="apps-feed-title">Messages</h2><p id="apps-feed-status" role="status">Choose an app to see recent messages.</p></div><button class="m3e-button m3e-button--tonal" id="refresh-app-feed" type="button" disabled><span class="m3e-icon" aria-hidden="true">refresh</span>Refresh</button><a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Manage connection</a></header>
+            <div id="apps-feed-messages"></div>
+            <div id="apps-feed-loading" aria-hidden="true" hidden>
+                <span class="cm-loading-shell"><m3e-loading-indicator aria-label="Loading app messages"></m3e-loading-indicator></span>
+                {% for _ in range(3) %}<div class="apps-feed-message"><span class="apps-skeleton-sender"></span><span class="apps-skeleton-body"></span></div>{% endfor %}
+            </div>
+        </section>
+        {% else %}
         <div class="chat-empty">
             <span class="material-symbols-rounded" aria-hidden="true">forum</span>
             <h2>Messaging connections</h2>
-            <p>Read recent messages and manage Telegram, WhatsApp Business, and Discord on the Integrations page.</p>
+            <p>Connect Telegram, WhatsApp Business, Discord, or another service to see it here.</p>
             <a class="m3e-button m3e-button--filled" href="{{ url_for('integrations') }}"><span class="material-symbols-rounded" aria-hidden="true">add_link</span>Connect an app</a>
         </div>
+        {% endif %}
     </section>
 
     <dialog class="mail-help-dialog" id="mail-help-dialog" aria-labelledby="mail-help-title">
@@ -235,5 +259,7 @@
     });
 </script>
 <script src="{{ url_for('static', filename='js/compose.js') }}"></script>
+<script src="{{ url_for('static', filename='js/email-tools.js') }}"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
 {% endblock %}

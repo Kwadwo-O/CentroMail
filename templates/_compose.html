@@ -6,7 +6,7 @@
         <input type="hidden" name="folder" value="{{ folder }}">
         <input type="hidden" name="reply_id" value="{{ draft.get('reply_id', '') }}">
         <div class="compose-title"><strong id="compose-title">{{ 'Reply' if draft.get('reply_id') else 'New message' }}</strong><button type="button" class="m3e-icon-button m3e-icon-button--standard" id="close-compose" aria-label="Close composer"><span class="m3e-icon" aria-hidden="true">close</span></button></div>
-        <p class="compose-account">From <strong>{{ mail_account_email }}</strong></p>
+        <p class="compose-account">From <strong>{{ mail_account_email }}</strong>{% if draft.get('error') %}<span class="compose-error" role="alert">{{ draft.error }}</span>{% endif %}</p>
         <input type="email" name="to" value="{{ draft.get('to', '') }}" placeholder="Recipient" aria-label="Recipient" maxlength="254" required>
         <input type="text" name="subject" value="{{ draft.get('subject', '') }}" placeholder="Subject" aria-label="Subject">
         <textarea name="body" placeholder="Write a message…" aria-label="Message" required>{{ draft.get('body', '') }}</textarea>

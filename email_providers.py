@@ -140,7 +140,7 @@ def list_messages(config, cursor='', query='', folder='inbox', limit=25):
             ids = [uid for uid in ids if uid < int(cursor)]
         selected = ids[:limit]
         if not selected: return [],None,total
-        status, rows = client.uid('FETCH',','.join(map(str,selected)), '(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])')
+        status, rows = client.uid('FETCH',','.join(map(str,selected)), '(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE REPLY-TO TO MESSAGE-ID REFERENCES)])')
         check(status,'The server could not read mail headers.')
         messages={}
         for row in rows or []:

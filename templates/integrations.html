@@ -53,8 +53,8 @@
                 <div><dt>Access</dt><dd>Read inbox and send mail through the Gmail API</dd></div>
             </dl>
             <div class="integration-actions">
-                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google') }}">Reconnect Google</a>
-                <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', account='gmail') }}">Open inbox</a>
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) }}">Add Gmail account</a>
+                <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', account=google_account_key) }}">Open inbox</a>
             </div>
             {% else %}
             <details class="integration-guide">
@@ -62,7 +62,7 @@
                 <p class="integration-copy">Sign in with Google to let CentroMail read your inbox and send messages through Gmail.</p>
             </details>
             <div class="integration-actions">
-                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google') }}">Connect Google</a>
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) }}">Connect Google</a>
             </div>
             {% endif %}
         </article>
@@ -87,7 +87,7 @@
                 </form>
             </article>
             {% for account in email_connections %}
-            <article class="integration-card"><h3>{{ account.name }}</h3><p>{{ account.email }}</p><div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('inbox',account=account.key) }}">Open inbox</a><form method="post" action="{{ url_for('disconnect_email') }}" data-confirm="Disconnect {{ account.email }} and remove its local email cache?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ account.key }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form></div></article>
+            <article class="integration-card"><h3>{{ account.name }}</h3><p>{{ account.email }}</p><div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('inbox',account=account.key) }}">Open inbox</a>{% if account.kind == 'gmail' %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('authenticate',provider='google',connect=1) }}">Reconnect</a>{% endif %}<form method="post" action="{{ url_for('disconnect_email') }}" data-confirm="Disconnect {{ account.email }} and remove its local email cache?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ account.key }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form></div></article>
             {% endfor %}
         </div>
     </section>
