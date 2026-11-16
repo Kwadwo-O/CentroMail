@@ -284,7 +284,7 @@ class AuthTests(unittest.TestCase):
     def test_formatted_message_body_survives_cache_and_renders_in_isolated_reader(self):
         self.register()
         user_id = self.users()[0]["id"]
-        body = {"text": "Hello", "html": '<p style="font-size:20px">Hello</p>'}
+        body = {"text": "Hello", "html": '<p style="font-size:20px">Hello</p>', "html_version": application.EMAIL_HTML_VERSION}
         with application.app.app_context():
             application.gmail_cache_put(user_id, "sample", metadata=self.mail_metadata("sample"), body=body)
             self.assertEqual(application.gmail_cache_get(user_id, "sample", body=True), body)

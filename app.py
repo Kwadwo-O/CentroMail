@@ -443,6 +443,7 @@ def gmail_folder_key(account, folder):
 
 GMAIL_METADATA_TTL = 12 * 60 * 60
 GMAIL_BODY_TTL = 24 * 60 * 60
+EMAIL_HTML_VERSION = 2
 
 
 def gmail_cache_get(user_id, message_id, *, body=False):
@@ -461,6 +462,8 @@ def gmail_cache_get(user_id, message_id, *, body=False):
             decoded = json.loads(row["body"])
         except (TypeError, json.JSONDecodeError):
             return {"text": row["body"], "html": ""}
+        if isinstance(decoded, dict) and decoded.get('html') and decoded.get('html_version') != EMAIL_HTML_VERSION:
+            return None
         return decoded if isinstance(decoded, dict) else {"text": row["body"], "html": ""}
     if row["metadata"] is None or now - (row["metadata_at"] or 0) > GMAIL_METADATA_TTL:
         return None
@@ -636,6 +639,7 @@ def decode_gmail_body(payload):
             "border-width", "border-style", "border-radius", "border-collapse", "border-spacing",
             "display", "width", "height", "min-width", "max-width", "min-height", "max-height",
             "table-layout", "list-style-type",
+            "overflow", "overflow-x", "overflow-y", "visibility", "opacity", "mso-hide", "box-sizing",
         ])
         def clean_rules(css):
             rules = []
@@ -664,7 +668,7 @@ def decode_gmail_body(payload):
                 "table": ["width", "align", "cellpadding", "cellspacing", "border"],
                 "td": ["colspan", "rowspan", "width", "height", "align", "valign"],
                 "th": ["colspan", "rowspan", "width", "align", "valign"],
-                "*": ["class", "style", "id"]
+                "*": ["class", "style", "id", "hidden"]
             },
             protocols=["http", "https", "mailto"],
             css_sanitizer=email_css,
@@ -673,7 +677,7 @@ def decode_gmail_body(payload):
         if styles:
             safe_html = "<style>" + styles.replace("<", "\\3c ") + "</style>" + safe_html
 
-    return {"text": plain_text, "html": safe_html}
+    return {"text": plain_text, "html": safe_html, "html_version": EMAIL_HTML_VERSION}
 
 
 def extract_otp_code(subject, text):
