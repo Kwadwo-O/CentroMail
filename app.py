@@ -31,7 +31,7 @@ import graph_mail
 import bleach
 import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template, request,
                    session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
@@ -40,7 +40,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from google_transport import GoogleOAuthApp, google_requests
 
 try:
-    from telethon import TelegramClient
+    from telethon import TelegramClient, functions as telegram_functions, types as telegram_types
     from telethon.errors import (
         ApiIdInvalidError,
         FloodWaitError,
@@ -267,6 +267,7 @@ PROTECTED_ENDPOINTS = {
     "disconnect_whatsapp_route", "connect_discord_route", "test_discord_route",
     "disconnect_discord_route", "connect_social_route", "test_social_route",
     "disconnect_social_route", "integration_messages", "connect_email", "disconnect_email", "microsoft_callback",
+    "telegram_chat_route", "telegram_photo_route",
 }
 
 
@@ -895,6 +896,7 @@ def _telegram_client(config, session=None):
         StringSession(session_text),
         int(config["api_id"]),
         config["api_hash"],
+        flood_sleep_threshold=0,
     )
 
 
@@ -987,31 +989,14 @@ def telegram_verify(user, value, mode):
     return config
 
 
-def telegram_snapshot(config, user_id, limit=8):
+def _telegram_run(config, user_id, operation):
     async def run():
         client = _telegram_client(config)
-        await client.connect()
         try:
+            await client.connect()
             if not await client.is_user_authorized():
-                raise RuntimeError(
-                    "This Telegram session is no longer signed in. Connect your account again."
-                )
-            me = await client.get_me()
-            dialogs = await client.get_dialogs(limit=limit)
-            messages = []
-            for dialog in dialogs:
-                message = dialog.message
-                if message is None:
-                    continue
-                messages.append(
-                    {
-                        "id": message.id,
-                        "sender": getattr(dialog, "name", "") or "Telegram",
-                        "text": message.message or "(No text content)",
-                        "time": message.date.astimezone().strftime("%b %d, %H:%M"),
-                    }
-                )
-            return _telegram_account(me), messages
+                raise RuntimeError("This Telegram session is no longer signed in. Connect your account again.")
+            return await operation(client)
         finally:
             await client.disconnect()
 
@@ -1022,6 +1007,104 @@ def telegram_snapshot(config, user_id, limit=8):
         return asyncio.run(asyncio.wait_for(run(), timeout=20))
     finally:
         lock.release()
+
+
+def telegram_snapshot(config, user_id, limit=8):
+    async def snapshot(client):
+        me = await client.get_me()
+        dialogs = await client.get_dialogs(limit=limit)
+        messages = []
+        for dialog in dialogs:
+            message = dialog.message
+            forum = bool(getattr(dialog.entity, 'forum', False))
+            messages.append({
+                'id':message.id if message else None, 'chat_id':str(dialog.id),
+                'sender':dialog.name or 'Telegram', 'text':(message.message or '(Media or service message)') if message else 'No messages yet.',
+                'time':message.date.astimezone().strftime('%b %d, %H:%M') if message else '',
+                'kind':'forum' if forum else 'group' if dialog.is_group else 'channel' if dialog.is_channel else 'private',
+                'unread':dialog.unread_count,
+            })
+        return _telegram_account(me), messages
+    return _telegram_run(config, user_id, snapshot)
+
+
+async def _telegram_dialog(client, chat_id):
+    # StringSession does not persist entity access hashes; resolve from our own dialogs.
+    dialogs = await client.get_dialogs(limit=50)
+    dialog = next((item for item in dialogs if str(item.id) == chat_id), None)
+    if dialog is None:
+        raise ValueError('Choose a conversation from your 50 most recent Telegram chats.')
+    return dialog
+
+
+def _telegram_can_send(dialog):
+    entity = dialog.entity
+    admin = getattr(entity, 'admin_rights', None)
+    if getattr(entity, 'broadcast', False):
+        return bool(getattr(entity, 'creator', False) or getattr(admin, 'post_messages', False))
+    if getattr(entity, 'creator', False) or admin:
+        return True
+    for rights in (getattr(entity, 'banned_rights', None), getattr(entity, 'default_banned_rights', None)):
+        if rights and (getattr(rights, 'send_messages', False) or getattr(rights, 'send_plain', False)):
+            return False
+    return True
+
+
+def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', before=0, after=0, text=None, request_id=None):
+    async def conversation(client):
+        dialog = await _telegram_dialog(client, chat_id)
+        forum = bool(getattr(dialog.entity, 'forum', False))
+        topics = []
+        if forum:
+            result = await client(telegram_functions.messages.GetForumTopicsRequest(peer=dialog.input_entity, offset_date=None, offset_id=0, offset_topic=0, limit=100, q=topic_query or None))
+            topics = [{'id':str(topic.id), 'title':topic.title, 'closed':bool(topic.closed), 'hidden':bool(topic.hidden)} for topic in result.topics if isinstance(topic, telegram_types.ForumTopic)]
+            if topic_id and not any(topic['id'] == topic_id for topic in topics):
+                result = await client(telegram_functions.messages.GetForumTopicsByIDRequest(peer=dialog.input_entity, topics=[int(topic_id)]))
+                topics.extend({'id':str(topic.id), 'title':topic.title, 'closed':bool(topic.closed), 'hidden':bool(topic.hidden)} for topic in result.topics if isinstance(topic, telegram_types.ForumTopic) and str(topic.id) == topic_id)
+        if topic_id is not None and not forum:
+            raise ValueError('This group has topics disabled.')
+        topic = next((item for item in topics if item['id'] == topic_id), None)
+        if topic_id is not None and topic is None:
+            raise ValueError('This topic is unavailable. Refresh the topic list.')
+        can_send = _telegram_can_send(dialog) and not (topic and (topic['closed'] or topic['hidden']))
+        if text is not None:
+            if forum and topic is None:
+                raise ValueError('Choose a topic before sending a message.')
+            if not can_send:
+                raise ValueError('This conversation or topic is read-only for your account.')
+            identity = '\0'.join((str(user_id), config['session'], chat_id, topic_id or '', request_id))
+            random_id = int.from_bytes(hashlib.sha256(identity.encode()).digest()[:8], 'big') & ((1 << 63) - 1)
+            reply = telegram_types.InputReplyToMessage(reply_to_msg_id=int(topic_id)) if topic_id and topic_id != '1' else None
+            # Telegram deduplicates retries with the same random_id after uncertain sends.
+            await client(telegram_functions.messages.SendMessageRequest(peer=dialog.input_entity, message=text, random_id=random_id, reply_to=reply, no_webpage=True))
+            return {'sent':True}
+        messages = []
+        raw = []
+        if not forum or topic:
+            kwargs = {'reply_to':int(topic_id)} if topic_id and topic_id != '1' else {}
+            if after: kwargs.update(min_id=after, reverse=True)
+            raw = await client.get_messages(dialog.input_entity, limit=50, offset_id=before, **kwargs)
+            for message in raw if after else reversed(raw):
+                if topic_id == '1':
+                    if isinstance(getattr(message, 'action', None), telegram_types.MessageActionTopicCreate) and message.id != 1:
+                        continue
+                    reply = getattr(message, 'reply_to', None)
+                    root = getattr(reply, 'reply_to_top_id', None) or (getattr(reply, 'reply_to_msg_id', None) if getattr(reply, 'forum_topic', False) else None)
+                    if root not in (None, 1):
+                        continue
+                sender = getattr(message, 'sender', None)
+                name = _telegram_account(sender)['name'] if sender else 'Telegram'
+                if sender and getattr(sender, 'title', None): name = sender.title
+                messages.append({'id':str(message.id), 'sender':'You' if message.out else name, 'outgoing':bool(message.out), 'text':message.message or '(Media or service message)', 'time':message.date.astimezone().strftime('%b %d, %H:%M')})
+        return {'chat_id':chat_id, 'name':dialog.name, 'forum':forum, 'topics':topics, 'topic_id':topic_id, 'can_send':can_send and (not forum or topic is not None), 'messages':messages, 'next_before':str(raw[-1].id) if len(raw) == 50 and not after else None, 'latest_seen':str(raw[-1 if after else 0].id) if raw else None, 'has_more_new':bool(after and len(raw) == 50)}
+    return _telegram_run(config, user_id, conversation)
+
+
+def telegram_photo(config, user_id, chat_id):
+    async def photo(client):
+        entity = 'me' if chat_id == 'me' else (await _telegram_dialog(client, chat_id)).entity
+        return await client.download_profile_photo(entity, file=bytes, download_big=False)
+    return _telegram_run(config, user_id, photo)
 
 
 def telegram_send_test(config, user_id):
@@ -2457,7 +2540,7 @@ def integration_messages(provider):
         return jsonify(error="Connect this service first."), 409
     try:
         if provider == "telegram":
-            _, messages = telegram_snapshot(config, g.user["id"])
+            _, messages = telegram_snapshot(config, g.user["id"], limit=50)
         elif provider == 'discord':
             messages = discord_recent_messages(config)
         else:
@@ -2466,6 +2549,46 @@ def integration_messages(provider):
         app.logger.warning("%s message preview failed for user id=%s", provider, g.user["id"])
         return jsonify(error=telegram_error_text(error) if provider == "telegram" else "Messages could not be loaded. Try again."), 502
     return jsonify(messages=messages)
+
+
+@app.route('/api/integrations/telegram/chats/<chat_id>', methods=['GET', 'POST'])
+def telegram_chat_route(chat_id):
+    if not re.fullmatch(r'-?[1-9][0-9]{0,15}', chat_id):
+        return jsonify(error='Invalid Telegram conversation.'), 400
+    config = get_integration(g.user['id'], 'telegram')
+    if not config or config.get('stage') != 'connected':
+        return jsonify(error='Connect Telegram first.'), 409
+    topic_id = request.values.get('topic') or None
+    before = request.args.get('before', '0')
+    after = request.args.get('after', '0')
+    if (topic_id is not None and not re.fullmatch(r'[1-9][0-9]{0,9}', topic_id)) or not re.fullmatch(r'[0-9]{1,10}', before) or not re.fullmatch(r'[0-9]{1,10}', after) or (int(before) and int(after)):
+        return jsonify(error='Invalid topic or message cursor.'), 400
+    text = request.form.get('text', '') if request.method == 'POST' else None
+    request_id = request.form.get('request_id', '')
+    if text is not None and (not text.strip() or len(text.encode('utf-16-le')) // 2 > 4096 or not re.fullmatch(r'[0-9a-f]{32}', request_id)):
+        return jsonify(error='Enter a message of up to 4,096 characters and retry from the chat form.'), 400
+    try:
+        return jsonify(telegram_chat(config, g.user['id'], chat_id, topic_id=topic_id, topic_query=request.args.get('topic_search','').strip()[:100], before=int(before), after=int(after), text=text, request_id=request_id))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except Exception as error:
+        app.logger.warning('Telegram chat request failed for user id=%s', g.user['id'])
+        message = telegram_error_text(error) if isinstance(error, RuntimeError) or (TELETHON_AVAILABLE and isinstance(error, FloodWaitError)) else 'Telegram could not complete the request. Your draft is kept; refresh before retrying.'
+        return jsonify(error=message), 502
+
+
+@app.get('/api/integrations/telegram/chats/<chat_id>/photo')
+def telegram_photo_route(chat_id):
+    if chat_id != 'me' and not re.fullmatch(r'-?[1-9][0-9]{0,15}', chat_id): abort(404)
+    config = get_integration(g.user['id'], 'telegram')
+    if not config or config.get('stage') != 'connected': abort(404)
+    try:
+        photo = telegram_photo(config, g.user['id'], chat_id)
+    except Exception:
+        return Response(status=404)
+    if not isinstance(photo, bytes) or not photo.startswith(b'\xff\xd8\xff') or len(photo) > 2 * 1024 * 1024:
+        return Response(status=404)
+    return Response(photo, mimetype='image/jpeg', headers={'X-Content-Type-Options':'nosniff'})
 
 
 @app.post('/integrations/telegram/start')

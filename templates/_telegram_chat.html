@@ -1,0 +1,21 @@
+<div class="telegram-workspace" id="telegram-workspace" hidden data-chat-url="{{ url_for('telegram_chat_route',chat_id='CHAT') }}" data-photo-url="{{ url_for('telegram_photo_route',chat_id='CHAT') }}" data-csrf="{{ csrf_token() }}">
+    <nav class="telegram-conversations" id="telegram-conversations" aria-label="Telegram conversations"></nav>
+    <div class="telegram-chat">
+        <div class="telegram-mobile-picker"><label for="telegram-chat-select">Conversation</label><select id="telegram-chat-select"></select></div>
+        <header class="telegram-chat-header"><span id="telegram-chat-avatar"></span><div><h3 id="telegram-chat-title">Choose a conversation</h3><p id="telegram-chat-kind"></p></div></header>
+        <div class="telegram-topic-picker" id="telegram-topic-picker" hidden>
+            <form id="telegram-topic-search-form" class="telegram-topic-search"><label for="telegram-topic-search" class="sr-only">Search forum topics by name</label><input id="telegram-topic-search" type="search" maxlength="100" placeholder="Search topics by name"><button class="m3e-button m3e-button--text" type="submit">Find topics</button></form>
+            <label for="telegram-topic-select">Topic / sub-channel</label><select id="telegram-topic-select"></select>
+        </div>
+        <p id="telegram-chat-status" role="status">Select a chat to load its messages.</p>
+        <div id="telegram-chat-loading" aria-hidden="true" hidden><span class="cm-loading-shell"><m3e-loading-indicator aria-label="Loading Telegram conversation"></m3e-loading-indicator></span><div class="apps-feed-message"><span class="apps-skeleton-sender"></span><span class="apps-skeleton-body"></span></div></div>
+        <button class="m3e-button m3e-button--text" id="telegram-load-older" type="button" hidden>Load older messages</button>
+        <div class="telegram-thread" id="telegram-thread" role="region" aria-label="Telegram message history" tabindex="0"></div>
+        <form id="telegram-send-form" class="telegram-send-form">
+            <label for="telegram-message">Message</label>
+            <textarea id="telegram-message" name="text" rows="3" maxlength="4096" placeholder="Write a message…" aria-describedby="telegram-send-status" required disabled></textarea>
+            <p id="telegram-send-status" role="status">Choose a conversation before sending.</p>
+            <button class="m3e-button m3e-button--filled" id="telegram-send-button" type="submit" disabled><span class="m3e-icon" aria-hidden="true">send</span><span data-telegram-send-label>Send message</span></button>
+        </form>
+    </div>
+</div>

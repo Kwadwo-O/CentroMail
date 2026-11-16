@@ -8,6 +8,7 @@
     let selected, controller;
     const load = async button => {
         selected = button;
+        window.CentroMailTelegram.close();
         controller?.abort();
         controller = null;
         buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
@@ -33,6 +34,11 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Messages could not be loaded.');
             if (selected !== button || controller !== pending) return;
+            if (button.dataset.appProvider === 'telegram') {
+                window.CentroMailTelegram.open(data.messages || []);
+                status.textContent = 'Your recent Telegram conversations.';
+                return;
+            }
             for (const message of data.messages || []) {
                 const row = document.createElement('article');
                 row.className = 'apps-feed-message';
@@ -43,7 +49,7 @@
                 }
                 feed.append(row);
             }
-            status.textContent = feed.children.length ? `${feed.children.length} recent messages.` : 'No recent messages yet.';
+            status.textContent = feed.children.length ? `${feed.children.length} recent ${feed.children.length === 1 ? 'message' : 'messages'}.` : 'No recent messages yet.';
         } catch (error) {
             if (controller === pending) status.textContent = error.name === 'AbortError' ? 'Loading took too long. Try Refresh.' : error.message;
         } finally {

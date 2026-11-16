@@ -235,7 +235,7 @@ Microsoft Outlook mail now connects to an existing CentroMail account through OA
 
 Open Integrations after signing in.
 
-Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram shows recent conversations, Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail.
+Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram supports private chats, regular groups, and forum groups with a topic picker, profile pictures, text sending, and automatic incoming-message checks while the chat is visible. Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail. See [Telegram setup and chat support](docs/telegram-setup.md).
 
 Connections are stored in `centro.db` on this machine, and non-secret UI state is mirrored to browser `localStorage`.
 
