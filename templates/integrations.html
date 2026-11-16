@@ -33,7 +33,7 @@
                 <p class="eyebrow">Email</p>
                 <h2 id="email-integrations-heading">Email accounts</h2>
             </div>
-            <span>1 service</span>
+            <span>Gmail, Outlook, and IMAP/SMTP</span>
         </div>
         <div class="integration-grid">
         <article class="integration-card">
@@ -43,7 +43,7 @@
                     <h2>Gmail</h2>
                     <p class="integration-subtitle">Email inbox, reading and sending</p>
                 </div>
-                <span class="status-pill {% if google_connected %}is-connected{% endif %}">
+                <span class="m3e-badge m3e-badge--large status-pill {% if google_connected %}is-connected{% endif %}">
                     {{ 'Connected' if google_connected else 'Not connected' }}
                 </span>
             </div>
@@ -53,8 +53,8 @@
                 <div><dt>Access</dt><dd>Read inbox and send mail through the Gmail API</dd></div>
             </dl>
             <div class="integration-actions">
-                <a class="button" href="{{ url_for('authenticate', provider='google') }}">Reconnect Google</a>
-                <a class="button button-secondary" href="{{ url_for('inbox') }}">Open inbox</a>
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google') }}">Reconnect Google</a>
+                <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', account='gmail') }}">Open inbox</a>
             </div>
             {% else %}
             <details class="integration-guide">
@@ -62,12 +62,34 @@
                 <p class="integration-copy">Sign in with Google to let CentroMail read your inbox and send messages through Gmail.</p>
             </details>
             <div class="integration-actions">
-                <a class="button" href="{{ url_for('authenticate', provider='google') }}">Connect Google</a>
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google') }}">Connect Google</a>
             </div>
             {% endif %}
         </article>
 
-        </article>
+            <article class="integration-card"><div class="integration-card-top"><span class="m3e-icon" aria-hidden="true">mail</span><div><h3>Microsoft Outlook</h3><p>Outlook.com, Hotmail, Live, and Microsoft 365</p></div></div><p>Connect with your Microsoft account using OAuth. Your organisation may require administrator consent.</p><a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='microsoft') }}">Connect Microsoft</a></article>
+            <article class="integration-card"><h3>IMAP and SMTP</h3>
+                <form method="post" action="{{ url_for('connect_email') }}" class="integration-form" id="email-connect-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label>Provider<select name="provider" id="email-provider">{% for provider in email_presets %}<option value="{{ provider.key }}">{{ provider.name }}</option>{% endfor %}</select></label>
+                    <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+                    <label>App password or account password<input name="password" type="password" autocomplete="off" maxlength="1024" required></label>
+                    <details class="integration-guide" id="email-server-details"><summary>Server settings</summary>
+                        <label>IMAP server<input name="imap_host" id="imap-host" required></label><label>IMAP port<input name="imap_port" id="imap-port" type="number" min="1" max="65535" required></label><label>IMAP security<select name="imap_security" id="imap-security"><option value="ssl">TLS</option><option value="starttls">STARTTLS</option></select></label>
+                        <label>SMTP server<input name="smtp_host" id="smtp-host" required></label><label>SMTP port<input name="smtp_port" id="smtp-port" type="number" min="1" max="65535" required></label><label>SMTP security<select name="smtp_security" id="smtp-security"><option value="starttls">STARTTLS</option><option value="ssl">TLS</option></select></label>
+                        <label>IMAP login (optional)<input name="imap_username" autocomplete="off" maxlength="1024" placeholder="Uses your email address if blank"></label>
+                        <label>SMTP login (optional)<input name="smtp_username" autocomplete="off" maxlength="1024" placeholder="Uses your email address if blank"></label>
+                        <label>SMTP password (optional)<input name="smtp_password" type="password" autocomplete="off" maxlength="1024" placeholder="Uses the account password if blank"></label>
+                        <label>Sent messages<select name="save_sent" id="email-save-sent"><option value="true">Save a copy to Sent</option><option value="false">Server saves Sent automatically</option></select></label>
+                    </details>
+                    <p class="integration-note">Most providers require an app password or enabled IMAP access. Proton Mail needs Bridge and its certificate. These credentials stay in the local application database.</p>
+                    <button class="m3e-button m3e-button--filled" type="submit">Connect email</button>
+                </form>
+            </article>
+            {% for account in email_connections %}
+            <article class="integration-card"><h3>{{ account.name }}</h3><p>{{ account.email }}</p><div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('inbox',account=account.key) }}">Open inbox</a><form method="post" action="{{ url_for('disconnect_email') }}" data-confirm="Disconnect {{ account.email }} and remove its local email cache?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ account.key }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form></div></article>
+            {% endfor %}
+        </div>
     </section>
 
     <section class="integration-group" aria-labelledby="messaging-integrations-heading">
@@ -86,7 +108,7 @@
                     <h2>Telegram</h2>
                     <p class="integration-subtitle">Your own account, chats and messages</p>
                 </div>
-                <span class="status-pill {% if telegram_connected %}is-connected{% elif telegram_pending %}is-pending{% endif %}">
+                <span class="m3e-badge m3e-badge--large status-pill {% if telegram_connected %}is-connected{% elif telegram_pending %}is-pending{% endif %}">
                     {% if telegram_connected %}Connected{% elif telegram_pending %}Signing in{% else %}Not connected{% endif %}
                 </span>
             </div>
@@ -105,11 +127,11 @@
             <div class="integration-actions">
                 <form method="post" action="{{ url_for('test_telegram_route') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button" type="submit">Send test message</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
                 </form>
                 <form method="post" action="{{ url_for('disconnect_telegram_route') }}" data-confirm="Disconnect your Telegram account from CentroMail? This also revokes the local session in Telegram.">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button button-secondary" type="submit">Disconnect</button>
+                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
                 </form>
             </div>
 
@@ -118,24 +140,9 @@
                     <strong>Recent chats</strong>
                     <span>Latest account activity</span>
                 </div>
-                {% if telegram_error %}
-                <p class="integration-alert">{{ telegram_error }}</p>
-                {% elif telegram_updates %}
-                <ul class="telegram-list">
-                    {% for item in telegram_updates %}
-                    <li>
-                        <div class="telegram-avatar">{{ item.sender[:2]|upper }}</div>
-                        <div>
-                            <strong>{{ item.sender }}</strong>
-                            <p>{{ item.text }}</p>
-                        </div>
-                        <time>{{ item.time }}</time>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="integration-empty">No recent chats were returned. Start a conversation in Telegram, then refresh this page.</p>
-                {% endif %}
+                <div data-integration-feed="{{ url_for('integration_messages', provider='telegram') }}" aria-busy="true">
+                    <p class="integration-empty">Loading recent messages…</p>
+                </div>
             </div>
 
             {% elif telegram_pending %}
@@ -150,7 +157,7 @@
                         <input name="password" type="password" autocomplete="current-password" required>
                     </label>
                     <div class="integration-actions">
-                        <button class="button" type="submit">Finish sign-in</button>
+                        <button class="m3e-button m3e-button--filled" type="submit">Finish sign-in</button>
                     </div>
                 </form>
                 {% else %}
@@ -162,13 +169,13 @@
                         <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" placeholder="12345" required>
                     </label>
                     <div class="integration-actions">
-                        <button class="button" type="submit">Verify code</button>
+                        <button class="m3e-button m3e-button--filled" type="submit">Verify code</button>
                     </div>
                 </form>
                 {% endif %}
                 <form method="post" action="{{ url_for('telegram_restart_route') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button button-secondary" type="submit">Start over</button>
+                    <button class="m3e-button m3e-button--outlined" type="submit">Start over</button>
                 </form>
             </div>
 
@@ -198,7 +205,7 @@
                     </label>
                     <p class="integration-note">Your API hash, phone number and Telegram session stay in the local CentroMail database. They are never placed in browser storage or sent anywhere except Telegram.</p>
                     <div class="integration-actions">
-                        <button class="button" type="submit" {% if not telegram_available %}disabled{% endif %}>Send login code</button>
+                        <button class="m3e-button m3e-button--filled" type="submit" {% if not telegram_available %}disabled{% endif %}>Send login code</button>
                     </div>
                 </form>
             </div>
@@ -212,7 +219,7 @@
                     <h2>WhatsApp</h2>
                     <p class="integration-subtitle">Cloud API messaging and replies</p>
                 </div>
-                <span class="status-pill {% if whatsapp %}is-connected{% endif %}">
+                <span class="m3e-badge m3e-badge--large status-pill {% if whatsapp %}is-connected{% endif %}">
                     {{ 'Connected' if whatsapp else 'Not connected' }}
                 </span>
             </div>
@@ -273,14 +280,14 @@
                     </label>
                 </div>
                 <div class="integration-actions">
-                    <button class="button" type="submit">Send test message</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
                 </div>
             </form>
 
             <div class="integration-actions">
                 <form method="post" action="{{ url_for('disconnect_whatsapp_route') }}" data-confirm="Disconnect WhatsApp from CentroMail?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button button-secondary" type="submit">Disconnect</button>
+                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
                 </form>
             </div>
 
@@ -304,7 +311,7 @@
                 </label>
                 <p class="integration-note">The access token and verify token stay in the local CentroMail database. They are never placed in browser storage.</p>
                 <div class="integration-actions">
-                    <button class="button" type="submit">Connect WhatsApp</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Connect WhatsApp</button>
                 </div>
             </form>
             {% endif %}
@@ -317,7 +324,7 @@
                     <h2>Discord</h2>
                     <p class="integration-subtitle">Server channels, messages and replies</p>
                 </div>
-                <span class="status-pill {% if discord %}is-connected{% endif %}">
+                <span class="m3e-badge m3e-badge--large status-pill {% if discord %}is-connected{% endif %}">
                     {{ 'Connected' if discord else 'Not connected' }}
                 </span>
             </div>
@@ -334,24 +341,9 @@
                     <strong>Recent messages</strong>
                     <span>Latest channel activity</span>
                 </div>
-                {% if discord_error %}
-                <p class="integration-alert">{{ discord_error }}</p>
-                {% elif discord_messages %}
-                <ul class="telegram-list">
-                    {% for item in discord_messages %}
-                    <li>
-                        <div class="telegram-avatar">{{ item.sender[:2]|upper }}</div>
-                        <div>
-                            <strong>{{ item.sender }}</strong>
-                            <p>{{ item.text }}</p>
-                        </div>
-                        <time>{{ item.time }}</time>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="integration-empty">No recent messages yet. Send a message in the channel, then refresh this page.</p>
-                {% endif %}
+                <div data-integration-feed="{{ url_for('integration_messages', provider='discord') }}" aria-busy="true">
+                    <p class="integration-empty">Loading recent messages…</p>
+                </div>
             </div>
 
             <form class="integration-form" method="post" action="{{ url_for('test_discord_route') }}">
@@ -360,14 +352,14 @@
                     <input name="message" type="text" maxlength="2000" autocomplete="off" placeholder="CentroMail test message">
                 </label>
                 <div class="integration-actions">
-                    <button class="button" type="submit">Send test message</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
                 </div>
             </form>
 
             <div class="integration-actions">
                 <form method="post" action="{{ url_for('disconnect_discord_route') }}" data-confirm="Disconnect Discord from CentroMail?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button button-secondary" type="submit">Disconnect</button>
+                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
                 </form>
             </div>
 
@@ -386,7 +378,7 @@
                 </label>
                 <p class="integration-note">The bot token stays in the local CentroMail database. Discord does not allow automating personal user accounts, so CentroMail uses a bot you control.</p>
                 <div class="integration-actions">
-                    <button class="button" type="submit">Connect Discord</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Connect Discord</button>
                 </div>
             </form>
             {% endif %}
@@ -418,7 +410,7 @@
                     <h2>{{ item.spec.name }}</h2>
                     <p class="integration-subtitle">{{ item.spec.subtitle }}</p>
                 </div>
-                <span class="status-pill {% if item.config %}is-connected{% endif %}">
+                <span class="m3e-badge m3e-badge--large status-pill {% if item.config %}is-connected{% endif %}">
                     {{ 'Connected' if item.config else 'Not connected' }}
                 </span>
             </div>
@@ -436,7 +428,7 @@
                     <input name="message" type="text" maxlength="{{ item.spec.max_length }}" autocomplete="off" placeholder="{{ item.spec.test_placeholder }}">
                 </label>
                 <div class="integration-actions">
-                    <button class="button" type="submit">{{ item.spec.test_label }}</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">{{ item.spec.test_label }}</button>
                 </div>
             </form>
             {% else %}
@@ -446,7 +438,7 @@
             <div class="integration-actions">
                 <form method="post" action="{{ url_for('disconnect_social_route', provider=item.spec.key) }}" data-confirm="Disconnect {{ item.spec.name }} from CentroMail?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="button button-secondary" type="submit">Disconnect</button>
+                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
                 </form>
             </div>
 
@@ -464,7 +456,7 @@
                 {% endfor %}
                 <p class="integration-note">{{ item.spec.note or 'Tokens are stored only in the local CentroMail database.' }}</p>
                 <div class="integration-actions">
-                    <button class="button" type="submit">Connect {{ item.spec.name }}</button>
+                    <button class="m3e-button m3e-button--filled" type="submit">Connect {{ item.spec.name }}</button>
                 </div>
             </form>
             {% endif %}
@@ -479,12 +471,15 @@
             <p>CentroMail mirrors non-secret integration preferences in browser storage so the page opens the way you left it. Telegram sessions, API hashes, WhatsApp access tokens, webhook verify tokens, Discord bot tokens and every social access token are never placed in browser storage.</p>
             <p class="browser-storage-status" id="browser-storage-status">No integration preferences saved yet.</p>
         </div>
-        <button class="button button-secondary" id="clear-browser-storage" type="button">Clear browser data</button>
+        <button class="m3e-button m3e-button--outlined" id="clear-browser-storage" type="button">Clear browser data</button>
     </article>
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script>window.CentroMailEmailPresets = {{ email_presets|tojson }};</script>
+<script src="{{ url_for('static', filename='js/email-accounts.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/integration-feeds.js') }}" defer></script>
 <script>
     window.addEventListener('load', () => {
         const skeleton = document.querySelector('#integration-skeleton');
@@ -511,8 +506,8 @@
         },
         discord: {
             connected: {{ 'true' if discord else 'false' }},
-            bot: {{ (discord.bot_name if discord else '')|tojson }},
-            channel: {{ (discord.channel_name if discord else '')|tojson }}
+            bot: {{ (discord.get('bot_name', '') if discord else '')|tojson }},
+            channel: {{ (discord.get('channel_name', '') if discord else '')|tojson }}
         },
         social: {{ social_state|tojson }},
         savedAt: new Date().toISOString()
@@ -555,10 +550,5 @@
         if (status) status.textContent = "Browser integration data cleared.";
     });
 
-    document.querySelectorAll("form[data-confirm]").forEach((form) => {
-        form.addEventListener("submit", (event) => {
-            if (!window.confirm(form.dataset.confirm)) event.preventDefault();
-        });
-    });
 </script>
 {% endblock %}

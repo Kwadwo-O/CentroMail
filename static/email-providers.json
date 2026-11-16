@@ -1,0 +1,514 @@
+[
+  {
+    "key": "yahoo",
+    "name": "Yahoo Mail",
+    "imap_host": "imap.mail.yahoo.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mail.yahoo.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "icloud",
+    "name": "iCloud Mail",
+    "imap_host": "imap.mail.me.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mail.me.com",
+    "smtp_port": 587,
+    "smtp_security": "starttls"
+  },
+  {
+    "key": "aol",
+    "name": "AOL Mail",
+    "imap_host": "imap.aol.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.aol.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "fastmail",
+    "name": "Fastmail",
+    "imap_host": "imap.fastmail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.fastmail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "zoho",
+    "name": "Zoho Mail",
+    "imap_host": "imap.zoho.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.zoho.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "gmx",
+    "name": "GMX",
+    "imap_host": "imap.gmx.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "mail.gmx.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "mailcom",
+    "name": "Mail.com",
+    "imap_host": "imap.mail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "webde",
+    "name": "WEB.DE",
+    "imap_host": "imap.web.de",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.web.de",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "yandex",
+    "name": "Yandex Mail",
+    "imap_host": "imap.yandex.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.yandex.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "qq",
+    "name": "QQ Mail",
+    "imap_host": "imap.qq.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.qq.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "163",
+    "name": "NetEase 163",
+    "imap_host": "imap.163.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.163.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "126",
+    "name": "NetEase 126",
+    "imap_host": "imap.126.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.126.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "naver",
+    "name": "Naver Mail",
+    "imap_host": "imap.naver.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.naver.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "daum",
+    "name": "Daum Mail",
+    "imap_host": "imap.daum.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.daum.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "orange",
+    "name": "Orange Mail",
+    "imap_host": "imap.orange.fr",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.orange.fr",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "free",
+    "name": "Free.fr",
+    "imap_host": "imap.free.fr",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.free.fr",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "laposte",
+    "name": "La Poste",
+    "imap_host": "imap.laposte.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.laposte.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "posteo",
+    "name": "Posteo",
+    "imap_host": "posteo.de",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "posteo.de",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "mailbox",
+    "name": "Mailbox.org",
+    "imap_host": "imap.mailbox.org",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mailbox.org",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "runbox",
+    "name": "Runbox",
+    "imap_host": "mail.runbox.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "mail.runbox.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "startmail",
+    "name": "StartMail",
+    "imap_host": "imap.startmail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.startmail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "hushmail",
+    "name": "Hushmail",
+    "imap_host": "imap.hushmail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.hushmail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "ionos",
+    "name": "IONOS",
+    "imap_host": "imap.ionos.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.ionos.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "namecheap",
+    "name": "Namecheap Private Email",
+    "imap_host": "mail.privateemail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "mail.privateemail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "godaddy",
+    "name": "GoDaddy Professional Email",
+    "imap_host": "imap.secureserver.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtpout.secureserver.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "titan",
+    "name": "Titan Email",
+    "imap_host": "imap.titan.email",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.titan.email",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "rackspace",
+    "name": "Rackspace Email",
+    "imap_host": "secure.emailsrvr.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "secure.emailsrvr.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "ovh",
+    "name": "OVH Mail",
+    "imap_host": "ssl0.ovh.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "ssl0.ovh.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "gmail-imap",
+    "name": "Google Workspace / Gmail IMAP",
+    "imap_host": "imap.gmail.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl",
+    "save_sent": false
+  },
+  {
+    "key": "mailru",
+    "name": "Mail.ru",
+    "imap_host": "imap.mail.ru",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mail.ru",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "rambler",
+    "name": "Rambler Mail",
+    "imap_host": "imap.rambler.ru",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.rambler.ru",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "bt",
+    "name": "BT Mail",
+    "imap_host": "mail.btinternet.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "mail.btinternet.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "sky",
+    "name": "Sky Yahoo Mail",
+    "imap_host": "imap.tools.sky.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.tools.sky.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "talktalk",
+    "name": "TalkTalk Mail",
+    "imap_host": "mail.talktalk.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.talktalk.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "virginmedia",
+    "name": "Virgin Media Mail",
+    "imap_host": "imap.virginmedia.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.virginmedia.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "comcast",
+    "name": "Xfinity / Comcast",
+    "imap_host": "imap.comcast.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.comcast.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "att",
+    "name": "AT&T Mail",
+    "imap_host": "imap.mail.att.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.mail.att.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "telstra",
+    "name": "Telstra / BigPond",
+    "imap_host": "imap.telstra.com",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.telstra.com",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "seznam",
+    "name": "Seznam Email",
+    "imap_host": "imap.seznam.cz",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.seznam.cz",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "centrum",
+    "name": "Centrum.cz",
+    "imap_host": "imap.centrum.cz",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.centrum.cz",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "onet",
+    "name": "Onet Poczta",
+    "imap_host": "imap.poczta.onet.pl",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.poczta.onet.pl",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "wp",
+    "name": "WP Poczta",
+    "imap_host": "imap.wp.pl",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.wp.pl",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "interia",
+    "name": "Interia Poczta",
+    "imap_host": "poczta.interia.pl",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "poczta.interia.pl",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "tonline",
+    "name": "T-Online",
+    "imap_host": "secureimap.t-online.de",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "securesmtp.t-online.de",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "strato",
+    "name": "STRATO Mail",
+    "imap_host": "imap.strato.de",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.strato.de",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "aruba",
+    "name": "Aruba Mail",
+    "imap_host": "imaps.aruba.it",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtps.aruba.it",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "gmx-de",
+    "name": "GMX Germany",
+    "imap_host": "imap.gmx.net",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "mail.gmx.net",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "zoho-eu",
+    "name": "Zoho Mail Europe",
+    "imap_host": "imap.zoho.eu",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.zoho.eu",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "zoho-in",
+    "name": "Zoho Mail India",
+    "imap_host": "imap.zoho.in",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "smtp.zoho.in",
+    "smtp_port": 465,
+    "smtp_security": "ssl"
+  },
+  {
+    "key": "custom",
+    "name": "Custom / self-hosted IMAP",
+    "imap_host": "",
+    "imap_port": 993,
+    "imap_security": "ssl",
+    "smtp_host": "",
+    "smtp_port": 587,
+    "smtp_security": "starttls"
+  },
+  {
+    "key": "proton-bridge",
+    "name": "Proton Mail Bridge",
+    "imap_host": "127.0.0.1",
+    "imap_port": 1143,
+    "imap_security": "starttls",
+    "smtp_host": "127.0.0.1",
+    "smtp_port": 1025,
+    "smtp_security": "starttls",
+    "save_sent": false
+  }
+]

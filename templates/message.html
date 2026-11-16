@@ -4,7 +4,7 @@
 {% block content %}
 <section class="message-page">
     <header class="reader-toolbar">
-        <a class="reader-back" href="{{ url_for('inbox', folder=folder) }}"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to {{ folder_title }}</a>
+        <a class="reader-back" href="{{ url_for('inbox', folder=folder, account=mail_account_key) }}"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to {{ folder_title }}</a>
     </header>
     {% include 'message_pane.html' %}
 </section>

@@ -12,11 +12,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="gmail-app" data-folder="{{ folder }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" data-google-url="{{ url_for('authenticate', provider='google') }}" data-csrf="{{ csrf_token() }}">
+<div class="gmail-app" data-folder="{{ folder }}" data-account="{{ mail_account_key }}" data-messages-url="{{ url_for('mailbox_messages') }}" data-counts-url="{{ url_for('mailbox_counts') }}" data-actions-url="{{ url_for('mail_action') }}" data-google-url="{{ url_for('authenticate', provider='google') if mail_kind == 'gmail' else url_for('integrations') }}" data-csrf="{{ csrf_token() }}">
     <header class="gmail-header">
-        <button class="icon-button mobile-menu" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><span class="material-symbols-rounded ui-icon" aria-hidden="true">menu</span></button>
+        <button class="icon-button mobile-menu m3e-icon-button m3e-icon-button--standard" type="button" aria-label="Open mailbox menu" aria-controls="mail-sidebar" aria-expanded="false"><span class="material-symbols-rounded ui-icon" aria-hidden="true">menu</span></button>
         <a class="gmail-logo" href="{{ url_for('mail') }}">
-            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo">
+            <img src="{{ url_for('static', filename='images/Logo_clear.png') }}" alt="CentroMail logo" class="header-logo cm-brand-logo">
         </a>
         <label class="search-box">
             <span class="material-symbols-rounded ui-icon" aria-hidden="true">search</span>
@@ -24,10 +24,10 @@
             <span class="material-symbols-rounded search-hint" aria-hidden="true">search</span>
         </label>
         <div class="header-actions">
-            <button class="icon-button" id="mail-help-button" type="button" aria-label="Help" title="Inbox help"><span class="material-symbols-rounded" aria-hidden="true">help</span></button>
-            <a class="icon-button" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings"><span class="material-symbols-rounded" aria-hidden="true">settings</span></a>
+            <button class="icon-button m3e-icon-button m3e-icon-button--standard" id="mail-help-button" type="button" aria-label="Help" title="Inbox help"><span class="material-symbols-rounded" aria-hidden="true">help</span></button>
+            <a class="icon-button m3e-icon-button m3e-icon-button--standard" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings"><span class="material-symbols-rounded" aria-hidden="true">settings</span></a>
             <div class="quick-menu-wrap">
-                <button class="icon-button" id="quick-menu-button" type="button" aria-label="Quick menu" aria-expanded="false" aria-controls="quick-menu"><span class="material-symbols-rounded" aria-hidden="true">apps</span></button>
+                <button class="icon-button m3e-icon-button m3e-icon-button--standard" id="quick-menu-button" type="button" aria-label="Quick menu" aria-expanded="false" aria-controls="quick-menu"><span class="material-symbols-rounded" aria-hidden="true">apps</span></button>
                 <div class="quick-menu" id="quick-menu" hidden>
                     <a href="{{ url_for('dashboard') }}"><span class="material-symbols-rounded" aria-hidden="true">space_dashboard</span>Overview</a>
                     <a href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox</a>
@@ -36,7 +36,7 @@
                 </div>
             </div>
             <div class="profile-menu-wrap">
-            <button class="profile-button" id="profile-button" type="button" aria-label="Account" aria-expanded="false" aria-controls="profile-menu">
+            <button class="profile-button m3e-icon-button m3e-icon-button--standard" id="profile-button" type="button" aria-label="Account" aria-expanded="false" aria-controls="profile-menu">
                 {% if g.user.avatar_url %}
                 <img src="{{ g.user.avatar_url }}" alt="" referrerpolicy="no-referrer" width="36" height="36">
                 {% else %}
@@ -46,21 +46,30 @@
             <div class="profile-menu" id="profile-menu" hidden>
                 <strong>{{ g.user.name or g.user.email }}</strong>
                 <small>{{ g.user.email }}</small>
-                <button type="button" data-inbox-theme-toggle><span class="material-symbols-rounded" aria-hidden="true" data-inbox-theme-icon>dark_mode</span><span data-inbox-theme-label>Dark theme</span></button>
+                <button type="button" data-inbox-theme-toggle class="m3e-button m3e-button--text"><span class="material-symbols-rounded" aria-hidden="true" data-inbox-theme-icon>dark_mode</span><span data-inbox-theme-label>Dark theme</span></button>
                 <form method="post" action="{{ url_for('logout') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Log out</button>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ mail_account_key }}">
+                    <button type="submit" class="m3e-button m3e-button--text"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Log out</button>
                 </form>
             </div>
             </div>
         </div>
     </header>
 
+    <form class="mail-account-picker" method="get" action="{{ url_for('inbox') }}">
+        <label for="mail-account-select">Email account</label>
+        <select name="account" id="mail-account-select" aria-label="Email account">
+            {% if not mail_accounts %}<option value="gmail">Gmail · connect an account</option>{% endif %}
+            {% for account in mail_accounts %}<option value="{{ account.key }}" {% if account.key == mail_account_key %}selected{% endif %}>{{ account.name }} · {{ account.email }}</option>{% endfor %}
+        </select>
+        <button class="m3e-button m3e-button--text" type="submit">Switch</button>
+        <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Add account</a>
+    </form>
     <div class="workspace-tabs" role="tablist" aria-label="Communication type">
-        <button class="workspace-tab active" type="button" role="tab" aria-selected="true" data-workspace="email">
+        <button class="workspace-tab active m3e-button m3e-button--text" type="button" role="tab" aria-selected="true" data-workspace="email">
             <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
         </button>
-        <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-workspace="apps">
+        <button class="workspace-tab m3e-button m3e-button--text" type="button" role="tab" aria-selected="false" data-workspace="apps">
             <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
         </button>
     </div>
@@ -69,23 +78,23 @@
         <aside class="mail-sidebar" id="mail-sidebar">
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
-                {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] %}
-                <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key) }}" {% if folder == key %}aria-current="page"{% endif %}>
+                {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] if key in folders %}
+                <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=mail_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}>
                     <span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span>
-                    {% if key in ['inbox', 'drafts'] %}<b data-folder-count="{{ key }}" hidden></b>{% endif %}
+                    {% if key in ['inbox', 'drafts'] %}<b class="m3e-badge m3e-badge--large" data-folder-count="{{ key }}" hidden></b>{% endif %}
                 </a>
                 {% endfor %}
-                <details class="mail-more" {% if folder in ['all', 'important', 'spam', 'trash'] %}open{% endif %}>
+                <details class="mail-more" {% if folder in ['archive', 'all', 'important', 'spam', 'trash'] %}open{% endif %}>
                     <summary class="mail-nav-link"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
                     <div class="mail-more-folders">
-                        {% for key in ['all', 'important', 'spam', 'trash'] %}
-                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
+                        {% for key in ['archive', 'all', 'important', 'spam', 'trash'] if key in folders %}
+                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=mail_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
                         {% endfor %}
                     </div>
                 </details>
             </nav>
             <div class="sidebar-section">
-                <div class="section-title"><strong>Labels</strong><button class="icon-button" aria-label="Add label"><span class="material-symbols-rounded ui-icon" aria-hidden="true">add</span></button></div>
+                <div class="section-title"><strong>Labels</strong><button class="icon-button m3e-icon-button m3e-icon-button--standard" aria-label="Add label"><span class="material-symbols-rounded ui-icon" aria-hidden="true">add</span></button></div>
                 <a class="label-link" id="work" href="#work"><i class="label-colour work"></i>Work</a>
                 <a class="label-link" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
                 <a class="label-link" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
@@ -106,101 +115,63 @@
                 <form class="inbox-refresh-form" id="refresh-mail-form" method="get" action="{{ url_for('inbox') }}">
                     <input type="hidden" name="folder" value="{{ folder }}">
                     <input type="hidden" name="refresh" value="1">
-                    <button class="toolbar-button refresh-button" id="refresh-mail" type="submit" aria-label="Refresh inbox" title="Check for new mail">
+                    <button class="toolbar-button refresh-button m3e-button m3e-button--filled" id="refresh-mail" type="submit" aria-label="Refresh inbox" title="Check for new mail">
                         <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
                         <span data-refresh-label aria-live="polite">Refresh</span>
                     </button>
                 </form>
                 <div class="mail-selection-actions" role="group" aria-label="Selected message actions">
-                    <button class="toolbar-button" type="button" data-mail-action="{{ 'restore' if folder == 'trash' else 'archive' }}" aria-label="{{ 'Restore' if folder == 'trash' else 'Archive' }} selected messages" title="{{ 'Restore to inbox' if folder == 'trash' else 'Archive selected' }}" disabled><span class="material-symbols-rounded" aria-hidden="true">{{ 'restore_from_trash' if folder == 'trash' else 'archive' }}</span></button>
-                    <button class="toolbar-button" type="button" data-mail-action="trash" aria-label="Move selected messages to Trash" title="Move to Trash" disabled {% if folder == 'trash' %}hidden{% endif %}><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
-                    <button class="toolbar-button" type="button" data-mail-action="read" aria-label="Mark selected messages as read" title="Mark as read" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_read</span></button>
-                    <button class="toolbar-button" type="button" data-mail-action="unread" aria-label="Mark selected messages as unread" title="Mark as unread" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_unread</span></button>
+                    <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="{{ 'restore' if folder == 'trash' else 'archive' }}" aria-label="{{ 'Restore' if folder == 'trash' else 'Archive' }} selected messages" title="{{ 'Restore to inbox' if folder == 'trash' else 'Archive selected' }}" disabled><span class="material-symbols-rounded" aria-hidden="true">{{ 'restore_from_trash' if folder == 'trash' else 'archive' }}</span></button>
+                    <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="trash" aria-label="Move selected messages to Trash" title="Move to Trash" disabled {% if folder == 'trash' %}hidden{% endif %}><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
+                    <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="read" aria-label="Mark selected messages as read" title="Mark as read" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_read</span></button>
+                    <button class="toolbar-button m3e-icon-button m3e-icon-button--standard" type="button" data-mail-action="unread" aria-label="Mark selected messages as unread" title="Mark as unread" disabled><span class="material-symbols-rounded" aria-hidden="true">mark_email_unread</span></button>
                 </div>
                 <span class="toolbar-spacer"></span>
                 <span class="mail-selection-count" id="mail-selection-count" aria-live="polite"></span>
             </div>
             <p class="mail-feedback" id="mail-feedback" role="status" aria-live="polite" hidden></p>
-            {% if folder == 'inbox' %}
+            {% if folder == 'inbox' and mail_kind == 'gmail' %}
             <div class="inbox-tabs" role="tablist" aria-label="Inbox category">
-                <button class="inbox-tab active" id="mail-tab-primary" type="button" data-tab="primary" role="tab" aria-selected="true" aria-controls="message-list"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Primary</button>
-                <button class="inbox-tab" id="mail-tab-updates" type="button" data-tab="updates" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">notifications</span>Updates</button>
-                <button class="inbox-tab" id="mail-tab-social" type="button" data-tab="social" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">group</span>Social</button>
+                <button class="inbox-tab active m3e-button m3e-button--text" id="mail-tab-primary" type="button" data-tab="primary" role="tab" aria-selected="true" aria-controls="message-list"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Primary</button>
+                <button class="inbox-tab m3e-button m3e-button--text" id="mail-tab-updates" type="button" data-tab="updates" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">notifications</span>Updates</button>
+                <button class="inbox-tab m3e-button m3e-button--text" id="mail-tab-social" type="button" data-tab="social" role="tab" aria-selected="false" aria-controls="message-list" tabindex="-1"><span class="material-symbols-rounded" aria-hidden="true">group</span>Social</button>
             </div>
             {% endif %}
-            <div class="message-list" id="message-list" {% if folder == 'inbox' %}role="tabpanel" aria-labelledby="mail-tab-primary"{% endif %}>
+            <div class="message-list" id="message-list" {% if folder == 'inbox' and mail_kind == 'gmail' %}role="tabpanel" aria-labelledby="mail-tab-primary"{% endif %}>
                 {% include 'mail_rows.html' %}
             </div>
             <p class="empty-state" id="empty-state" hidden>No messages in this folder.</p>
             <div class="mail-load-footer">
-                <p id="mail-load-status" role="status" aria-live="polite">Loading messages…</p>
+                <div class="mail-load-feedback"><span id="mail-loading-indicator" class="cm-loading-shell" aria-hidden="true" hidden><m3e-loading-indicator aria-label="Loading emails"></m3e-loading-indicator></span><p id="mail-load-status" role="status" aria-live="polite">Loading messages…</p></div>
                 <button class="m3e-button m3e-button--tonal" id="load-more-mail" type="button" hidden>Load more</button>
                 <div id="mail-load-sentinel" aria-hidden="true"></div>
             </div>
         </main>
         <aside class="mail-reader" id="mail-reader" aria-label="Email reading pane" hidden>
-            <header class="reader-toolbar"><strong>Email</strong><div><a class="icon-button" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
+            <header class="reader-toolbar"><strong>Email</strong><div><a class="icon-button m3e-icon-button m3e-icon-button--standard" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
             <div class="reader-content" id="reader-content" aria-live="polite"></div>
         </aside>
     </div>
 
-    <div class="apps-workspace workspace-view" data-workspace-view="apps" hidden>
-        <aside class="apps-sidebar">
-            <div class="apps-heading">
-                <div>
-                    <p class="eyebrow">Connected services</p>
-                    <h1>Messages</h1>
-                </div>
-                <button class="icon-button" type="button" aria-label="New conversation"><span class="material-symbols-rounded" aria-hidden="true">edit_square</span></button>
-            </div>
-            <label class="apps-search">
-                <span class="material-symbols-rounded" aria-hidden="true">search</span>
-                <input type="search" placeholder="Search conversations" aria-label="Search conversations">
-            </label>
-            <div class="app-filter" role="tablist" aria-label="Message filters">
-                <button class="active" type="button">All</button>
-                <button type="button">Unread</button>
-                <button type="button">Groups</button>
-            </div>
-            <div class="conversation-list">
-                <div class="conversation-empty">
-                    <span class="material-symbols-rounded" aria-hidden="true">forum</span>
-                    <strong>No conversations yet</strong>
-                    <p>Messages from supported apps will appear here.</p>
-                    <button class="m3e-button m3e-button--tonal" type="button">Start a conversation</button>
-                </div>
-            </div>
-        </aside>
-        <main class="chat-panel">
-            <div class="chat-header">
-                <div class="chat-app-icon"><span class="material-symbols-rounded" aria-hidden="true">hub</span></div>
-                <div><p class="eyebrow">CentroMail apps</p><h2>One place for your chats</h2></div>
-                <button class="icon-button" type="button" aria-label="Conversation details"><span class="material-symbols-rounded" aria-hidden="true">info</span></button>
-            </div>
-            <div class="chat-empty">
-                <div class="chat-empty-icon"><span class="material-symbols-rounded" aria-hidden="true">forum</span></div>
-                <h2>Bring your conversations together</h2>
-                <p>Connect supported messaging services to keep chats, groups, and replies in one organised space.</p>
-                <button class="m3e-button m3e-button--filled" type="button"><span class="material-symbols-rounded" aria-hidden="true">add_link</span>Connect an app</button>
-            </div>
-            <div class="chat-composer" aria-label="Message composer">
-                <button class="icon-button" type="button" aria-label="Attach file"><span class="material-symbols-rounded" aria-hidden="true">add</span></button>
-                <input type="text" placeholder="Choose a conversation to message" disabled>
-                <button class="icon-button" type="button" aria-label="Send message" disabled><span class="material-symbols-rounded" aria-hidden="true">send</span></button>
-            </div>
-        </main>
-    </div>
+    <section class="apps-workspace workspace-view" data-workspace-view="apps" hidden aria-label="Messaging connections">
+        <div class="chat-empty">
+            <span class="material-symbols-rounded" aria-hidden="true">forum</span>
+            <h2>Messaging connections</h2>
+            <p>Read recent messages and manage Telegram, WhatsApp Business, and Discord on the Integrations page.</p>
+            <a class="m3e-button m3e-button--filled" href="{{ url_for('integrations') }}"><span class="material-symbols-rounded" aria-hidden="true">add_link</span>Connect an app</a>
+        </div>
+    </section>
 
     <dialog class="mail-help-dialog" id="mail-help-dialog" aria-labelledby="mail-help-title">
-        <div class="reader-toolbar"><h2 id="mail-help-title">Inbox help</h2><button class="icon-button" id="close-mail-help" type="button" aria-label="Close help"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+        <div class="reader-toolbar"><h2 id="mail-help-title">Inbox help</h2><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-mail-help" type="button" aria-label="Close help"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
         <p>Choose a folder on the left. Messages load as you scroll; use Refresh to check for new mail.</p>
         <p>Select messages to archive, move to Trash, or change read status. Use the star beside a message to save it to Starred.</p>
         <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page.</p>
-        <a class="button button-secondary" href="{{ url_for('integrations') }}">Manage connected accounts</a>
+        <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
     </dialog>
     <form class="compose-window" id="compose-window" method="post" action="{{ url_for('compose') }}" hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ mail_account_key }}">
+        <div class="compose-title"><strong>New Message</strong><button type="button" class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-compose" aria-label="Close compose"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
         <input type="email" name="to" placeholder="Recipients" aria-label="Recipients" required>
         <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
         <textarea name="body" placeholder="Write a message..." aria-label="Message" required></textarea>
@@ -211,6 +182,7 @@
 
 {% block scripts %}
 <script>
+    document.querySelector('#mail-account-select').addEventListener('change', event => event.target.form.requestSubmit());
     const compose = document.querySelector("#compose-window");
     const menus = [
         {button: document.querySelector("#quick-menu-button"), menu: document.querySelector("#quick-menu")},
@@ -278,7 +250,9 @@
         document.querySelectorAll(".workspace-view").forEach((view) => {
             view.hidden = view.dataset.workspaceView !== workspace;
         });
-        document.querySelector("#mail-search").placeholder = workspace === "apps" ? "Search conversations" : "Search mail";
+        const search = document.querySelector("#mail-search");
+        search.disabled = workspace === "apps";
+        search.placeholder = workspace === "apps" ? "Search is available in Email" : "Search mail";
     }));
 </script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>

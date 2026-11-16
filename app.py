@@ -1,4 +1,10 @@
 import os
+import hashlib
+import hmac
+import ipaddress
+import socket
+import ssl
+import urllib3
 import asyncio
 import json
 import base64
@@ -9,7 +15,7 @@ import secrets
 import sqlite3
 import threading
 import time
-from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 from contextlib import closing
@@ -18,6 +24,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+import imaplib
+import smtplib
+import email_providers
+import graph_mail
 import bleach
 import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
@@ -59,6 +69,11 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("CENTROMAIL_COOKIE_SECURE") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     MAX_CONTENT_LENGTH=1024 * 1024,
+    MICROSOFT_CLIENT_ID=os.environ.get("MICROSOFT_CLIENT_ID"),
+    MICROSOFT_CLIENT_SECRET=os.environ.get("MICROSOFT_CLIENT_SECRET"),
+    MICROSOFT_TENANT=os.environ.get("MICROSOFT_TENANT", "common"),
+    MICROSOFT_REDIRECT_URI=os.environ.get("MICROSOFT_REDIRECT_URI"),
+    WHATSAPP_APP_SECRET=os.environ.get("WHATSAPP_APP_SECRET"),
     GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
     GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
     GOOGLE_REDIRECT_URI=os.environ.get("GOOGLE_REDIRECT_URI"),
@@ -83,6 +98,15 @@ google = oauth.register(
     },
     authorize_params={"access_type": "offline", "prompt": "consent"},
 )
+
+microsoft_tenant = app.config["MICROSOFT_TENANT"]
+if not re.fullmatch(r"[A-Za-z0-9.-]+", microsoft_tenant):
+    raise ValueError("MICROSOFT_TENANT must be a tenant ID or common, consumers, or organizations.")
+microsoft = oauth.register(name="microsoft", client_id=app.config["MICROSOFT_CLIENT_ID"],
+    client_secret=app.config["MICROSOFT_CLIENT_SECRET"],
+    authorize_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/authorize",
+    access_token_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/token",
+    client_kwargs={"scope":"offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send", "default_timeout":(5,20)})
 
 
 def load_secret_key():
@@ -223,7 +247,6 @@ def appearance_context():
     return {"preference_groups": PREFERENCE_GROUPS}
 
 
-
 @app.template_global()
 def csrf_token():
     if "csrf_token" not in session:
@@ -240,7 +263,7 @@ PROTECTED_ENDPOINTS = {
     "disconnect_telegram_route", "connect_whatsapp_route", "test_whatsapp_route",
     "disconnect_whatsapp_route", "connect_discord_route", "test_discord_route",
     "disconnect_discord_route", "connect_social_route", "test_social_route",
-    "disconnect_social_route",
+    "disconnect_social_route", "integration_messages", "connect_email", "disconnect_email", "microsoft_callback",
 }
 
 
@@ -285,12 +308,55 @@ def render_auth(active_panel="login", email="", name="", remember=False):
     )
 
 
+def email_accounts(user):
+    accounts = []
+    if get_google_token(user):
+        accounts.append({"key":"gmail", "name":"Gmail", "email":user["email"], "kind":"gmail"})
+    rows = get_db().execute("SELECT provider, config FROM integrations WHERE user_id = ? AND provider LIKE 'email:%'", (user["id"],)).fetchall()
+    for row in rows:
+        try:
+            config = json.loads(row["config"])
+        except (ValueError, TypeError):
+            continue
+        if isinstance(config, dict):
+            accounts.append({"key":row["provider"], "name":config.get("name","Email"), "email":config.get("email",""), "kind":config.get("kind"), "config":config})
+    return accounts
+
+
+def active_email_account(user):
+    accounts = email_accounts(user)
+    requested = request.args.get("account") or request.form.get("account")
+    key = requested or session.get("mail_account")
+    if requested and requested != "gmail" and not any(account["key"] == requested for account in accounts):
+        abort(404)
+    selected = next((account for account in accounts if account["key"] == key), None)
+    if selected is None:
+        selected = next((account for account in accounts if account["key"] == "gmail"), accounts[0] if accounts else {"key":"gmail","kind":"gmail","email":user["email"]})
+    session["mail_account"] = selected["key"]
+    return selected
+
+
+def microsoft_access_token(account):
+    config = account["config"]
+    token = config["token"]
+    if token.get("access_token") and token.get("expires_at",0) > time.time()+60:
+        return token["access_token"]
+    if not token.get("refresh_token"):
+        raise RuntimeError("Reconnect Microsoft to refresh mail access.")
+    response = requests.post(f"https://login.microsoftonline.com/{app.config['MICROSOFT_TENANT']}/oauth2/v2.0/token",
+        data={"grant_type":"refresh_token","refresh_token":token["refresh_token"],"client_id":app.config["MICROSOFT_CLIENT_ID"],"client_secret":app.config["MICROSOFT_CLIENT_SECRET"]},timeout=(5,20))
+    response.raise_for_status(); refreshed=response.json()
+    token.update(refreshed); token["expires_at"]=time.time()+refreshed.get("expires_in",3600)
+    save_integration(g.user["id"],account["key"],config)
+    return token["access_token"]
+
+
 def make_stats(messages):
     return {
         'total': len(messages),
         'unread': sum(1 for message in messages if message['unread']),
         'starred': sum(1 for message in messages if message['starred']),
-        'sent': 12,
+        'sent': sum(1 for message in messages if 'SENT' in message.get('label_ids', [])),
     }
 
 
@@ -616,68 +682,6 @@ def load_cached_gmail_messages(user):
 
 
 GMAIL_LIST_TTL = 5 * 60
-GMAIL_BATCH_SIZE = 50
-_gmail_sync_locks = {}
-_gmail_sync_locks_guard = threading.Lock()
-
-
-def _gmail_sync_lock(user_id):
-    with _gmail_sync_locks_guard:
-        return _gmail_sync_locks.setdefault(user_id, threading.Lock())
-
-
-def load_gmail_message_ids(user_id):
-    row = get_db().execute(
-        "SELECT message_ids, listed_at FROM gmail_sync_state WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()
-    if row is None or time.time() - row["listed_at"] > GMAIL_LIST_TTL:
-        return None
-    try:
-        message_ids = json.loads(row["message_ids"])
-    except (TypeError, json.JSONDecodeError):
-        return None
-    return message_ids if isinstance(message_ids, list) else None
-
-
-def save_gmail_message_ids(user_id, message_ids):
-    get_db().execute(
-        """INSERT INTO gmail_sync_state (user_id, message_ids, listed_at)
-           VALUES (?, ?, ?)
-           ON CONFLICT(user_id) DO UPDATE SET
-               message_ids = excluded.message_ids,
-               listed_at = excluded.listed_at""",
-        (user_id, json.dumps(message_ids), time.time()),
-    )
-    get_db().commit()
-
-
-def fetch_gmail_message_ids(user, headers):
-    message_ids = []
-    next_page_token = None
-    while True:
-        params = {
-            "userId": "me",
-            "labelIds": "INBOX",
-            "maxResults": 100,
-            "includeSpamTrash": "false",
-        }
-        if next_page_token:
-            params["pageToken"] = next_page_token
-        response = google_requests.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers=headers,
-            params=params,
-            timeout=(5, 15),
-        )
-        response.raise_for_status()
-        page = response.json()
-        message_ids.extend(item["id"] for item in page.get("messages", []) if item.get("id"))
-        next_page_token = page.get("nextPageToken")
-        if not next_page_token:
-            return message_ids
-
-
 def _fetch_gmail_detail(headers, message_id):
     detail = google_requests.get(
         f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
@@ -693,130 +697,6 @@ def _fetch_gmail_detail(headers, message_id):
     )
     detail.raise_for_status()
     return gmail_metadata_from_payload(detail.json(), message_id)
-
-
-def sync_gmail_inbox(user, batch_size=GMAIL_BATCH_SIZE, force_refresh=False):
-    """Load a bounded batch and let the page continue the sync.
-
-    A large inbox cannot be fetched in one request: Gmail's per-user quota
-    rejects thousands of metadata requests in a burst.  Each call therefore
-    lists the inbox (cached for five minutes unless manually refreshed),
-    fills at most ``batch_size`` missing messages, and reports how many are
-    left.  The inbox page reloads itself until ``remaining`` reaches zero.
-    """
-    result = {
-        "messages": load_cached_gmail_messages(user),
-        "total": None,
-        "remaining": None,
-        "busy": False,
-        "error": None,
-        "retry_after": 0,
-    }
-    access_token = get_gmail_access_token(user)
-    if not access_token:
-        result["error"] = "no_token"
-        return result
-
-    lock = _gmail_sync_lock(user["id"])
-    if not lock.acquire(blocking=False):
-        result["busy"] = True
-        result["retry_after"] = 3
-        return result
-    try:
-        headers = {"Authorization": "Bearer " + access_token}
-        message_ids = None if force_refresh else load_gmail_message_ids(user["id"])
-        if message_ids is None:
-            message_ids = fetch_gmail_message_ids(user, headers)
-            save_gmail_message_ids(user["id"], message_ids)
-
-        messages_by_id = {}
-        missing_ids = []
-        for message_id in message_ids:
-            cached = gmail_cache_get(user["id"], message_id)
-            if cached is not None:
-                messages_by_id[message_id] = cached
-            else:
-                missing_ids.append(message_id)
-
-        batch = missing_ids[:batch_size]
-        errors = []
-        dropped_ids = set()
-        fetched = 0
-        if batch:
-            executor = ThreadPoolExecutor(max_workers=3)
-            futures = {
-                executor.submit(_fetch_gmail_detail, headers, message_id): message_id
-                for message_id in batch
-            }
-            try:
-                for future in as_completed(futures):
-                    message_id = futures[future]
-                    try:
-                        metadata = future.result()
-                    except CancelledError:
-                        continue
-                    except (requests.RequestException, KeyError, ValueError) as error:
-                        if gmail_error_status(error) in (404, 410):
-                            # The message was deleted between listing and
-                            # fetching; stop retrying it forever.
-                            dropped_ids.add(message_id)
-                            app.logger.info(
-                                "Dropping deleted Gmail message %s for user id=%s",
-                                message_id,
-                                user["id"],
-                            )
-                            continue
-                        errors.append(error)
-                        if "quota" in gmail_error_reason(error):
-                            # Stop the round instead of burning the remaining
-                            # quota on requests Google will reject anyway.
-                            for pending in futures:
-                                pending.cancel()
-                            break
-                    else:
-                        gmail_cache_put(user["id"], message_id, metadata=metadata)
-                        messages_by_id[message_id] = metadata
-                        fetched += 1
-            finally:
-                executor.shutdown(wait=False, cancel_futures=True)
-
-        if dropped_ids:
-            message_ids = [item for item in message_ids if item not in dropped_ids]
-            save_gmail_message_ids(user["id"], message_ids)
-        remaining = len(missing_ids) - fetched - len(dropped_ids)
-        result["messages"] = [
-            messages_by_id[message_id]
-            for message_id in message_ids
-            if message_id in messages_by_id
-        ]
-        result["total"] = len(message_ids)
-        result["remaining"] = remaining
-        if errors:
-            result["error"] = gmail_error_message(errors[0])
-            result["retry_after"] = 60
-            app.logger.warning(
-                "Gmail sync paused for user id=%s: loaded=%s remaining=%s reason=%s",
-                user["id"],
-                len(messages_by_id),
-                remaining,
-                gmail_error_reason(errors[0]) or errors[0],
-            )
-        else:
-            app.logger.info(
-                "Gmail sync for user id=%s: total=%s loaded=%s remaining=%s",
-                user["id"],
-                len(message_ids),
-                len(messages_by_id),
-                remaining,
-            )
-        return result
-    finally:
-        lock.release()
-
-
-def fetch_gmail_messages(user):
-    """Compatibility wrapper used by callers that need the cached inbox."""
-    return sync_gmail_inbox(user, batch_size=10 ** 9)["messages"]
 
 
 def fetch_gmail_message(user, message_id):
@@ -1041,8 +921,13 @@ def telegram_snapshot(config, user_id, limit=8):
         finally:
             await client.disconnect()
 
-    with _telegram_lock(user_id):
-        return asyncio.run(run())
+    lock = _telegram_lock(user_id)
+    if not lock.acquire(timeout=5):
+        raise RuntimeError("Telegram is busy. Try loading messages again.")
+    try:
+        return asyncio.run(asyncio.wait_for(run(), timeout=20))
+    finally:
+        lock.release()
 
 
 def telegram_send_test(config, user_id):
@@ -1532,6 +1417,53 @@ def social_request(url, token="", method="GET", params=None, payload=None, heade
         return {}
 
 
+def mastodon_base_url(instance):
+    value = instance.strip()
+    parsed = urlparse(value if "://" in value else "https://" + value)
+    try:
+        port = parsed.port
+        hostname = (parsed.hostname or "").encode("idna").decode("ascii").lower().rstrip(".")
+    except (ValueError, UnicodeError):
+        raise RuntimeError("Enter a valid Mastodon instance domain.") from None
+    if (parsed.scheme != "https" or not hostname or "." not in hostname
+            or parsed.username is not None or parsed.password is not None
+            or port not in {None, 443} or parsed.path not in {"", "/"}
+            or parsed.query or parsed.fragment):
+        raise RuntimeError("Enter an HTTPS Mastodon domain without credentials, paths, or a custom port.")
+    return "https://" + hostname
+
+
+def mastodon_request(base_url, path, token, method="GET", payload=None):
+    base_url = mastodon_base_url(base_url)
+    hostname = urlparse(base_url).hostname
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(hostname, 443, type=socket.SOCK_STREAM)}
+    except OSError as error:
+        raise requests.ConnectionError("The Mastodon instance could not be resolved.") from error
+    if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+        raise RuntimeError("Mastodon instances must resolve to public internet addresses.")
+    with urllib3.HTTPSConnectionPool(sorted(addresses)[0], port=443,
+            server_hostname=hostname, assert_hostname=hostname, ssl_context=ssl.create_default_context()) as pool:
+        try:
+            response = pool.urlopen(method, path,
+                body=json.dumps(payload).encode() if payload is not None else None,
+                headers={"Host": hostname, "Authorization": "Bearer " + token, "Content-Type": "application/json"},
+                timeout=urllib3.Timeout(connect=5, read=20), redirect=False, retries=False)
+        except urllib3.exceptions.HTTPError as error:
+            raise requests.ConnectionError("The Mastodon instance could not be reached.") from error
+        if 300 <= response.status < 400:
+            raise RuntimeError("Mastodon redirects are not accepted. Enter the final instance domain.")
+        if response.status >= 400:
+            raise RuntimeError(f"Mastodon returned HTTP {response.status}.")
+        try:
+            data = json.loads(response.data)
+        except (ValueError, UnicodeError):
+            raise RuntimeError("Mastodon returned an unreadable response.") from None
+        if not isinstance(data, dict):
+            raise RuntimeError("Mastodon returned an unexpected response.")
+        return data
+
+
 def social_profile(provider, config):
     token = config.get("access_token") or config.get("bot_token") or ""
 
@@ -1575,17 +1507,9 @@ def social_profile(provider, config):
         config["account"] = "u/" + data.get("name", "reddit")
         config["detail"] = f"{data.get('link_karma', 0)} link karma"
     elif provider == "mastodon":
-        instance = (
-            config.get("instance", "")
-            .replace("https://", "")
-            .replace("http://", "")
-            .strip("/")
-        )
-        if not instance or "." not in instance:
-            raise RuntimeError("Enter a Mastodon instance such as mastodon.social.")
-        config["instance"] = instance
-        base_url = "https://" + instance
-        data = social_request(base_url + "/api/v1/accounts/verify_credentials", token)
+        base_url = mastodon_base_url(config.get("instance", ""))
+        config["instance"] = urlparse(base_url).hostname
+        data = mastodon_request(base_url, "/api/v1/accounts/verify_credentials", token)
         config["account"] = "@" + data.get("acct", "mastodon")
         config["detail"] = data.get("display_name", "")
         config["base_url"] = base_url
@@ -1710,12 +1634,8 @@ def social_publish(provider, config, text):
             },
         )
     elif provider == "mastodon":
-        social_request(
-            config.get("base_url", "https://mastodon.social") + "/api/v1/statuses",
-            token,
-            method="POST",
-            payload={"status": text[:500]},
-        )
+        mastodon_request(config.get("base_url", "https://mastodon.social"), "/api/v1/statuses",
+            token, method="POST", payload={"status": text[:500]})
     elif provider == "bluesky":
         social_request(
             "https://bsky.social/xrpc/com.atproto.repo.createRecord",
@@ -1907,6 +1827,7 @@ GMAIL_FOLDERS = {
     "sent": {"title": "Sent", "icon": "send", "label": "SENT"},
     "drafts": {"title": "Drafts", "icon": "draft", "label": "DRAFT"},
     "all": {"title": "All mail", "icon": "all_inbox"},
+    "archive": {"title": "Archive", "icon": "archive", "query": "-in:inbox -in:trash -in:spam"},
     "important": {"title": "Important", "icon": "label_important", "label": "IMPORTANT"},
     "spam": {"title": "Spam", "icon": "report", "label": "SPAM"},
     "trash": {"title": "Trash", "icon": "delete", "label": "TRASH"},
@@ -1914,14 +1835,28 @@ GMAIL_FOLDERS = {
 
 
 def requested_mail_folder():
+    account = active_email_account(g.user)
     folder = request.args.get("folder", "inbox")
     if folder not in GMAIL_FOLDERS:
+        abort(404)
+    if account["kind"] == "imap" and folder not in {"inbox","starred",*account["config"]["folders"]}:
+        abort(404)
+    if account["kind"] == "microsoft" and folder not in {"all","starred",*graph_mail.FOLDERS}:
         abort(404)
     return folder
 
 
 def cached_mail_preview(user, folder):
-    """Render a small local preview without contacting Gmail."""
+    """Render a small local preview without contacting a provider."""
+    account = active_email_account(user)
+    if account["kind"] != "gmail":
+        prefix = ("imap-" if account["kind"] == "imap" else "ms-") + account["config"]["account_id"] + "-"
+        if account["kind"] == "imap": prefix += email_providers.folder_id(account["config"],folder) + "-"
+        prefix += "%"
+        label = GMAIL_FOLDERS[folder].get("label")
+        rows = get_db().execute("SELECT metadata FROM gmail_cache WHERE user_id = ? AND message_id LIKE ? AND metadata IS NOT NULL ORDER BY metadata_at DESC LIMIT 25", (user["id"],prefix)).fetchall()
+        values = [json.loads(row["metadata"]) for row in rows]
+        return [value for value in values if (not label or label in value.get("label_ids",[])) and (account['kind']=='imap' or folder in {'all','starred'} or value.get('mail_folder')==folder)]
     page = get_db().execute(
         "SELECT message_ids FROM gmail_folder_pages "
         "WHERE user_id = ? AND folder = ? AND query = '' AND cursor = ''",
@@ -1937,6 +1872,7 @@ def cached_mail_preview(user, folder):
         return []
     rows = get_db().execute(
         """SELECT metadata FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL
+           AND message_id NOT LIKE 'imap-%' AND message_id NOT LIKE 'ms-%'
            AND (? = 'all' OR EXISTS (
                SELECT 1 FROM json_each(COALESCE(json_extract(metadata, '$.label_ids'), '["INBOX"]'))
                WHERE value = ?))
@@ -1948,6 +1884,18 @@ def cached_mail_preview(user, folder):
 
 def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
     """Fetch one Gmail page, never walk the entire mailbox."""
+    account = active_email_account(user)
+    if account["kind"] != "gmail":
+        if "\r" in query or "\n" in query:
+            raise ValueError("Mail searches cannot contain new lines.")
+        if account["kind"] == "imap":
+            payloads, next_cursor, total = email_providers.list_messages(account["config"],cursor,query,folder)
+        else:
+            payloads, next_cursor, total = graph_mail.list_messages(microsoft_access_token(account),account["config"],folder,query,cursor)
+        messages = [gmail_metadata_from_payload(payload,payload["id"]) for payload in payloads]
+        for message in messages: message['mail_folder']='inbox' if folder=='starred' and account['kind']=='imap' else folder
+        for message in messages: gmail_cache_put(user["id"],message["id"],metadata=message)
+        return messages,next_cursor,total
     token = get_gmail_access_token(user)
     if not token:
         raise RuntimeError("Connect Google to load your email.")
@@ -2015,7 +1963,7 @@ def mailbox_messages():
     folder = requested_mail_folder()
     query = request.args.get("search", "").strip()[:500]
     category = request.args.get("category", "")
-    if folder == "inbox" and category in {"primary", "updates", "social"}:
+    if active_email_account(g.user)["kind"] == "gmail" and folder == "inbox" and category in {"primary", "updates", "social"}:
         query = " ".join(filter(None, (query, "category:" + category)))
     try:
         messages, next_cursor, total = fetch_mail_page(
@@ -2026,17 +1974,30 @@ def mailbox_messages():
         return jsonify(error=str(error), reconnect=True), 409
     except requests.HTTPError as error:
         return jsonify(error=gmail_error_message(error), reconnect=gmail_error_status(error) in {401, 403}), 502
-    except (requests.RequestException, KeyError, ValueError):
-        app.logger.exception("Could not load Gmail page")
+    except (requests.RequestException, KeyError, ValueError, OSError, imaplib.IMAP4.error):
+        app.logger.warning("Could not load mail page for user id=%s", g.user["id"])
         return jsonify(error="Could not load messages. Please try again."), 502
     return jsonify(
-        html=render_template('mail_rows.html', messages=messages, folder=folder),
+        html=render_template('mail_rows.html', messages=messages, folder=folder, mail_account_key=active_email_account(g.user)["key"]),
         next_cursor=next_cursor, total=total, count=len(messages),
     )
 
 
 @app.get('/api/mail/counts')
 def mailbox_counts():
+    account = active_email_account(g.user)
+    if account["kind"] != "gmail":
+        try:
+            if account["kind"] == "microsoft":
+                data = graph_mail.request(microsoft_access_token(account),"GET","/me/mailFolders/inbox",params={"$select":"unreadItemCount"})
+                return jsonify(inbox=data.get("unreadItemCount",0))
+            with email_providers.imap_connect(account["config"]) as client:
+                status,rows = client.status(email_providers.mailbox_name(account["config"],"inbox"),"(UNSEEN)")
+                email_providers.check(status,"Counts unavailable.")
+                match=re.search(rb"UNSEEN (\d+)",rows[0])
+                return jsonify(inbox=int(match[1]) if match else 0)
+        except (RuntimeError,requests.RequestException,OSError,imaplib.IMAP4.error):
+            return jsonify({})
     cached = get_db().execute(
         "SELECT counts, updated_at FROM gmail_mailbox_counts WHERE user_id = ?", (g.user["id"],)
     ).fetchone()
@@ -2075,9 +2036,28 @@ def mail_action():
     action = request.form.get("action")
     ids = list(dict.fromkeys(request.form.getlist("message_ids")))
     if action not in changes or not 1 <= len(ids) <= 1000 or any(
-        not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", item) for item in ids
+        not re.fullmatch(r"[A-Za-z0-9_-]{1,1000}", item) for item in ids
     ):
         return jsonify(error="Select messages and choose a valid action."), 400
+    account = active_email_account(g.user)
+    if account["kind"] != "gmail":
+        try:
+            if account["kind"] == "imap":
+                email_providers.change_messages(account["config"],ids,action,request.form.get("folder","inbox"))
+            else:
+                graph_mail.change_messages(microsoft_access_token(account),account["config"],ids,action)
+        except (RuntimeError,ValueError,requests.RequestException,OSError,imaplib.IMAP4.error):
+            return jsonify(error="The mail action could not be completed. Refresh to check the current state."),502
+        for message_id in ids:
+            metadata=gmail_cache_get(g.user["id"],message_id)
+            if metadata:
+                add,remove=changes[action]
+                labels=(set(metadata.get('label_ids',[])) | set(add)) - set(remove)
+                metadata.update(label_ids=sorted(labels),unread='UNREAD' in labels,starred='STARRED' in labels)
+                if action in {"archive","trash","restore"}: get_db().execute("DELETE FROM gmail_cache WHERE user_id=? AND message_id=?",(g.user["id"],message_id))
+                else: gmail_cache_put(g.user["id"],message_id,metadata=metadata)
+        get_db().commit()
+        return jsonify(action=action,ids=ids)
     add, remove = changes[action]
     try:
         token = get_gmail_access_token(g.user)
@@ -2125,9 +2105,13 @@ def paginate_messages(messages, page):
 @app.route('/inbox')
 def inbox():
     folder = requested_mail_folder()
+    account = active_email_account(g.user)
     messages = cached_mail_preview(g.user, folder)
+    available = GMAIL_FOLDERS
+    if account["kind"] == "imap": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"inbox","starred",*account["config"]["folders"]}}
+    elif account["kind"] == "microsoft": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"all","starred",*graph_mail.FOLDERS}}
     return render_template(
-        'mail.html', messages=messages, folder=folder, folders=GMAIL_FOLDERS,
+        'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=email_accounts(g.user), mail_account_key=account['key'], mail_kind=account['kind'],
         folder_title=GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages),
     )
 
@@ -2141,19 +2125,29 @@ def mail():
 def message_detail(message_id):
     folder = requested_mail_folder()
     try:
-        message = fetch_gmail_message(g.user, message_id)
+        account = active_email_account(g.user)
+        if account["kind"] == "gmail":
+            message = fetch_gmail_message(g.user, message_id)
+        else:
+            config=account["config"]
+            payload=email_providers.read_message(config,message_id,folder) if account["kind"] == "imap" else graph_mail.read_message(microsoft_access_token(account),config,message_id,folder)
+            metadata=gmail_metadata_from_payload(payload,message_id)
+            metadata['mail_folder']='inbox' if folder=='starred' and account['kind']=='imap' else folder
+            body=decode_gmail_body(payload.get("payload",{}))
+            gmail_cache_put(g.user["id"],message_id,metadata=metadata,body=body)
+            message={**metadata,"body":body}
         if message is None:
             raise RuntimeError("Connect Google to read this email.")
-    except (RuntimeError, requests.RequestException, KeyError, ValueError) as error:
+    except (RuntimeError, requests.RequestException, KeyError, ValueError, OSError, imaplib.IMAP4.error) as error:
         if request.args.get("pane") == "1":
-            return render_template('message_error.html', error="Could not open this email. Reconnect Google or try again."), 502
+            return render_template('message_error.html', error="Could not open this email. Check the account connection and try again."), 502
         return render_template(
             'message_unavailable.html', folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"],
             error=str(error) if isinstance(error, RuntimeError) else "Could not open this email. Please try again.",
         )
     return render_template(
         'message_pane.html' if request.args.get("pane") == "1" else 'message.html',
-        message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"],
+        message=message, folder=folder, folder_title=GMAIL_FOLDERS[folder]["title"], mail_account_key=active_email_account(g.user)['key'],
     )
 
 
@@ -2165,17 +2159,25 @@ def compose():
     body = request.form.get('body') or ''
     if not valid_email(recipient):
         flash("Enter a valid recipient email address.", "error")
+    elif '\r' in subject or '\n' in subject:
+        flash("The email subject must be a single line.","error")
     elif not body.strip():
         flash("Write a message before sending.", "error")
     else:
         try:
-            send_gmail_message(g.user, recipient, subject, body)
+            sent_warning=None
+            account=active_email_account(g.user)
+            if account["kind"] == "gmail": send_gmail_message(g.user, recipient, subject, body)
+            elif account["kind"] == "microsoft": graph_mail.send_message(microsoft_access_token(account),recipient,subject,body)
+            else:
+                email=EmailMessage(); email["From"]=account["email"]; email["To"]=recipient; email["Subject"]=subject; email.set_content(body)
+                sent_warning=email_providers.send_message(account["config"],email)
         except RuntimeError as error:
             flash(str(error), "error")
-        except requests.RequestException:
-            flash("Gmail could not send the message. Please try again.", "error")
+        except (requests.RequestException,OSError,imaplib.IMAP4.error,smtplib.SMTPException):
+            flash("The mail server could not send the message. Please try again.", "error")
         else:
-            flash(f"Message sent to {recipient} successfully.", "success")
+            flash(sent_warning or f"Message sent to {recipient} successfully.", "info" if sent_warning else "success")
     return redirect(url_for('inbox'))
 
 
@@ -2189,28 +2191,8 @@ def integrations():
     telegram = get_integration(g.user["id"], "telegram")
     telegram_stage = telegram.get("stage") if telegram else None
     telegram_account = telegram.get("account") if telegram else None
-    updates = []
-    telegram_error = None
-    if telegram_stage == "connected":
-        try:
-            telegram_account, updates = telegram_snapshot(telegram, g.user["id"])
-        except Exception as error:
-            telegram_error = telegram_error_text(error)
-            app.logger.warning(
-                "Telegram sync failed for user id=%s: %s", g.user["id"], telegram_error
-            )
     whatsapp = get_integration(g.user["id"], "whatsapp")
     discord = get_integration(g.user["id"], "discord")
-    discord_messages = []
-    discord_error = None
-    if discord is not None:
-        try:
-            discord_messages = discord_recent_messages(discord)
-        except Exception as error:
-            discord_error = str(error)
-            app.logger.warning(
-                "Discord sync failed for user id=%s: %s", g.user["id"], discord_error
-            )
     social_cards = [
         {
             "spec": spec,
@@ -2232,20 +2214,100 @@ def integrations():
         telegram=telegram,
         telegram_stage=telegram_stage,
         telegram_account=telegram_account,
-        telegram_updates=updates,
-        telegram_error=telegram_error,
+
         telegram_available=telegram_available(),
         whatsapp=whatsapp,
         whatsapp_messages=whatsapp_recent_messages(g.user["id"]) if whatsapp else [],
         whatsapp_webhook_url=url_for('whatsapp_webhook', _external=True),
         discord=discord,
-        discord_messages=discord_messages,
-        discord_error=discord_error,
+
         social_cards=social_cards,
         social_state=social_state,
         google_connected=bool(get_google_token(g.user)),
         google_email=session.get("user_email"),
+        email_presets=email_providers.PROVIDERS, email_connections=[account for account in email_accounts(g.user) if account["kind"] != "gmail"],
     )
+
+
+@app.post('/integrations/email/connect')
+def connect_email():
+    preset=email_providers.PROVIDERS_BY_KEY.get(request.form.get("provider",""))
+    if preset is None: abort(400)
+    email=normalize_email(request.form.get("email","")); password=request.form.get("password","")
+    try:
+        if not valid_email(email) or not password or len(password)>1024 or "\r" in password or "\n" in password:
+            raise ValueError("Enter an email address and a valid password or app password.")
+        config={"kind":"imap","name":preset["name"],"email":email,"password":password,"account_id":hashlib.sha256(email.encode()).hexdigest()[:12]}
+        config['save_sent']=request.form.get('save_sent','true' if preset.get('save_sent',True) else 'false')=='true'
+        for field in ('imap_username','smtp_username','smtp_password'):
+            value=request.form.get(field,'')
+            if len(value)>1024 or '\r' in value or '\n' in value: raise ValueError('Invalid mail login credentials.')
+            if value: config[field]=value
+        for field in ("imap_host","smtp_host"):
+            config[field]=email_providers.validate_host(request.form.get(field,"").strip() or preset[field])
+        for field in ("imap_port","smtp_port"):
+            config[field]=int(request.form.get(field,"") or preset[field])
+            if not 1<=config[field]<=65535: raise ValueError("Choose valid mail server ports.")
+        for field in ("imap_security","smtp_security"):
+            config[field]=request.form.get(field) or preset[field]
+            if config[field] not in {"ssl","starttls"}: raise ValueError("Mail connections require TLS.")
+        with email_providers.imap_connect(config) as client: config["folders"]=email_providers.discover_folders(client)
+        with email_providers.smtp_connect(config): pass
+        key="email:imap:"+config["account_id"]; save_integration(g.user["id"],key,config); session["mail_account"]=key
+    except (ValueError,RuntimeError,OSError,imaplib.IMAP4.error,smtplib.SMTPException):
+        flash("The account could not be connected. Check the server settings, app password, and TLS certificate. See the email setup guide.","error")
+    else: flash("Email account connected. Open the inbox to load messages.","success")
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/email/disconnect')
+def disconnect_email():
+    key=request.form.get("account","")
+    account=next((account for account in email_accounts(g.user) if account["key"]==key and account["kind"]!="gmail"),None)
+    if account is None: abort(404)
+    prefix=("imap-" if account["kind"]=="imap" else "ms-")+account["config"]["account_id"]+"-%"
+    db=get_db(); db.execute("DELETE FROM gmail_cache WHERE user_id=? AND message_id LIKE ?",(g.user["id"],prefix))
+    db.execute("DELETE FROM integrations WHERE user_id=? AND provider=?",(g.user["id"],key));db.commit()
+    if session.get("mail_account")==key:session.pop("mail_account")
+    flash("Email account disconnected and its local cache removed.","info")
+    return redirect(url_for('integrations'))
+
+
+@app.get('/auth/microsoft/callback')
+def microsoft_callback():
+    if session.pop("microsoft_connect_user",None)!=g.user["id"]:
+        abort(400)
+    try:
+        token=microsoft.authorize_access_token()
+        profile=graph_mail.request(token["access_token"],"GET","/me",params={"$select":"mail,userPrincipalName,displayName"})
+        email=normalize_email(profile.get("mail") or profile.get("userPrincipalName", ""))
+        if not valid_email(email):raise RuntimeError("Microsoft did not return an email address.")
+        account_id=hashlib.sha256(email.encode()).hexdigest()[:12]
+        key="email:microsoft:"+account_id
+        save_integration(g.user["id"],key,{"kind":"microsoft","name":"Microsoft Outlook","email":email,"account_id":account_id,"token":token})
+        session["mail_account"]=key
+    except (OAuthError,requests.RequestException,ValueError,KeyError,RuntimeError):
+        flash("Microsoft could not be connected. Check the OAuth setup and try again.","error")
+    else: flash("Microsoft Outlook connected.","success")
+    return redirect(url_for('integrations'))
+
+
+@app.get('/api/integrations/<provider>/messages')
+def integration_messages(provider):
+    if provider not in {"telegram", "discord"}:
+        abort(404)
+    config = get_integration(g.user["id"], provider)
+    if config is None or (provider == "telegram" and config.get("stage") != "connected"):
+        return jsonify(error="Connect this service first."), 409
+    try:
+        if provider == "telegram":
+            _, messages = telegram_snapshot(config, g.user["id"])
+        else:
+            messages = discord_recent_messages(config)
+    except Exception as error:
+        app.logger.warning("%s message preview failed for user id=%s", provider, g.user["id"])
+        return jsonify(error=telegram_error_text(error) if provider == "telegram" else "Messages could not be loaded. Try again."), 502
+    return jsonify(messages=messages)
 
 
 @app.post('/integrations/telegram/start')
@@ -2426,7 +2488,16 @@ def whatsapp_webhook():
             return challenge, 200, {"Content-Type": "text/plain"}
         abort(403)
 
+    secret = app.config.get("WHATSAPP_APP_SECRET")
+    if not secret:
+        abort(503, description="WhatsApp webhook verification is not configured.")
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    expected = "sha256=" + hmac.new(secret.encode(), request.get_data(), hashlib.sha256).hexdigest()
+    if not re.fullmatch(r'sha256=[a-f0-9]{64}',signature) or not hmac.compare_digest(expected, signature):
+        abort(403)
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        abort(400)
     for entry in payload.get("entry", []) or []:
         for change in entry.get("changes", []) or []:
             value = change.get("value", {}) or {}
@@ -2607,8 +2678,23 @@ def authenticate(provider):
             flash("Could not connect to Google. Please try signing in again.", "error")
             return redirect(url_for('login'))
 
-    flash(f'{provider.title()} sign-in is not available yet. Please continue with email.', 'info')
-    return redirect(url_for('login'))
+    if g.user is None:
+        flash("Sign in to CentroMail first, then connect Outlook from Integrations.", "info")
+        return redirect(url_for('login'))
+    if not app.config["MICROSOFT_CLIENT_ID"] or not app.config["MICROSOFT_CLIENT_SECRET"]:
+        flash("Microsoft needs an OAuth app. Follow docs/email-provider-setup.md to configure it.","info")
+        return redirect(url_for('integrations'))
+    callback_uri=app.config["MICROSOFT_REDIRECT_URI"] or url_for('microsoft_callback',_external=True)
+    origin=urlparse(request.host_url); callback=urlparse(callback_uri)
+    if origin.hostname in {"localhost","127.0.0.1","::1"} and callback.hostname in {"localhost","127.0.0.1","::1"} and origin.netloc!=callback.netloc:
+        return redirect(f"{callback.scheme}://{callback.netloc}{url_for('authenticate',provider='microsoft')}")
+    session["microsoft_connect_user"]=g.user["id"]
+    try:return microsoft.authorize_redirect(callback_uri)
+    except (OAuthError,requests.RequestException,ValueError):
+        session.pop("microsoft_connect_user",None)
+        flash("Microsoft sign-in could not be started. Check the OAuth setup.","error")
+        return redirect(url_for('integrations'))
+
 
 
 @app.get('/auth/google/callback')

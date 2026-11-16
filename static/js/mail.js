@@ -5,6 +5,7 @@
     const list = document.querySelector('#message-list');
     const search = document.querySelector('#mail-search');
     const status = document.querySelector('#mail-load-status');
+    const loadingIndicator = document.querySelector('#mail-loading-indicator');
     const feedback = document.querySelector('#mail-feedback');
     const more = document.querySelector('#load-more-mail');
     const refresh = document.querySelector('#refresh-mail');
@@ -23,7 +24,7 @@
         if (reconnect) {
             const link = document.createElement('a');
             link.href = app.dataset.googleUrl;
-            link.textContent = ' Reconnect Google';
+            link.textContent = ' Reconnect account';
             feedback.append(link);
         }
     };
@@ -58,6 +59,7 @@
     const loadCounts = async (force = false) => {
         try {
             const url = new URL(app.dataset.countsUrl, location.origin);
+            url.searchParams.set('account', app.dataset.account);
             if (force) url.searchParams.set('refresh', '1');
             const counts = await readJson(await fetch(url));
             document.querySelectorAll('[data-folder-count]').forEach(element => {
@@ -82,12 +84,14 @@
         const pending = controller;
         const timeout = setTimeout(() => pending.abort(), 45000);
         loading = true;
+        loadingIndicator.hidden = false;
         list.setAttribute('aria-busy', 'true');
         status.textContent = reset ? 'Loading messages…' : 'Loading more messages…';
         more.hidden = true;
         if (force) setRefreshBusy(true);
         const url = new URL(app.dataset.messagesUrl, location.origin);
         url.searchParams.set('folder', folder);
+        url.searchParams.set('account', app.dataset.account);
         if (cursor) url.searchParams.set('cursor', cursor);
         if (search.value.trim()) url.searchParams.set('search', search.value.trim());
         const activeTab = document.querySelector('.inbox-tab.active');
@@ -111,7 +115,7 @@
             failed = false;
             showFeedback('');
             const count = rows().length;
-            document.querySelector('#mail-page-count').textContent = hasMore ? `${count} loaded · about ${data.total} total` : `${count} messages`;
+            document.querySelector('#mail-page-count').textContent = hasMore ? `${count} loaded${data.total == null ? '' : ` · about ${data.total} total`}` : `${count} messages`;
             document.querySelector('#empty-state').hidden = count > 0;
             document.querySelector('#empty-state').textContent = search.value.trim() ? 'No messages match your search.' : 'No messages in this folder.';
             status.textContent = hasMore ? 'Scroll to load more messages.' : (count ? 'All messages loaded.' : '');
@@ -126,6 +130,7 @@
             clearTimeout(timeout);
             if (currentGeneration === generation) {
                 loading = false;
+                loadingIndicator.hidden = true;
                 list.setAttribute('aria-busy', 'false');
                 more.hidden = !hasMore && !failed;
                 more.textContent = failed ? 'Try again' : 'Load more';
@@ -140,7 +145,7 @@
         rows().forEach(row => row.classList.remove('is-open'));
     };
     const openMessage = async row => {
-        if (!desktop.matches) {
+        if (!desktop.matches || window.CentroMailAppearance.get('reading-pane') === 'page') {
             window.location.assign(row.dataset.messageUrl);
             return;
         }
@@ -166,8 +171,9 @@
         }
     };
     const performAction = async (action, targets) => {
+        if (action === 'trash' && window.CentroMailAppearance.get('confirm-actions') === 'true' && !confirm('Move the selected messages to Trash?')) return;
         if (actionPending || !targets.length) return;
-        const data = new URLSearchParams({action, csrf_token: app.dataset.csrf});
+        const data = new URLSearchParams({action, csrf_token: app.dataset.csrf, account: app.dataset.account, folder});
         targets.forEach(row => data.append('message_ids', row.dataset.messageId));
         actionPending = true;
         targets.forEach(row => row.querySelector('.star-button').disabled = true);
@@ -210,12 +216,6 @@
         event.preventDefault();
         openMessage(row);
     });
-    list.addEventListener('keydown', event => {
-        if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.message')) {
-            event.preventDefault();
-            openMessage(event.target);
-        }
-    });
     list.addEventListener('change', updateSelection);
     selectAll.addEventListener('change', () => {
         rows().forEach(row => row.querySelector('.message-check').checked = selectAll.checked);
@@ -231,7 +231,7 @@
     more.addEventListener('click', () => loadMessages({reset: failed && cursor === null}));
     search.addEventListener('input', () => {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => loadMessages({reset: true}), 350);
+        if (!search.disabled) searchTimer = setTimeout(() => { if (!search.disabled) loadMessages({reset: true}); }, 350);
     });
     const tabs = [...document.querySelectorAll('.inbox-tab')];
     tabs.forEach((tab, index) => {
@@ -273,13 +273,19 @@
         initials.textContent = document.querySelector('.profile-menu strong').textContent.trim()[0].toUpperCase();
         event.target.replaceWith(initials);
     });
-    if (localStorage.getItem('centromail-density') === 'compact') app.classList.add('compact-mail');
-    setInterval(() => {
+
+    let refreshTimer;
+    const scheduleRefresh = () => {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
         if (localStorage.getItem('centromail-auto-refresh') !== 'false' && document.visibilityState === 'visible' &&
-            !loading && !actionPending && selected().length === 0 && rows().length <= 25 && !search.value.trim()) {
+            !search.disabled && !loading && !actionPending && selected().length === 0 && rows().length <= 25 && !search.value.trim()) {
             loadMessages({reset: true, force: true});
         }
-    }, 60000);
+    }, Number(window.CentroMailAppearance.get('refresh-interval')) * 1000);
+    };
+    document.addEventListener('centromail-appearance-change', scheduleRefresh);
+    scheduleRefresh();
     updateSelection();
     loadMessages({reset: true, force: new URLSearchParams(location.search).get('refresh') === '1'});
     loadCounts();
