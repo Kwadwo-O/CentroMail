@@ -30,3 +30,16 @@
 @media (forced-colors: active) {
     .cm-brand-logo { filter: none; background: white; }
 }
+
+/* Keyboard shortcuts dialog (global) */
+.keyboard-shortcuts-dialog { border: 1px solid var(--m3e-sys-color-outline-variant); border-radius: 24px; background: var(--m3e-sys-color-surface); color: var(--m3e-sys-color-on-surface); padding: 0; max-width: min(560px, calc(100dvw - 32px)); width: 100%; }
+.keyboard-shortcuts-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.keyboard-shortcuts-header { padding: 16px 24px; border-bottom: 1px solid var(--m3e-sys-color-outline-variant); }
+.keyboard-shortcuts-hint { color: var(--m3e-sys-color-on-surface-variant); font-size: .78rem; margin: 0; padding: 16px 24px 0; }
+.keyboard-shortcuts-list { padding: 8px 24px 24px; max-height: 60dvh; overflow: auto; }
+.keyboard-shortcuts-section h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--m3e-sys-color-primary); margin: 16px 0 8px; }
+.keyboard-shortcuts-grid { display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1fr); gap: 8px 16px; margin: 0; align-items: baseline; }
+.keyboard-shortcuts-grid kbd { background: var(--m3e-sys-color-surface-container); border: 1px solid var(--m3e-sys-color-outline-variant); border-bottom-width: 2px; border-radius: 6px; font-family: inherit; font-size: .75rem; padding: 4px 8px; white-space: nowrap; }
+.keyboard-shortcuts-grid dd { margin: 0; font-size: .85rem; }
+.keyboard-shortcuts-grid dt { margin: 0; }
+@media (max-width: 600px) { .keyboard-shortcuts-dialog { border-radius: 16px; } .keyboard-shortcuts-grid { grid-template-columns: minmax(96px, auto) minmax(0, 1fr); gap: 6px 10px; } }

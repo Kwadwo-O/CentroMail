@@ -68,9 +68,13 @@
     search.addEventListener('input', show); window.addEventListener('hashchange', show);
     clearSearch.addEventListener('click', () => { search.value = ''; show(); search.focus(); });
     search.addEventListener('keydown', event => { if (event.key === 'Escape' && search.value) { event.preventDefault(); search.value = ''; show(); } });
-    document.querySelectorAll('[data-reset-group]').forEach(button => button.addEventListener('click', () => change(() => appearance.reset(groups.find(group => group.key === button.dataset.resetGroup).settings.map(item => item.key)))));
-    document.querySelector('#reset-customization').addEventListener('click', () => change(() => appearance.reset(appearance.definitions.filter(item => !['confirm-actions','auto-refresh','refresh-interval'].includes(item.key)).map(item => item.key))));
-    document.querySelector('#clear-settings-storage').addEventListener('click', () => change(() => appearance.reset(appearance.definitions.map(item => item.key))));
+    const clearCustomReaderWidth = () => { try { localStorage.removeItem('centromail-reader-width-custom'); } catch {} };
+    document.querySelectorAll('[data-reset-group]').forEach(button => button.addEventListener('click', () => change(() => {
+        if (button.dataset.resetGroup === 'inbox') clearCustomReaderWidth();
+        appearance.reset(groups.find(group => group.key === button.dataset.resetGroup).settings.map(item => item.key));
+    })));
+    document.querySelector('#reset-customization').addEventListener('click', () => change(() => { clearCustomReaderWidth(); appearance.reset(appearance.definitions.filter(item => !['confirm-actions','auto-refresh','refresh-interval'].includes(item.key)).map(item => item.key)); }));
+    document.querySelector('#clear-settings-storage').addEventListener('click', () => change(() => { clearCustomReaderWidth(); appearance.reset(appearance.definitions.map(item => item.key)); }));
     document.querySelector('#export-preferences').addEventListener('click', () => {
         const preferences = Object.fromEntries(appearance.definitions.map(item => [item.key, appearance.get(item.key)]));
         const url = URL.createObjectURL(new Blob([JSON.stringify({version:1,preferences}, null, 2)], {type:'application/json'}));
@@ -85,6 +89,7 @@
             const entries = Object.entries(data.preferences);
             for (const [key,value] of entries) { const item = appearance.definitions.find(item => item.key === key); if (!item || !appearance.valid(item,value)) throw new Error('Invalid preference: '+key); }
             for (const [key,value] of entries) localStorage.setItem('centromail-'+key,value);
+            if (entries.some(([key]) => key === 'reader-width')) clearCustomReaderWidth();
             appearance.apply(); sync(); feedback.textContent = 'Preferences imported.';
         } catch (error) { feedback.textContent = 'Could not import preferences: '+error.message; }
         event.target.value = '';

@@ -30,7 +30,12 @@
     let generation = 0, controller, searchTimer, readerController;
     let actionPending = false, readerMessageId;
     let statusController, statusOffset = 0, changeGeneration = 0;
+    let focusedIndex = -1;
     const rows = () => [...list.querySelectorAll('.message')];
+    const clearFocusedRow = () => {
+        focusedIndex = -1;
+        list.querySelectorAll('.message.is-focused').forEach(row => row.classList.remove('is-focused'));
+    };
     const sort = document.querySelector('#mail-sort');
     const sortMessages = () => {
         const active = document.activeElement;
@@ -141,6 +146,7 @@
             hasMore = true;
             failed = false;
             loading = false;
+            clearFocusedRow();
         }
         if (loading || !hasMore) return;
         const currentGeneration = generation;
@@ -208,11 +214,75 @@
             }
         }
     };
+    // Resizable reading pane ---------------------------------------------
+    const resizer = document.querySelector('#reader-resizer');
+    const widthKey = 'centromail-reader-width-custom';
+    let customWidth = null;
+    try {
+        const stored = Number(localStorage.getItem(widthKey));
+        if (Number.isFinite(stored) && stored >= 320) customWidth = stored;
+    } catch { /* Storage can be unavailable in private mode. */ }
+    const clampReaderWidth = px => Math.max(320, Math.min(Math.round(innerWidth * 0.75), Math.round(px)));
+    const applyReaderWidth = (px, persist = false) => {
+        const width = clampReaderWidth(px);
+        customWidth = width;
+        // Scope the drag width to this page so appearance changes to the
+        // shared root variable (theme, accent, reset) cannot overwrite it.
+        app.style.setProperty('--cm-reader-width', width + 'px');
+        resizer.setAttribute('aria-valuenow', String(width));
+        if (persist) { try { localStorage.setItem(widthKey, String(width)); } catch { /* Ignore storage errors. */ } }
+        return width;
+    };
+    const syncResizer = () => {
+        resizer.hidden = reader.hidden || !desktop.matches;
+        if (resizer.hidden) return;
+        resizer.setAttribute('aria-valuemin', '320');
+        resizer.setAttribute('aria-valuemax', String(Math.round(innerWidth * 0.75)));
+        resizer.setAttribute('aria-valuenow', String(Math.round(reader.getBoundingClientRect().width || customWidth || 640)));
+    };
+    if (customWidth) applyReaderWidth(customWidth);
+    let resizing = false;
+    resizer.addEventListener('pointerdown', event => {
+        if (!desktop.matches || reader.hidden) return;
+        resizing = true;
+        resizer.setPointerCapture(event.pointerId);
+        resizer.classList.add('is-dragging');
+        document.body.classList.add('is-resizing-reader');
+        event.preventDefault();
+    });
+    resizer.addEventListener('pointermove', event => {
+        if (!resizing) return;
+        const rect = reader.getBoundingClientRect();
+        applyReaderWidth(rect.width + rect.right - event.clientX);
+    });
+    const stopResize = () => {
+        if (!resizing) return;
+        resizing = false;
+        resizer.classList.remove('is-dragging');
+        document.body.classList.remove('is-resizing-reader');
+        applyReaderWidth(Number(resizer.getAttribute('aria-valuenow')), true);
+    };
+    resizer.addEventListener('pointerup', stopResize);
+    resizer.addEventListener('pointercancel', stopResize);
+    resizer.addEventListener('lostpointercapture', stopResize);
+    resizer.addEventListener('keydown', event => {
+        const step = event.shiftKey ? 100 : 25;
+        let width = Number(resizer.getAttribute('aria-valuenow')) || customWidth || 640;
+        if (event.key === 'ArrowLeft') width += step;
+        else if (event.key === 'ArrowRight') width -= step;
+        else if (event.key === 'Home') width = 320;
+        else if (event.key === 'End') width = Math.round(innerWidth * 0.75);
+        else return;
+        event.preventDefault();
+        applyReaderWidth(width, true);
+    });
+    window.addEventListener('resize', syncResizer);
     const setReaderOpen = open => {
         if (reader.hidden === !open) return;
         const update = () => {
             reader.hidden = !open;
             app.classList.toggle('has-reader', open);
+            syncResizer();
         };
         if (window.CentroMailMotion?.readerLayout) window.CentroMailMotion.readerLayout(update);
         else update();
@@ -369,12 +439,14 @@
     document.querySelector('#close-reader').addEventListener('click', closeReader);
     reader.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); closeReader(); } });
     desktop.addEventListener('change', () => {
+        syncResizer();
         if (!desktop.matches && !reader.hidden) window.location.assign(document.querySelector('#reader-open-page').href);
     });
     const help = document.querySelector('#mail-help-dialog');
     document.querySelector('#mail-help-button').addEventListener('click', () => help.showModal());
     document.querySelector('#close-mail-help').addEventListener('click', () => help.close());
     help.addEventListener('click', event => { if (event.target === help) help.close(); });
+    document.querySelector('#show-shortcuts').addEventListener('click', () => { help.close(); window.CentroMailShortcuts?.show(); });
     document.querySelector('.profile-button img')?.addEventListener('error', event => {
         event.target.hidden = true;
         const initials = document.createElement('span');
@@ -401,4 +473,68 @@
     updateSelection();
     loadMessages({reset: true, force: new URLSearchParams(location.search).get('refresh') === '1'});
     loadCounts();
+
+    // Keyboard shortcuts -------------------------------------------------
+    const shortcuts = window.CentroMailShortcuts;
+    if (shortcuts) {
+        const composeButton = document.querySelector('#open-compose');
+        const focusedRow = () => list.querySelector('.message.is-focused');
+        const focusRow = delta => {
+            const all = rows();
+            if (!all.length) return;
+            const next = focusedIndex < 0 ? (delta > 0 ? 0 : all.length - 1) :
+                Math.min(all.length - 1, Math.max(0, focusedIndex + delta));
+            clearFocusedRow();
+            focusedIndex = next;
+            const row = all[focusedIndex];
+            row.classList.add('is-focused');
+            row.scrollIntoView({block: 'nearest'});
+            row.querySelector('.message-details').focus({preventScroll: true});
+        };
+        const selectFocused = () => {
+            const row = focusedRow();
+            if (!row) return null;
+            const checkbox = row.querySelector('.message-check');
+            if (!checkbox.checked) { checkbox.checked = true; updateSelection(); }
+            return row;
+        };
+        list.addEventListener('focusin', event => {
+            const row = event.target.closest('.message');
+            if (!row) return;
+            list.querySelectorAll('.message.is-focused').forEach(item => item.classList.remove('is-focused'));
+            row.classList.add('is-focused');
+            focusedIndex = rows().indexOf(row);
+        });
+        list.addEventListener('keydown', event => {
+            if (event.key === 'ArrowDown') { event.preventDefault(); focusRow(1); }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); focusRow(-1); }
+        });
+        shortcuts.register('c', () => composeButton.click(), 'Compose a new email', 'Inbox');
+        shortcuts.register('j', () => focusRow(1), 'Move to next message', 'Inbox');
+        shortcuts.register('k', () => focusRow(-1), 'Move to previous message', 'Inbox');
+        shortcuts.register('enter', () => { const row = focusedRow(); if (row) openMessage(row); }, 'Open the focused message', 'Inbox');
+        shortcuts.register('s', () => focusedRow()?.querySelector('.star-button').click(), 'Star or unstar the focused message', 'Inbox');
+        shortcuts.register('x', () => focusedRow()?.querySelector('.message-check').click(), 'Select the focused message', 'Inbox');
+        shortcuts.register('e', () => {
+            if (!selectFocused()) return;
+            const action = folder === 'trash' ? 'restore' : 'archive';
+            document.querySelector(`[data-mail-action="${action}"]`)?.click();
+        }, 'Archive the focused message', 'Inbox');
+        shortcuts.register('#', () => {
+            if (selectFocused()) document.querySelector('[data-mail-action="trash"]')?.click();
+        }, 'Move the focused message to Trash', 'Inbox');
+        shortcuts.register('u', () => {
+            const row = selectFocused();
+            if (!row) return;
+            const action = row.classList.contains('unread') ? 'read' : 'unread';
+            document.querySelector(`[data-mail-action="${action}"]`)?.click();
+        }, 'Mark the focused message read or unread', 'Inbox');
+        shortcuts.register('r', () => {
+            const row = focusedRow() || rows().find(item => item.classList.contains('is-open'));
+            if (!row) return;
+            if (reader.hidden) { openMessage(row); return; }
+            const reply = reader.querySelector('[data-email-reply]');
+            if (reply && !reply.disabled) reply.click();
+        }, 'Reply to the focused message', 'Inbox');
+    }
 })();

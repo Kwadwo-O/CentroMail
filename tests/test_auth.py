@@ -18,7 +18,8 @@ import requests
 
 
 class AuthTests(unittest.TestCase):
-    password = "correct horse battery staple"
+    # Compliant with new policy: uppercase, digit, special char, ≥12 chars
+    password = "Correct Horse Battery Staple!2024"
 
     def setUp(self):
         dns = patch('email_validation.resolver')
@@ -131,6 +132,20 @@ class AuthTests(unittest.TestCase):
         self.assertTrue(check_password_hash(users[0]["password"], self.password))
         with self.client.session_transaction() as session:
             self.assertNotIn("user_id", session)
+
+    def test_password_policy_rejects_weak_and_common_passwords(self):
+        weak = (
+            "lowercaseonly12!",        # no uppercase
+            "NoDigitsHere!!!!",        # no digit
+            "NoSpecialChar123",        # no special character
+            "Password1234!",           # common base word
+            "Test Person!2024",        # contains the user's name
+        )
+        for value in weak:
+            with self.subTest(password=value):
+                response = self.register(name="Test Person", password=value, confirm_password=value)
+                self.assertIn(response.status_code, (200, 400))
+                self.assertEqual(self.users(), [])
 
     def test_invalid_registration_never_creates_a_user(self):
         cases = (

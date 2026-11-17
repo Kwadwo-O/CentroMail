@@ -157,7 +157,7 @@ To run CentroMail again later, navigate to the project directory and execute:
 
 ### Creating an account
 
-Create an account using the Create account link on the login card. Enter a name, email, and matching passwords of at least 12 characters.
+Create an account using the Create account link on the login card. Enter a name, email, and matching passwords of at least 12 characters. New passwords must also include an uppercase letter, a number, and a special character, and cannot be a common password or contain your name or email address. The sign-up form shows a live checklist of these rules.
 
 Registration signs you in and opens the dashboard. Log out to test signing back in.
 
@@ -219,7 +219,9 @@ The inbox opens from a small local preview and loads Gmail in batches of 25 mess
 
 Sidebar links open Inbox, Starred, Snoozed, Sent and Drafts, with additional folders under More. Folder counts come from Gmail.
 
-On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. HTML emails use an isolated reader that preserves safe typography, table formatting, and hidden preview text. Previously cached HTML refreshes once when opened after a formatting update. The message body fits its content, with one scrolling area and a toolbar that stays visible. Full-page desktop readers retain the app navigation and use a rounded panel sized to the email.
+On screens at least 1200 pixels wide, selecting an email opens a reading pane beside the inbox. Smaller screens open a full message page. Drag the divider between the inbox and the reading pane to resize it, or focus the divider and use the arrow keys. The width is remembered per browser. HTML emails use an isolated reader that preserves safe typography, table formatting, and hidden preview text. Previously cached HTML refreshes once when opened after a formatting update. The message body fits its content, with one scrolling area and a toolbar that stays visible. Full-page desktop readers retain the app navigation and use a rounded panel sized to the email.
+
+Keyboard shortcuts work with a physical keyboard on desktop and mobile. Press `?` for the full list, `/` to focus search, `c` to compose, and `g` followed by `i`, `s`, `d`, `t`, or `a` to open a mail folder. In the inbox, `j`/`k` or the arrow keys move between messages, `Enter` opens, `s` stars, `x` selects, `e` archives, `#` moves to Trash, `u` toggles unread, and `r` replies. The inbox help dialog also has a **Keyboard shortcuts** button for touch devices.
 
 Gmail read/unread changes made outside CentroMail are checked when you return to the inbox and at the configured auto-refresh interval (60 seconds by default). Checks update loaded rows in place, keeping your selection and reading pane; larger lists are checked in rotating batches. Automatic checks pause while the tab is hidden or Apps is selected. No extra Google setup is required.
 

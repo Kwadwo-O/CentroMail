@@ -1,0 +1,13 @@
+{% from '_email_tags.html' import spam_tag %}
+<h2 class="conversation-heading">Conversation <span>{{ messages|length }} messages</span></h2>
+{% for message in messages %}
+{% if message.id == current_id %}
+<div data-current-message></div>
+{% else %}
+{% set message_folder = message.get('mail_folder') or ('spam' if 'SPAM' in message.get('label_ids',[]) else 'trash' if 'TRASH' in message.get('label_ids',[]) else 'sent' if 'SENT' in message.get('label_ids',[]) else 'inbox') %}
+<details class="conversation-message" data-conversation-message-url="{{ url_for('message_detail', message_id=message.id, account=mail_account_key, folder=message_folder, pane=1, single=1) }}">
+    <summary><span class="conversation-sender">{{ message.sender }}{% if message.unread %}<span class="conversation-unread">Unread</span>{% endif %}{{ spam_tag(message, message_folder) }}</span><time>{{ message.date or message.time }}</time><span class="conversation-subject">{{ message.subject }}</span></summary>
+    <div class="conversation-body"></div>
+</details>
+{% endif %}
+{% endfor %}

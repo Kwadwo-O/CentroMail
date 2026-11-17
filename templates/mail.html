@@ -143,6 +143,7 @@
                 <div id="mail-load-sentinel" aria-hidden="true"></div>
             </div>
         </section>
+        <div class="reader-resizer" id="reader-resizer" role="separator" aria-orientation="vertical" aria-label="Resize reading pane" aria-controls="mail-reader" tabindex="0" hidden><span class="reader-resizer-handle" aria-hidden="true"></span></div>
         <aside class="mail-reader m3e-card m3e-card--outlined" id="mail-reader" aria-label="Email reading pane" tabindex="-1" hidden>
             <header class="reader-toolbar"><strong><span class="m3e-icon" aria-hidden="true">mail</span>Reading pane</strong><div><a class="icon-button m3e-icon-button m3e-icon-button--standard" id="reader-open-page" aria-label="Open email in full page" title="Open full page"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-reader" type="button" aria-label="Close reading pane" title="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></header>
             <p class="sr-only" id="reader-status" role="status"></p>
@@ -181,8 +182,12 @@
         <div class="reader-toolbar"><h2 id="mail-help-title">Inbox help</h2><button class="icon-button m3e-icon-button m3e-icon-button--standard" id="close-mail-help" type="button" aria-label="Close help"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
         <p>Choose a folder on the left. Messages load as you scroll; use Refresh to check for new mail.</p>
         <p>Select messages to archive, move to Trash, or change read status. Use the star beside a message to save it to Starred.</p>
-        <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page.</p>
-        <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
+        <p>On large screens, select a message to read it beside your inbox. On smaller screens, messages open in a full page. Drag the divider beside the reading pane to resize it.</p>
+        <p>Use <kbd>?</kbd> for keyboard shortcuts, <kbd>/</kbd> to search, and <kbd>c</kbd> to compose.</p>
+        <div class="mail-help-actions">
+            <button class="m3e-button m3e-button--tonal" type="button" id="show-shortcuts" aria-label="Show keyboard shortcuts">Keyboard shortcuts</button>
+            <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connected accounts</a>
+        </div>
     </dialog>
     {% include '_compose.html' %}
 </div>

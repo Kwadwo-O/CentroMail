@@ -238,6 +238,45 @@ def valid_email(email):
     return not email_address_error(email)
 
 
+# Password policy: at least one uppercase letter, one digit, one special
+# character, 12-1024 characters, and not an easily guessed string.
+COMMON_PASSWORDS = frozenset({
+    "password", "password1", "password12", "password123", "password1234",
+    "passw0rd", "p@ssw0rd", "p@ssword", "passwort", "motdepasse", "contrasena",
+    "123456", "1234567", "12345678", "123456789", "1234567890", "123456789a",
+    "qwerty", "qwerty123", "qwertyuiop", "abc123", "abcd1234", "letmein",
+    "letmein123", "welcome", "welcome1", "welcome123", "admin", "admin123",
+    "administrator", "iloveyou", "sunshine", "monkey", "dragon", "football",
+    "baseball", "princess", "trustno1", "master", "shadow", "superman",
+    "batman", "starwars", "whatever", "freedom", "changeme", "secret",
+    "login", "access", "flower", "hello123", "charlie", "donald", "hunter2",
+})
+
+PASSWORD_SPECIAL = re.compile(r"[^A-Za-z0-9]")
+
+
+def new_password_error(password, email="", name=""):
+    """Return a user-facing message when a new password fails policy, else None."""
+    if not 12 <= len(password) <= 1024:
+        return "Use between 12 and 1024 characters for your password."
+    if not re.search(r"[A-Z]", password):
+        return "Your password needs at least one uppercase letter."
+    if not re.search(r"[0-9]", password):
+        return "Your password needs at least one number."
+    if not PASSWORD_SPECIAL.search(password):
+        return "Your password needs at least one special character."
+    lowered = password.lower()
+    # Catch common bases with trivial trailing/leading digits or symbols,
+    # e.g. "Password1234!" or "!qwerty2024".
+    normalized = re.sub(r'^[^a-z]+|[^a-z]+$', '', lowered)
+    if lowered in COMMON_PASSWORDS or normalized in COMMON_PASSWORDS:
+        return "That password is too common. Choose something harder to guess."
+    for token in (str(email).split("@")[0].lower(), str(name).strip().lower()):
+        if len(token) >= 4 and token in lowered:
+            return "Do not include your name or email address in your password."
+    return None
+
+
 def find_user(email):
     return get_db().execute(
         "SELECT * FROM users WHERE lower(email) = ?", (normalize_email(email),)
@@ -272,7 +311,7 @@ def csrf_token():
 PROTECTED_ENDPOINTS = {
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
     "mailbox_messages", "mailbox_counts", "mail_action",
-    "gmail_message_states",
+    "gmail_message_states", "mail_conversation",
     "delete_account",
     "integrations", "telegram_start_route", "telegram_verify_route",
     "telegram_password_route", "telegram_restart_route", "test_telegram_route",
@@ -721,6 +760,7 @@ def gmail_metadata_from_payload(payload, fallback_id):
         "to": gmail_header(message_headers, "To"),
         "message_id": gmail_header(message_headers, "Message-ID"),
         "references": gmail_header(message_headers, "References"),
+        "in_reply_to": gmail_header(message_headers, "In-Reply-To"),
         "thread_id": payload.get("threadId", ""),
         "preview": payload.get("snippet", ""),
         "time": gmail_message_time(gmail_header(message_headers, "Date")),
@@ -769,6 +809,7 @@ def _fetch_gmail_detail(headers, message_id):
             ("metadataHeaders", "To"),
             ("metadataHeaders", "Message-ID"),
             ("metadataHeaders", "References"),
+            ("metadataHeaders", "In-Reply-To"),
         ],
         timeout=(5, 15),
     )
@@ -1950,8 +1991,8 @@ def register():
             flash("Enter a name between 1 and 100 characters.", "error")
         elif not valid_email(email):
             flash("Please enter a valid email address.", "error")
-        elif not 12 <= len(password) <= 1024:
-            flash("Use between 12 and 1024 characters for your password.", "error")
+        elif error := new_password_error(password, email, name):
+            flash(error, "error")
         elif password != confirmation:
             flash("Your passwords do not match.", "error")
         elif error := email_address_error(email, check_domain=True):
@@ -2423,6 +2464,67 @@ def fetch_email_message(user, account, message_id, folder):
     body = decode_gmail_body(payload.get("payload", {}))
     gmail_cache_put(user["id"], message_id, metadata=metadata, body=body)
     return {**metadata, "body": body}
+
+
+@app.get('/api/mail/conversations/<message_id>')
+def mail_conversation(message_id):
+    account = active_email_account(g.user)
+    folder = requested_mail_folder()
+    try:
+        if account['kind'] == 'gmail': gmail_raw_message_id(account, message_id)
+        elif account['kind'] == 'microsoft': graph_mail.raw_id(account['config'], message_id)
+        else: email_providers.parse_id(account['config'], message_id, folder=folder)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    try:
+        current = gmail_cache_get(g.user['id'], message_id)
+        if not current:
+            current = fetch_email_message(g.user, account, message_id, folder)
+        if not current: raise RuntimeError('Reconnect the email account to load the conversation.')
+        messages = []
+        if account['kind'] == 'gmail':
+            thread_id = current.get('thread_id', '')
+            token = get_gmail_access_token(g.user)
+            if not thread_id and token:
+                current = _fetch_gmail_detail({'Authorization':'Bearer '+token}, gmail_raw_message_id(account, message_id))
+                current['id'] = message_id
+                thread_id = current.get('thread_id', '')
+            if thread_id and token:
+                if not re.fullmatch(r'[A-Za-z0-9_-]{1,256}', thread_id): raise ValueError('Invalid conversation identifier.')
+                response = google_requests.get('https://gmail.googleapis.com/gmail/v1/users/me/threads/'+thread_id,
+                    headers={'Authorization':'Bearer '+token}, params={'format':'metadata',
+                    'metadataHeaders':['From','To','Reply-To','Subject','Date','Message-ID','References','In-Reply-To']}, timeout=(5,20))
+                response.raise_for_status()
+                for payload in response.json().get('messages', []):
+                    identifier = gmail_message_key(account, payload['id'])
+                    gmail_raw_message_id(account, identifier)
+                    metadata = gmail_metadata_from_payload(payload, identifier)
+                    if metadata['thread_id'] != thread_id: raise ValueError('Invalid conversation message.')
+                    metadata['id'] = identifier
+                    messages.append(metadata)
+            elif thread_id:
+                rows = get_db().execute("SELECT metadata FROM gmail_cache WHERE user_id=? AND json_extract(metadata,'$.thread_id')=?", (g.user['id'],thread_id)).fetchall()
+                for row in rows:
+                    metadata = json.loads(row['metadata'])
+                    try: gmail_raw_message_id(account, metadata['id'])
+                    except ValueError: continue
+                    messages.append(metadata)
+        elif account['kind'] == 'microsoft':
+            payloads = graph_mail.conversation_messages(microsoft_access_token(account), account['config'], message_id, current.get('thread_id'))
+            messages = [gmail_metadata_from_payload(payload, payload['id']) for payload in payloads]
+        else:
+            payloads = email_providers.conversation_messages(account['config'], current, folder)
+            for payload in payloads:
+                metadata = gmail_metadata_from_payload(payload, payload['id'])
+                metadata['mail_folder'] = payload['mail_folder']
+                messages.append(metadata)
+        by_id = {message['id']:message for message in messages}
+        by_id.setdefault(message_id, current)
+        messages = sorted(by_id.values(), key=lambda message:(message.get('internal_date',0), message['id']))
+        return jsonify(html=render_template('conversation.html', messages=messages, current_id=message_id,
+            mail_account_key=account['key'], folder=folder) if len(messages)>1 else '', count=len(messages))
+    except (RuntimeError, ValueError, KeyError, requests.RequestException, OSError, imaplib.IMAP4.error):
+        return jsonify(error='The conversation could not be loaded. Please try again.'), 502
 
 
 @app.route('/message/<message_id>')

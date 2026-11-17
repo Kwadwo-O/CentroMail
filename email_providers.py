@@ -118,7 +118,7 @@ def message_payload(raw, flags, message_id, folder):
     if folder == 'trash': labels.append('TRASH')
     if folder == 'spam': labels.append('SPAM')
     return {'id':message_id,'labelIds':labels,'internalDate':str(timestamp),'snippet':'',
-        'payload':{'headers':[{'name':name,'value':str(message.get(name,''))} for name in ('From','Subject','Date','Reply-To','To','Message-ID','References')]}}
+        'payload':{'headers':[{'name':name,'value':str(message.get(name,''))} for name in ('From','Subject','Date','Reply-To','To','Message-ID','References','In-Reply-To')]}}
 
 
 def list_messages(config, cursor='', query='', folder='inbox', limit=25):
@@ -140,7 +140,7 @@ def list_messages(config, cursor='', query='', folder='inbox', limit=25):
             ids = [uid for uid in ids if uid < int(cursor)]
         selected = ids[:limit]
         if not selected: return [],None,total
-        status, rows = client.uid('FETCH',','.join(map(str,selected)), '(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE REPLY-TO TO MESSAGE-ID REFERENCES)])')
+        status, rows = client.uid('FETCH',','.join(map(str,selected)), '(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE REPLY-TO TO MESSAGE-ID REFERENCES IN-REPLY-TO)])')
         check(status,'The server could not read mail headers.')
         messages={}
         for row in rows or []:
@@ -188,6 +188,38 @@ def read_message(config,message_id,folder='inbox'):
         payload=message_payload(row[1],row[0],message_id,folder)
         payload['payload'].update(mime_payload(BytesParser(policy=email.policy.default).parsebytes(row[1])))
         return payload
+
+
+def conversation_messages(config, current, folder):
+    references = re.findall(r'<[^<>\s\x00-\x1f\x7f]+@[^<>\s\x00-\x1f\x7f]+>',
+        current.get('references','')+' '+current.get('in_reply_to','')+' '+current.get('message_id',''))
+    if not references: return []
+    root = ('"'+references[0].replace('\\','\\\\').replace('"','\\"')+'"').encode('ascii')
+    folders = list(dict.fromkeys(['inbox' if folder=='starred' else folder, 'inbox', 'sent', 'archive']))
+    messages = {}
+    with imap_connect(config) as client:
+        for mail_folder in folders:
+            if mail_folder not in config['folders']: continue
+            validity = select_folder(client, config, mail_folder)
+            status, result = client.uid('SEARCH', None, 'UNDELETED', 'OR', 'OR', 'HEADER', 'Message-ID', root,
+                'HEADER', 'References', root, 'HEADER', 'In-Reply-To', root)
+            check(status, 'The server could not search the conversation.')
+            ids = [str(int(uid)) for uid in (result[0] or b'').split()]
+            for start in range(0, len(ids), 100):
+                status, rows = client.uid('FETCH', ','.join(ids[start:start+100]),
+                    '(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE REPLY-TO TO MESSAGE-ID REFERENCES IN-REPLY-TO)])')
+                check(status, 'The server could not read the conversation.')
+                for row in rows or []:
+                    if not isinstance(row, tuple): continue
+                    uid = re.search(rb'UID (\d+)', row[0])
+                    if not uid: continue
+                    identifier = make_id(config, mail_folder, validity, int(uid[1]))
+                    payload = message_payload(row[1], row[0], identifier, mail_folder)
+                    payload['mail_folder'] = mail_folder
+                    header_id = BytesParser(policy=email.policy.default).parsebytes(row[1]).get('Message-ID')
+                    key = str(header_id) if header_id else identifier
+                    if key not in messages or identifier==current['id']: messages[key] = payload
+    return list(messages.values())
 
 
 def change_messages(config,ids,action,folder='inbox'):

@@ -154,12 +154,12 @@ class MailFeatureTests(IntegrationFixture):
             elements=PageMarkup(response.text).elements
             reply=next(attrs for _,attrs,_ in elements if 'data-email-reply' in attrs)
             self.assertIn('disabled',reply)
-            self.assertEqual(reply['aria-describedby'],'reply-unavailable')
+            self.assertEqual(reply['aria-describedby'],'reply-unavailable-sample')
             self.assertIn(b'data-copy-code="012345"',response.data)
             self.assertIn(b'Replies are disabled',response.data)
-            trigger=next(attrs for _,attrs,_ in elements if attrs.get('id')=='reply-tooltip-trigger')
+            trigger=next(attrs for _,attrs,_ in elements if attrs.get('id')=='reply-tooltip-trigger-sample')
             self.assertEqual(trigger['tabindex'],'0')
-            self.assertIn(b'<m3e-tooltip anchor="reply-tooltip-trigger"',response.data)
+            self.assertIn(b'<m3e-tooltip anchor="reply-tooltip-trigger-sample"',response.data)
             self.assertIn(b'data-mark-email-read="true"',response.data)
 
     def test_no_reply_post_is_blocked_for_all_mail_providers(self):

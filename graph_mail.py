@@ -46,7 +46,7 @@ def metadata(config,item,folder):
     if folder=='drafts':labels.append('DRAFT')
     if folder=='trash':labels.append('TRASH')
     if folder=='spam':labels.append('SPAM')
-    return {'id':message_id(config,item['id']),'labelIds':labels,'internalDate':str(timestamp),'snippet':item.get('bodyPreview',''),
+    return {'id':message_id(config,item['id']),'threadId':item.get('conversationId',''),'labelIds':labels,'internalDate':str(timestamp),'snippet':item.get('bodyPreview',''),
         'payload':{'headers':[{'name':'From','value':f"{sender.get('name','')} <{sender.get('address','')}>"}, {'name':'Subject','value':item.get('subject','')}, {'name':'Date','value':datetime.fromtimestamp(timestamp/1000).astimezone().strftime('%a, %d %b %Y %H:%M:%S %z') if timestamp else ''},
             {'name':'Reply-To','value':', '.join(entry['emailAddress']['address'] for entry in item.get('replyTo',[]))},
             {'name':'To','value':', '.join(entry['emailAddress']['address'] for entry in item.get('toRecipients',[]))},
@@ -55,7 +55,7 @@ def metadata(config,item,folder):
 
 def list_messages(token,config,folder,query='',cursor=''):
     path='/me/messages' if folder in {'all','starred'} else '/me/mailFolders/'+FOLDERS[folder]+'/messages'
-    params={'$top':25,'$select':'id,from,subject,bodyPreview,receivedDateTime,isRead,flag,replyTo,toRecipients'}
+    params={'$top':25,'$select':'id,from,subject,bodyPreview,receivedDateTime,isRead,flag,replyTo,toRecipients,conversationId,internetMessageId'}
     if query: params['$search']='"'+query.replace('\\','\\\\').replace('"','\\"')+'"'
     else: params['$orderby']='receivedDateTime desc'
     if folder=='starred' and not query:
@@ -78,6 +78,32 @@ def read_message(token,config,identifier,folder):
     body=item.get('body') or {}
     data['payload'].update(mimeType='text/html' if body.get('contentType','').lower()=='html' else 'text/plain',body={'data':base64.urlsafe_b64encode(body.get('content','').encode()).decode()})
     return data
+
+
+def conversation_messages(token, config, identifier, conversation_id=None):
+    if not conversation_id:
+        item = request(token, 'GET', '/me/messages/'+raw_id(config, identifier), params={'$select':'conversationId'})
+        conversation_id = item.get('conversationId')
+    if not conversation_id: return []
+    path = '/me/messages'
+    params = {'$top':100, '$filter':"conversationId eq '"+conversation_id.replace("'", "''")+"'",
+        '$select':'id,from,subject,bodyPreview,receivedDateTime,isRead,flag,replyTo,toRecipients,conversationId,internetMessageId'}
+    messages, visited = [], set()
+    while path:
+        if path in visited: raise ValueError('Repeated Microsoft conversation page.')
+        visited.add(path)
+        data = request(token, 'GET', path, params=params)
+        for item in data.get('value', []):
+            if item.get('conversationId') != conversation_id: raise ValueError('Invalid Microsoft conversation message.')
+            sender = ((item.get('from') or {}).get('emailAddress') or {}).get('address','')
+            messages.append(metadata(config, item, 'sent' if sender.lower()==config['email'].lower() else 'all'))
+        next_url = data.get('@odata.nextLink')
+        if not next_url: break
+        parsed = urlparse(next_url)
+        if parsed.scheme!='https' or parsed.netloc!='graph.microsoft.com' or parsed.path!='/v1.0/me/messages' or parsed.fragment:
+            raise ValueError('Invalid Microsoft conversation page.')
+        path='/me/messages?'+parsed.query; params=None
+    return messages
 
 
 def change_messages(token,config,ids,action):

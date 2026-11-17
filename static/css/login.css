@@ -282,6 +282,40 @@
     text-align: center;
 }
 
+.password-rules {
+    display: grid;
+    gap: 4px;
+    list-style: none;
+    margin: 4px 0 16px;
+    padding: 0;
+}
+
+.password-rules li {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.password-rules li::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--m3e-sys-color-outline-variant);
+    flex-shrink: 0;
+}
+
+.password-rules li.is-met {
+    color: var(--m3e-sys-color-primary);
+}
+
+.password-rules li.is-met::before {
+    background: var(--m3e-sys-color-primary);
+    border-color: var(--m3e-sys-color-primary);
+}
+
 
 
 @media (max-width: 480px) {

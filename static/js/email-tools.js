@@ -5,7 +5,7 @@
     document.body.append(status);
     const pendingReads = new WeakSet();
     const markOpenedEmails = () => document.querySelectorAll('[data-mark-email-read="true"]').forEach(async article => {
-        if (pendingReads.has(article) || article.closest('[hidden]')) return;
+        if (pendingReads.has(article) || article.closest('[hidden], details:not([open])')) return;
         pendingReads.add(article);
         try {
             const response = await fetch(article.dataset.readUrl, {method:'POST',body:new URLSearchParams({
@@ -15,6 +15,7 @@
             if (response.redirected) { location.assign(response.url); return; }
             if (!response.ok) throw new Error('Read status could not be saved.');
             article.dataset.markEmailRead = 'false';
+            article.closest('details')?.querySelector('.conversation-unread')?.remove();
             document.querySelectorAll('.message').forEach(row => {
                 if (row.dataset.messageId !== article.dataset.readMessageId) return;
                 row.classList.remove('unread');
@@ -30,6 +31,74 @@
     });
     markOpenedEmails();
     new MutationObserver(markOpenedEmails).observe(document.body, {childList:true,subtree:true});
+    const pendingConversations = new WeakSet();
+    const loadConversation = async section => {
+        if (pendingConversations.has(section)) return;
+        pendingConversations.add(section);
+        const current = section.querySelector('.reader-message');
+        const notice = document.createElement('p');
+        notice.className = 'conversation-status'; notice.setAttribute('role', 'status');
+        notice.textContent = 'Loading conversation…';
+        section.querySelector('.conversation-status')?.remove(); section.prepend(notice);
+        try {
+            const response = await fetch(section.dataset.conversationUrl, {signal:AbortSignal.timeout(25000)});
+            if (response.redirected) { location.assign(response.url); return; }
+            if (!response.ok) throw new Error('Conversation unavailable');
+            const data = await response.json();
+            if (!section.isConnected) return;
+            if (!data.html) { notice.remove(); return; }
+            const fragment = document.createRange().createContextualFragment(data.html);
+            const previousTop = current.getBoundingClientRect().top;
+            fragment.querySelector('[data-current-message]').replaceWith(current);
+            section.replaceChildren(fragment);
+            const delta = current.getBoundingClientRect().top - previousTop;
+            const scroller = section.closest('.reader-content');
+            if (scroller) scroller.scrollTop += delta;
+            else window.scrollBy({top:delta, behavior:'instant'});
+        } catch {
+            if (!section.isConnected) return;
+            pendingConversations.delete(section);
+            notice.textContent = 'Conversation could not be loaded. ';
+            const retry = document.createElement('button');
+            retry.type = 'button'; retry.className = 'm3e-button m3e-button--text';
+            retry.dataset.retryConversation = ''; retry.textContent = 'Retry'; notice.append(retry);
+        }
+    };
+    const loadConversations = () => document.querySelectorAll('[data-conversation-url]').forEach(section => {
+        if (!section.querySelector('[data-retry-conversation]')) loadConversation(section);
+    });
+    const pendingMessages = new WeakSet();
+    const loadConversationMessage = async details => {
+        if (!details.open || pendingMessages.has(details)) return;
+        pendingMessages.add(details);
+        const body = details.querySelector('.conversation-body');
+        body.textContent = 'Loading email…'; body.setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch(details.dataset.conversationMessageUrl, {signal:AbortSignal.timeout(25000)});
+            if (response.redirected) { location.assign(response.url); return; }
+            if (!response.ok) throw new Error('Email unavailable');
+            const html = await response.text();
+            if (!details.isConnected) return;
+            body.replaceChildren(document.createRange().createContextualFragment(html));
+        } catch {
+            if (!details.isConnected) return;
+            pendingMessages.delete(details);
+            body.textContent = 'Email could not be loaded. ';
+            const retry = document.createElement('button');
+            retry.type = 'button'; retry.className = 'm3e-button m3e-button--text';
+            retry.dataset.retryConversationMessage = ''; retry.textContent = 'Retry'; body.append(retry);
+        } finally { body.removeAttribute('aria-busy'); }
+    };
+    document.addEventListener('toggle', event => {
+        if (!event.target.matches('[data-conversation-message-url]')) return;
+        loadConversationMessage(event.target); markOpenedEmails();
+    }, true);
+    document.addEventListener('click', event => {
+        if (event.target.closest('[data-retry-conversation]')) loadConversation(event.target.closest('[data-conversation-url]'));
+        if (event.target.closest('[data-retry-conversation-message]')) loadConversationMessage(event.target.closest('details'));
+    });
+    loadConversations();
+    new MutationObserver(loadConversations).observe(document.body, {childList:true,subtree:true});
     document.addEventListener('click', async event => {
         const button = event.target.closest('[data-copy-code]');
         if (!button) return;
