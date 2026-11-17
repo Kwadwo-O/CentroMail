@@ -28,6 +28,7 @@ syncSenderLogos();
 if (document.querySelector('m3e-loading-indicator')) await import('../vendor/m3e/loading-indicator/index.js');
 if (document.querySelector('m3e-linear-progress')) await import('../vendor/m3e/linear-progress/index.js');
 if (document.querySelector('m3e-snackbar-host')) await import('../vendor/m3e/snackbar-host/index.js');
+if (document.querySelector('m3e-pull-to-refresh')) await import('../vendor/m3e/pull-to-refresh/index.js');
 
 // Generate paired Material roles for custom accents, including light/dark contrast.
 let themeModule, lastTheme;
@@ -110,10 +111,13 @@ syncTheme(); syncReaderText(); syncTooltips();
 const messagePage = document.querySelector('.message-page');
 if (messagePage) {
     const navigation = document.querySelector('.site-header');
-    const syncReaderToolbar = () => messagePage.style.setProperty('--message-nav-height',
-        getComputedStyle(navigation).position === 'sticky' ? `${navigation.getBoundingClientRect().height}px` : '0px');
+    const syncReaderToolbar = () => {
+        const style = getComputedStyle(navigation);
+        messagePage.style.setProperty('--message-nav-height', style.position === 'sticky' ? `${navigation.getBoundingClientRect().height + (parseFloat(style.top) || 0)}px` : '0px');
+    };
     new ResizeObserver(syncReaderToolbar).observe(navigation);
     document.addEventListener('centromail-appearance-change', syncReaderToolbar);
+    document.addEventListener('centromail-navigation-change', syncReaderToolbar);
     syncReaderToolbar();
 }
 

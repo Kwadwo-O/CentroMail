@@ -5,6 +5,32 @@
     const search = page.querySelector('#integration-search');
     const connected = page.querySelector('#integration-connected-filter');
     const categories = [...page.querySelectorAll('[data-integration-category]')];
+    const refresh = document.querySelector('#integration-refresh');
+    const refreshButton = page.querySelector('#integration-refresh-button');
+    const mobile = matchMedia('(max-width: 700px)');
+    const syncRefresh = () => {
+        refresh.disabled = !mobile.matches || !!page.querySelector('dialog[open]');
+    };
+    syncRefresh();
+    const refreshReady = customElements.whenDefined('m3e-pull-to-refresh');
+    refreshReady.then(syncRefresh);
+    mobile.addEventListener('change', syncRefresh);
+    const refreshApps = () => {
+        if (refresh.refreshing) return;
+        refresh.refreshing = true;
+        refreshButton.disabled = true;
+        refreshButton.setAttribute('aria-busy', 'true');
+        // Navigate with GET even when this page displays a failed connection form.
+        window.location.assign(refresh.dataset.url);
+    };
+    refresh.addEventListener('refresh', refreshApps);
+    refreshButton.addEventListener('click', refreshApps);
+    window.addEventListener('pageshow', () => {
+        refresh.refreshing = false;
+        refreshButton.disabled = false;
+        refreshButton.removeAttribute('aria-busy');
+        syncRefresh();
+    });
     let category = 'all';
     const filter = () => {
         const query = search.value.trim().toLowerCase();
@@ -47,6 +73,7 @@
         opener = trigger || page.querySelector(`[data-integration-open="${key}"]`);
         if (dialog.open) dialog.close();
         dialog.showModal();
+        syncRefresh();
         dialog.scrollTop = 0;
         dialog.querySelector('h2').focus({preventScroll: true});
     };
@@ -60,6 +87,7 @@
     for (const dialog of page.querySelectorAll('dialog')) {
         dialog.querySelector('[data-integration-close]').addEventListener('click', () => dialog.close());
         dialog.addEventListener('close', () => {
+            syncRefresh();
             if (opener && !opener.closest('[hidden]')) opener.focus({preventScroll: true});
         });
         dialog.addEventListener('click', event => {
@@ -67,7 +95,8 @@
             if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
         });
     }
-    if (page.dataset.openIntegration) open(page.dataset.openIntegration);
+    // The refresh component moves its content; open pending sign-in after that move.
+    if (page.dataset.openIntegration) refreshReady.then(() => requestAnimationFrame(() => open(page.dataset.openIntegration)));
     for (const form of page.querySelectorAll('form[data-confirm]')) {
         form.addEventListener('submit', event => { if (!window.confirm(form.dataset.confirm)) event.preventDefault(); });
     }

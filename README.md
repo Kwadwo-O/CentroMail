@@ -241,6 +241,8 @@ Microsoft Outlook mail now connects to an existing CentroMail account through OA
 
 **Settings → Animations and loading** has individual switches for 18 animation groups, M3E expressive or subtle motion, speed, and intensity. The side preview replays each effect. Device reduced-motion preferences also apply. Loading uses M3E progress bars; a successful manual email refresh displays an M3E sync snackbar without claiming that unloaded older pages have synced.
 
+**Settings → Navigation** chooses the current layout, a navigation bar, rail, drawer, or M3E adaptive navigation suite across the workspace. Bars can sit at the top or bottom; rails and drawers can sit on either side. Rail size, bar item layout, labels, and tonal/plain/floating surfaces are saved with the existing browser preferences and included in exports and group resets. On narrow screens, a selected rail or drawer opens from the navigation menu button; Escape closes it and returns focus to that button.
+
 Open Integrations after signing in. Search or filter the app catalog, then choose **Connect**, **Set up**, or **Manage**. Guided dialogs explain the app’s features, required credentials, and OAuth setup. **Check connection** checks access without sending messages or publishing posts. See the [complete integration setup guide](docs/integration-setup.md).
 
 Microsoft Teams supports work and school chats, team channels, thread replies and sending from **Apps**. It connects separately from Outlook through Microsoft OAuth. See [Teams setup](docs/teams-setup.md) for the app registration, callback and delegated permissions; channel history may require administrator consent.

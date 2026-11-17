@@ -1,3 +1,8 @@
+.integrations-main > m3e-pull-to-refresh > .m3e-pull-to-refresh { block-size: auto; }
+.integrations-main .m3e-pull-to-refresh__content { overflow: visible; }
+.integrations-main .footer-links { justify-content: center; }
+.integrations-main .footer-links a { display: inline-flex; align-items: center; min-height: 48px; min-width: 48px; }
+.integration-refresh-hint { display: none; }
 .integrations-page {
     max-width: 1120px;
     margin: 0 auto;
@@ -23,7 +28,7 @@
 .integration-search { display: flex; align-items: center; flex: 1; gap: .75rem; min-width: 0; padding: .2rem 1rem; background: var(--m3e-sys-color-surface-container); border: 1px solid var(--m3e-sys-color-outline); border-radius: var(--m3e-sys-shape-corner-full, 999px); }
 .integration-search:focus-within { outline: 2px solid var(--m3e-sys-color-primary); outline-offset: 2px; }
 .integration-search input { width: 100%; min-width: 0; min-height: 44px; padding: .5rem 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; color: inherit; font: inherit; }
-.integration-search input:focus { outline: none; box-shadow: none; }
+.integrations-page .integration-search input:focus { outline: none; box-shadow: none; }
 .integration-categories { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: 1rem 0 1.5rem; }
 #integration-results { margin-left: auto; color: var(--m3e-sys-color-on-surface-variant); font-size: .9rem; }
 .integration-toolbar [aria-pressed=true] { background: var(--m3e-sys-color-secondary-container); color: var(--m3e-sys-color-on-secondary-container); }
@@ -85,8 +90,8 @@
 .integration-steps { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; font-size: .85rem; }
 .integration-steps > * { padding: .65rem 1rem; border-radius: var(--m3e-sys-shape-corner-full, 999px); background: var(--m3e-sys-color-surface-container); }
 .integration-steps strong { background: var(--m3e-sys-color-primary-container); color: var(--m3e-sys-color-on-primary-container); }
-.integrations-page :is(button, .m3e-button, .m3e-icon-button) { min-height: 44px; }
-.integrations-page .m3e-icon-button { min-width: 44px; }
+:root[data-theme] .integrations-page :is(button, .m3e-button, .m3e-icon-button) { min-height: max(48px, var(--cm-button-height)); min-block-size: max(48px, var(--cm-button-height)); touch-action: manipulation; }
+.integrations-page .m3e-icon-button { min-width: 48px; }
 .integrations-page :is(a, button, input, textarea, select, summary):focus-visible { outline: 3px solid var(--m3e-sys-color-primary); outline-offset: 3px; }
 :root[data-theme] .integration-dialog summary { transition: color var(--cm-control-time) ease; }
 @media (min-width: 850px) {
@@ -96,16 +101,44 @@
 .integration-mark { transition: translate var(--cm-motion-fast) var(--cm-motion-ease); }
 @media (prefers-reduced-motion: reduce) { .integration-card:hover .integration-mark { translate: none !important; } }
 @media (max-width: 1000px) { .integration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) {
-    .integrations-heading { align-items: flex-start; flex-direction: column; gap: 1rem; }
-    .integration-welcome { align-items: flex-start; flex-direction: column; gap: 1rem; }
-    .integration-toolbar { align-items: stretch; flex-direction: column; gap: .75rem; }
-    .integration-toolbar > button { align-self: flex-start; }
+@media (max-width: 700px) {
+    body:has(.integrations-main) { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+    body:has(.integrations-main) > .site-header { flex-shrink: 0; }
+    .integrations-main { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+    .integrations-main:has(> m3e-pull-to-refresh:defined) { overflow: hidden; }
+    .integrations-main > .flash-stack { flex-shrink: 0; }
+    .integrations-main > m3e-pull-to-refresh > .m3e-pull-to-refresh { block-size: 100%; min-height: 0; }
+    .integrations-main .m3e-pull-to-refresh__content { overflow: hidden auto; }
+    .integrations-page { padding-top: 1rem; padding-bottom: 1.5rem; overflow-wrap: anywhere; }
+    .integrations-heading { align-items: stretch; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
+    :root[data-theme] .integrations-heading h1 { margin-bottom: .75rem; font-size: calc(2rem * var(--cm-heading-scale)); }
+    .integrations-heading p:not(.eyebrow) { line-height: 1.5; }
+    .integration-welcome { flex-wrap: wrap; gap: .75rem; padding: 1rem; margin-bottom: 1rem; }
+    .integration-welcome > div:last-child { flex: 1 1 12rem; min-width: 0; }
+    .integration-welcome-icons .integration-mark { width: 2.5rem; height: 2.5rem; margin-left: -.75rem; }
+    .integration-welcome-icons .integration-mark img { width: 1.5rem; height: 1.5rem; }
+    .integration-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .integration-search { grid-column: 1 / -1; }
+    .integration-search input { font-size: 1rem; min-height: 48px; }
+    .integration-toolbar > button { justify-content: center; padding-inline: .5rem; white-space: normal; }
+    .integration-refresh-hint { display: block; margin: .75rem 0 0; text-align: center; font-size: .85rem; color: var(--m3e-sys-color-on-surface-variant); }
+    .integration-categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: 1rem; }
+    .integration-categories > button { width: 100%; white-space: normal; }
     .integration-grid { grid-template-columns: minmax(0, 1fr); }
-    #integration-results { width: 100%; margin: .5rem 0 0; }
-    .integration-dialog { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); }
-    .integration-dialog-heading, .integration-dialog-body { padding: 1rem; }
+    .integration-card { padding: 1.125rem; }
+    .integration-card-top { flex-wrap: wrap; }
+    .integration-card h2 { margin-top: .75rem; }
+    .integration-summary { margin-bottom: 1rem; }
+    .integration-card-bottom { gap: .75rem; }
+    #integration-results { grid-column: 1 / -1; margin: .5rem 0 0; }
+    :root[data-theme] .integrations-page .integration-dialog { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: var(--m3e-sys-shape-corner-none, 0); }
+    .integration-dialog-heading { padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 1rem max(1rem, env(safe-area-inset-left)); }
+    .integration-dialog-body { padding: 1rem max(1rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
     .integration-form-row { grid-template-columns: minmax(0, 1fr); }
+    .integration-form :is(input, select, textarea) { font-size: 1rem; }
+    .integration-form > .m3e-button { justify-self: stretch; }
+    .integration-dialog .integration-actions { flex-direction: column; align-items: stretch; gap: .75rem; }
+    .integration-dialog .integration-actions .m3e-button, .integration-manage-actions > form > button { width: 100%; white-space: normal; }
     .integration-dialog-heading { gap: .75rem; }
     .integration-dialog-heading .integration-mark { width: 2.75rem; height: 2.75rem; }
     .integration-dialog-heading h2 { font-size: 1.2rem; }

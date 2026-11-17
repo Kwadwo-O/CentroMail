@@ -1,0 +1,12 @@
+<div id="cm-navigation-host">
+    <div id="cm-navigation-panel" class="cm-navigation" hidden>
+        <m3e-navigation-suite id="cm-navigation-suite" label="App navigation" expanded-type="navigation-drawer" selected="{{ 'inbox' if request.endpoint in ['inbox', 'mail', 'message_detail'] else request.endpoint }}">
+            {% for endpoint, label, icon in [('dashboard','Overview','space_dashboard'), ('inbox','Inbox','inbox'), ('integrations','Integrations','extension'), ('settings','Settings','settings')] %}
+            <m3e-navigation-item value="{{ endpoint }}" href="{{ url_for(endpoint) }}" icon="{{ icon }}">{{ label }}</m3e-navigation-item>
+            {% endfor %}
+        </m3e-navigation-suite>
+    </div>
+</div>
+<dialog id="cm-navigation-dialog" class="cm-navigation-dialog" aria-labelledby="cm-navigation-title">
+    <header class="cm-navigation-dialog-heading"><h2 id="cm-navigation-title">Navigation</h2><button id="cm-navigation-close" class="m3e-icon-button m3e-icon-button--standard" type="button" aria-label="Close navigation"><span class="m3e-icon" aria-hidden="true">close</span></button></header>
+</dialog>

@@ -3,6 +3,8 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/integrations.css') }}">
 {% endblock %}
+{% block main_class %}integrations-main page-content{% endblock %}
+{% block footer %}{% endblock %}
 
 {% macro logo(key) %}<span class="integration-mark"><img src="{{ url_for('static', filename='images/integrations/' ~ key ~ '.svg') }}" alt="" width="32" height="32" draggable="false"></span>{% endmacro %}
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
@@ -35,7 +37,8 @@
 {% endmacro %}
 
 {% block content %}
-<section class="integrations-page" data-open-integration="{{ open_app }}">
+<m3e-pull-to-refresh id="integration-refresh" indicator-label="Refresh apps" disabled data-url="{{ url_for('integrations') }}">
+<section class="container integrations-page" data-open-integration="{{ open_app }}">
     <header class="integrations-heading integration-heading">
         <div>
             <p class="eyebrow">Your apps, together</p>
@@ -52,7 +55,9 @@
     <div class="integration-toolbar">
         <label class="integration-search"><span class="m3e-icon" aria-hidden="true">search</span><span class="visually-hidden">Search apps</span><input type="search" id="integration-search" placeholder="Find an app…" autocomplete="off"></label>
         <button class="m3e-button m3e-button--outlined" type="button" id="integration-connected-filter" aria-pressed="false"><span class="m3e-icon" aria-hidden="true">check_circle</span>Connected</button>
+        <button class="m3e-button m3e-button--outlined" type="button" id="integration-refresh-button"><span class="m3e-icon" aria-hidden="true">refresh</span>Refresh apps</button>
     </div>
+    <p class="integration-refresh-hint">Pull down at the top to refresh your apps.</p>
     <div class="integration-categories" role="group" aria-label="Filter apps by category">
         {% for key, label in [('all', 'All apps'), ('email', 'Email'), ('messages', 'Messaging'), ('social', 'Social')] %}
         <button class="m3e-button {{ 'm3e-button--tonal' if key == 'all' else 'm3e-button--text' }}" type="button" data-integration-category="{{ key }}" aria-pressed="{{ 'true' if key == 'all' else 'false' }}">{{ label }}</button>
@@ -181,6 +186,16 @@
     </dialog>
     {% endfor %}
 </section>
+<footer class="site-footer">
+    <div class="container">
+        <p>CentroMail</p>
+        <nav class="footer-links" aria-label="Legal links">
+            <a href="{{ url_for('privacy') }}">Privacy</a>
+            <a href="{{ url_for('terms') }}">Terms</a>
+        </nav>
+    </div>
+</footer>
+</m3e-pull-to-refresh>
 {% endblock %}
 
 {% block scripts %}

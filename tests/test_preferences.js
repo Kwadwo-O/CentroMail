@@ -80,3 +80,24 @@ test('animation choices persist, validate and reset together without changing in
     assert.equal(appearance.get('copy-motion'), 'true');
     assert.equal(appearance.get('reading-pane'), 'page');
 });
+
+test('navigation choices validate, persist and reset as one group', () => {
+    const {appearance, root, storage} = preferences({'centromail-navigation-style':'unknown', 'centromail-reading-pane':'page'});
+    assert.equal(appearance.get('navigation-style'), 'current');
+    const navigation = groups.find(group => group.key === 'navigation');
+    for (const item of navigation.settings) {
+        for (const choice of item.choices) {
+            appearance.set(item.key, choice.value);
+            assert.equal(storage.get('centromail-' + item.key), choice.value);
+        }
+        assert.throws(() => appearance.set(item.key, 'invalid'));
+    }
+    appearance.set('navigation-style', 'adaptive');
+    appearance.set('navigation-side', 'right');
+    assert.equal(root.dataset.cmNavigationStyle, 'adaptive');
+    assert.equal(root.dataset.cmNavigationSide, 'right');
+    appearance.reset(navigation.settings.map(item => item.key));
+    assert.equal(appearance.get('navigation-style'), 'current');
+    assert.equal(appearance.get('navigation-side'), 'left');
+    assert.equal(appearance.get('reading-pane'), 'page');
+});

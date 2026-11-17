@@ -16,14 +16,16 @@ class Control {
     closest() { return null; }
     fire(name, event = {}) { return this.events[name]?.(event); }
 }
-function fixture() {
-    const page = new Control(), search = new Control(), connected = new Control();
+function fixture(initialApp = '') {
+    const page = new Control({openIntegration:initialApp}), search = new Control(), connected = new Control();
     connected.setAttribute('aria-pressed', 'false');
     const categories = ['all', 'email', 'messages', 'social'].map(key => new Control({integrationCategory:key}));
     const cards = [new Control({integrationApp:'gmail', search:'gmail email', category:'email', connected:'true'}),
         new Control({integrationApp:'telegram', search:'telegram messages', category:'messages', connected:'true'}),
         new Control({integrationApp:'tiktok', search:'tiktok profile', category:'social', connected:'false'})];
     const reset = new Control(), empty = new Control(), results = new Control(), opener = new Control({integrationOpen:'telegram'});
+    const refresh = new Control({url:'/integrations'}), refreshButton = new Control(), mobile = new Control();
+    mobile.matches = true;
     const dialog = new Control(), title = new Control(), close = new Control(), form = new Control({confirm:'Disconnect?'});
     dialog.querySelector = selector => selector === 'h2' ? title : close;
     dialog.close = () => { dialog.open = false; dialog.fire('close'); };
@@ -33,19 +35,63 @@ function fixture() {
     check.closest = () => ({querySelector: () => status});
     check.parentElement = {querySelector: () => loader};
     page.querySelector = selector => ({'#integration-search':search, '#integration-connected-filter':connected,
-        '#integration-results':results, '#integration-empty':empty, '#integration-reset':reset})[selector];
+        '#integration-results':results, '#integration-empty':empty, '#integration-reset':reset,
+        '#integration-refresh-button':refreshButton, 'dialog[open]':dialog.open ? dialog : null})[selector];
     page.querySelectorAll = selector => ({'[data-integration-app]':cards, '[data-integration-category]':categories,
         '[data-integration-open]':[opener], 'dialog':[dialog], 'form[data-confirm]':[form], '[data-integration-check]':[check]})[selector];
-    const requests = [];
-    const context = {document:{querySelector: () => page, getElementById: () => dialog},
-        window:{confirm: () => false}, URLSearchParams, AbortController, setTimeout, clearTimeout,
+    const requests = [], navigations = [], window = new Control();
+    window.confirm = () => false;
+    window.location = {assign: url => navigations.push(url)};
+    const context = {document:{querySelector: selector => selector === '#integration-refresh' ? refresh : page, getElementById: () => dialog},
+        window, matchMedia: () => mobile, customElements:{whenDefined: () => Promise.resolve()}, requestAnimationFrame: callback => callback(), URLSearchParams, AbortController, setTimeout, clearTimeout,
         fetch:async (url, options) => {
             requests.push({url, options});
             return {ok:!context.fail, json:async () => context.fail ? {error:'Reconnect Telegram.'} : {message:'Access confirmed.'}};
         }};
     vm.runInNewContext(readFileSync('static/js/integrations.js', 'utf8'), context);
-    return {page, search, connected, categories, cards, reset, empty, results, opener, dialog, title, close, form, check, status, loader, requests, context};
+    return {page, search, connected, categories, cards, reset, empty, results, opener, dialog, title, close, form, check, status, loader, requests, context, refresh, refreshButton, mobile, navigations};
 }
+
+test('pull and button refresh use GET navigation once and recover on browser back', () => {
+    const f = fixture();
+    f.refresh.fire('refresh');
+    f.refreshButton.fire('click');
+    assert.deepEqual(f.navigations, ['/integrations']);
+    assert.equal(f.refresh.refreshing, true);
+    assert.equal(f.refreshButton.disabled, true);
+    assert.equal(f.refreshButton.getAttribute('aria-busy'), 'true');
+    assert.equal(f.requests.length, 0);
+    f.context.window.fire('pageshow');
+    assert.equal(f.refresh.refreshing, false);
+    assert.equal(f.refreshButton.disabled, false);
+    assert.equal(f.refreshButton.getAttribute('aria-busy'), undefined);
+    f.refreshButton.fire('click');
+    assert.deepEqual(f.navigations, ['/integrations', '/integrations']);
+});
+
+test('pulls are enabled on mobile and paused while setup dialogs are open', () => {
+    const f = fixture();
+    assert.equal(f.refresh.disabled, false);
+    f.opener.fire('click', {preventDefault() {}});
+    assert.equal(f.refresh.disabled, true);
+    f.close.fire('click');
+    assert.equal(f.refresh.disabled, false);
+    f.mobile.matches = false;
+    f.mobile.fire('change');
+    assert.equal(f.refresh.disabled, true);
+    f.mobile.matches = true;
+    f.mobile.fire('change');
+    assert.equal(f.refresh.disabled, false);
+});
+
+test('unfinished sign-in opens after the refresh component is ready', async () => {
+    const f = fixture('telegram');
+    assert.equal(f.dialog.open, undefined);
+    await Promise.resolve();
+    assert.equal(f.dialog.open, true);
+    assert.equal(f.title.focused, true);
+    assert.equal(f.refresh.disabled, true);
+});
 
 test('category, search, and connected filters combine and reset together', () => {
     const f = fixture();

@@ -16,6 +16,8 @@
     {% block head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navigation.css') }}">
+    <script type="module" src="{{ url_for('static', filename='js/navigation.js') }}"></script>
     <title>{% block title %}Row Project{% endblock %}</title>
 </head>
 <body>
@@ -24,6 +26,7 @@
     {% if request.endpoint != 'login' %}
     <header class="site-header">
         <nav class="navbar container" aria-label="Main navigation">
+            {% if g.user %}<button id="cm-navigation-toggle" class="m3e-icon-button m3e-icon-button--standard" type="button" aria-label="Open navigation" aria-haspopup="dialog" aria-controls="cm-navigation-dialog" aria-expanded="false" hidden><span class="m3e-icon" aria-hidden="true">menu</span></button>{% endif %}
             <a class="brand" href="{{ url_for('dashboard') }}"><img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="862" height="400"></a>
             <div class="nav-links">
                 <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %} href="{{ url_for('dashboard') }}">Overview</a>
@@ -37,6 +40,7 @@
             </div>
         </nav>
     </header>
+    {% if g.user %}{% include '_navigation.html' %}{% endif %}
     {% endif %}
     {% endblock %}
 

@@ -30,7 +30,7 @@
                 <span class="m3e-icon" aria-hidden="true">expand_more</span>
             </button>
             <m3e-menu id="settings-category-menu" anchor="settings-category-button" variant="baseline" label="Settings categories">
-                {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
+                {% for label, keys in [('Appearance',['colours','typography','layout','navigation','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
                 <m3e-menu-group label="{{ label }}">
                     {% for group in preference_groups if group.key in keys %}
                     <m3e-menu-item type="radio" value="{{ group.key }}" icon="{{ group.icon }}">{{ group.title }}</m3e-menu-item>
@@ -44,7 +44,7 @@
             </m3e-menu>
         </nav>
         <nav class="settings-navigation m3e-menu m3e-menu--baseline" aria-label="Settings categories">
-            {% for label, keys in [('Appearance',['colours','typography','layout','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
+            {% for label, keys in [('Appearance',['colours','typography','layout','navigation','components','motion']),('Workspace',['inbox','dashboard','pages'])] %}
             <div class="m3e-menu__group" aria-label="{{ label }}">
                 <span class="m3e-menu__label settings-navigation-heading">{{ label }}</span>
                 {% for group in preference_groups if group.key in keys %}

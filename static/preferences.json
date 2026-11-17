@@ -476,6 +476,103 @@
     ]
   },
   {
+    "key": "navigation",
+    "title": "Navigation",
+    "icon": "navigation",
+    "description": "Choose how to move around CentroMail. Changes apply across the workspace and save on this browser.",
+    "settings": [
+      {
+        "key": "navigation-style",
+        "label": "Navigation style",
+        "description": "Adaptive uses a bar on phones, a rail on tablets, and a drawer on large screens. Current keeps each page’s original layout.",
+        "default": "current",
+        "type": "select",
+        "id": "navigation-style-preference",
+        "choices": [
+          {"value": "current", "label": "Current navigation"},
+          {"value": "adaptive", "label": "Adaptive navigation suite"},
+          {"value": "bar", "label": "Navigation bar"},
+          {"value": "rail", "label": "Navigation rail"},
+          {"value": "drawer", "label": "Navigation drawer"}
+        ]
+      },
+      {
+        "key": "navigation-bar-position",
+        "label": "Bar location",
+        "description": "Place navigation bars at the top or bottom, including the phone bar in Adaptive mode.",
+        "default": "bottom",
+        "type": "select",
+        "id": "navigation-bar-position-preference",
+        "choices": [
+          {"value": "bottom", "label": "Bottom"},
+          {"value": "top", "label": "Top"}
+        ]
+      },
+      {
+        "key": "navigation-side",
+        "label": "Side navigation location",
+        "description": "Choose the side for rails and drawers. On narrow screens they open from the navigation menu button.",
+        "default": "left",
+        "type": "select",
+        "id": "navigation-side-preference",
+        "choices": [
+          {"value": "left", "label": "Left"},
+          {"value": "right", "label": "Right"}
+        ]
+      },
+      {
+        "key": "navigation-bar-layout",
+        "label": "Bar item style",
+        "description": "For Navigation bar mode, place destination names below or beside their icons. Adaptive chooses based on the available space.",
+        "default": "vertical",
+        "type": "select",
+        "id": "navigation-bar-layout-preference",
+        "choices": [
+          {"value": "vertical", "label": "Labels below icons"},
+          {"value": "horizontal", "label": "Labels beside icons"}
+        ]
+      },
+      {
+        "key": "navigation-rail-size",
+        "label": "Rail style",
+        "description": "Choose a compact or expanded rail in Navigation rail mode.",
+        "default": "collapsed",
+        "type": "select",
+        "id": "navigation-rail-size-preference",
+        "choices": [
+          {"value": "collapsed", "label": "Compact"},
+          {"value": "expanded", "label": "Expanded"}
+        ]
+      },
+      {
+        "key": "navigation-labels",
+        "label": "Destination labels",
+        "description": "Show names on bars and rails. Drawers always show names, and icon-only destinations keep accessible labels.",
+        "default": "all",
+        "type": "select",
+        "id": "navigation-labels-preference",
+        "choices": [
+          {"value": "all", "label": "All labels"},
+          {"value": "selected", "label": "Selected destination only"},
+          {"value": "icons", "label": "Icons only"}
+        ]
+      },
+      {
+        "key": "navigation-surface",
+        "label": "Navigation surface",
+        "description": "Choose a tonal background, a plain page surface, or a rounded floating panel.",
+        "default": "tonal",
+        "type": "select",
+        "id": "navigation-surface-preference",
+        "choices": [
+          {"value": "tonal", "label": "Tonal"},
+          {"value": "plain", "label": "Plain"},
+          {"value": "floating", "label": "Floating"}
+        ]
+      }
+    ]
+  },
+  {
     "key": "components",
     "title": "Buttons and controls",
     "icon": "touch_app",

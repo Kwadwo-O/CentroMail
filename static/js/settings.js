@@ -54,9 +54,13 @@
     });
     const page = document.querySelector('.settings-page');
     const header = document.querySelector('.site-header');
-    const syncHeader = () => page.style.setProperty('--settings-header-offset', getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().height + 'px' : '0px');
+    const syncHeader = () => {
+        const style = getComputedStyle(header);
+        page.style.setProperty('--settings-header-offset', style.position === 'sticky' ? header.getBoundingClientRect().height + (parseFloat(style.top) || 0) + 'px' : '0px');
+    };
     new ResizeObserver(syncHeader).observe(header);
     document.addEventListener('centromail-appearance-change', syncHeader);
+    document.addEventListener('centromail-navigation-change', syncHeader);
     syncHeader();
     const syncLayout = () => {
         preview.open = !mobileSettings.matches;
