@@ -32,7 +32,13 @@ The view lists your 50 most recent Telegram conversations. It loads 50 history m
 - Failed or unconfirmed sends keep the draft in the current page. Retrying an unchanged draft reuses Telegram's message identifier to prevent duplicates. Refresh the conversation to check delivery before retrying an unconfirmed send. Drafts survive chat/topic switching within the page; a browser reload clears them.
 - Conversation, group and account profile pictures load from Telegram as they become visible. Telegram's privacy settings apply. Initials remain when a picture is missing or unavailable. Browser photo copies remain in memory for the current page.
 - Incoming photos and videos appear with their captions in chat history and integration previews. Photos load when visible; videos use playback controls. JPEG, PNG, WebP, GIF, MP4, WebM and Ogg files up to 64 MB are supported. Open Telegram for larger files. Albums show each photo or video as its own message.
-- Other media and service messages show a text placeholder. File uploads, reactions, voice messages and Secret Chats are not implemented.
+- Documents and audio files up to 64 MB can be downloaded. Unrecognized formats are served as downloads; they are not rendered in the page. Service messages show a text placeholder. File uploads, media replacement, scheduling and Secret Chats remain in Telegram's own apps.
+
+## Message actions
+
+Open the three-dot menu on a message to reply, copy its text or copy a link where Telegram provides one. Your own messages also offer editing of text/captions, forwarding to a recent conversation or forum topic, emoji reactions, pin/unpin and deletion for everyone. Non-channel chats also offer deletion only for you. Telegram's permissions, forwarding restrictions and edit time limits apply; expired edits show a clear error and retain your draft.
+
+Caption edits allow 1,024 UTF-16 code units; text edits allow 4,096. Changes to the last 50 loaded messages are checked for edits, pins, reactions and deletions during refresh. Use Refresh for older changes. Pin actions do not send a notification.
 
 ## Verification
 

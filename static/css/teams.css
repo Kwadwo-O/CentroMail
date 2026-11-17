@@ -1,4 +1,5 @@
 .cm-teams-workspace { display: grid; grid-template-columns: minmax(220px,280px) minmax(0,1fr); gap: 20px; margin-top: 20px; min-width: 0; }
+.cm-teams-workspace[hidden] { display: none; }
 .cm-teams-sidebar { min-width: 0; align-self: start; position: sticky; top: calc(var(--mail-nav-height,72px) + var(--mail-search-height,76px) + 16px); }
 .cm-teams-sidebar label, .cm-teams-composer label { display: grid; gap: 8px; font-size: .875rem; }
 .cm-teams-sidebar select { width: 100%; min-height: 44px; padding: 10px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--m3e-sys-shape-corner-small); }

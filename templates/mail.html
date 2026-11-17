@@ -57,10 +57,10 @@
         </form>
         <div class="workspace-tabs" role="tablist" aria-label="Communication type">
             <button class="workspace-tab active m3e-button m3e-button--text" id="workspace-tab-email" type="button" role="tab" aria-selected="true" aria-controls="workspace-email" data-workspace="email">
-                <span class="material-symbols-rounded" aria-hidden="true">mail</span> Email
+                <span class="m3e-icon" aria-hidden="true">mail</span><span>Email</span>
             </button>
             <button class="workspace-tab m3e-button m3e-button--text" id="workspace-tab-apps" type="button" role="tab" aria-selected="false" aria-controls="workspace-apps" tabindex="-1" data-workspace="apps">
-                <span class="material-symbols-rounded" aria-hidden="true">chat</span> Apps
+                <span class="m3e-icon" aria-hidden="true">chat</span><span>Apps</span>
             </button>
         </div>
     </div>
@@ -159,17 +159,25 @@
 
     <section class="apps-workspace workspace-view" id="workspace-apps" role="tabpanel" aria-labelledby="workspace-tab-apps" tabindex="0" data-workspace-view="apps" hidden>
         {% if app_connections %}
-        <aside class="apps-sidebar" aria-label="Connected apps">
+        <aside class="apps-sidebar" aria-label="Apps">
             <div class="apps-heading"><h2>Apps</h2><a class="m3e-icon-button m3e-icon-button--standard" href="{{ url_for('integrations') }}" aria-label="Connect an app"><span class="m3e-icon" aria-hidden="true">add</span></a></div>
             {% for connection in app_connections %}
-            <button class="m3e-button m3e-button--text apps-connection" type="button" data-app-provider="{{ connection.key }}" data-app-name="{{ connection.name }}" data-app-feed="{{ connection.messages_url }}" aria-pressed="false" aria-controls="apps-feed-panel"><img src="{{ url_for('static',filename='images/integrations/' + connection.key + '.svg') }}" width="32" height="32" alt=""><span><strong>{{ connection.name }}</strong><small>{{ connection.subtitle }}</small><small>Connected</small></span></button>
+            <button class="m3e-button m3e-button--text apps-connection" type="button" data-app-provider="{{ connection.key }}" data-app-name="{{ connection.name }}" data-app-feed="{{ connection.messages_url }}" data-app-connected="{{ 'true' if connection.connected|default(true) else 'false' }}" aria-pressed="false" aria-controls="apps-feed-panel"><img src="{{ url_for('static',filename='images/integrations/' + connection.key + '.svg') }}" width="32" height="32" alt=""><span><strong>{{ connection.name }}</strong><small>{{ connection.subtitle }}</small><small>{{ 'Connected' if connection.connected|default(true) else 'Not connected' }}</small></span></button>
             {% endfor %}
         </aside>
         <section class="apps-feed-panel" id="apps-feed-panel" aria-labelledby="apps-feed-title">
             <header class="apps-feed-header"><div><h2 id="apps-feed-title">Messages</h2><p id="apps-feed-status" role="status">Choose an app to see recent messages.</p></div><button class="m3e-button m3e-button--tonal" id="refresh-app-feed" type="button" disabled><span class="m3e-icon" aria-hidden="true">refresh</span>Refresh</button><a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Manage connection</a></header>
             <div id="apps-feed-messages"></div>
+            <section id="apps-connection-prompt" class="chat-empty" aria-labelledby="apps-connect-title" hidden>
+                <img src="{{ url_for('static',filename='images/integrations/google-chat.svg') }}" width="48" height="48" alt="">
+                <h3 id="apps-connect-title">Connect Google Chat</h3>
+                <p>Connect your Google account to read and send messages in chats and spaces here.</p>
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('google_chat_connect') }}">Connect Google Chat</a>
+                <a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Connection settings and setup</a>
+            </section>
             {% include '_telegram_chat.html' %}
             {% include '_teams_chat.html' %}
+            {% include '_google_chat.html' %}
             <div id="apps-feed-loading" aria-hidden="true" hidden>
                 <span class="cm-progress-shell"><m3e-linear-progress aria-label="Loading app messages"></m3e-linear-progress></span>
                 {% for _ in range(3) %}<div class="apps-feed-message"><span class="apps-skeleton-sender"></span><span class="apps-skeleton-body"></span></div>{% endfor %}
@@ -277,6 +285,7 @@
 <script src="{{ url_for('static', filename='js/email-tools.js') }}"></script>
 <script src="{{ url_for('static', filename='js/telegram-chat.js') }}"></script>
 <script src="{{ url_for('static', filename='js/teams-chat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/google-chat.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reply-position.js') }}"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>

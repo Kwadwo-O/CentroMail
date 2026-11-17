@@ -11,6 +11,7 @@ import base64
 import html
 import logging
 import re
+import mimetypes
 import secrets
 import sqlite3
 import threading
@@ -30,6 +31,7 @@ import smtplib
 import email_providers
 import graph_mail
 import graph_teams
+import google_chat
 from email_validation import email_address_error
 from sender_logos import logo_cdn_enabled, sender_logo_source
 import bleach
@@ -42,10 +44,11 @@ from authlib.integrations.flask_client import OAuth
 from itsdangerous import BadSignature, URLSafeSerializer
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 from google_transport import GoogleOAuthApp, google_requests
 
 try:
-    from telethon import TelegramClient, functions as telegram_functions, types as telegram_types
+    from telethon import TelegramClient, errors as telegram_errors, functions as telegram_functions, types as telegram_types
     from telethon.errors import (
         ApiIdInvalidError,
         FloodWaitError,
@@ -329,12 +332,16 @@ PROTECTED_ENDPOINTS = {
     "disconnect_discord_route", "connect_social_route", "test_social_route",
     "disconnect_social_route", "integration_messages", "connect_email", "disconnect_email", "microsoft_callback",
     "telegram_chat_route", "telegram_photo_route", "telegram_media_route",
+    "telegram_message_action_route",
     "teams_connect", "teams_callback", "teams_disconnect", "teams_conversations", "teams_messages",
+    "google_chat_connect", "google_chat_disconnect", "google_chat_spaces", "google_chat_messages",
+    "google_chat_action", "google_chat_upload", "google_chat_attachment",
 }
 
 
 @app.before_request
 def load_user_and_check_forms():
+    if request.endpoint == 'google_chat_upload': request.max_content_length = google_chat.FILE_LIMIT + 64 * 1024
     user_id = session.get("user_id")
     g.user = (
         get_db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
@@ -631,6 +638,20 @@ def gmail_message_time(value):
         return parsedate_to_datetime(value).astimezone().strftime("%b %d").replace(" 0", " ")
     except (TypeError, ValueError, OverflowError):
         return ""
+
+
+@app.template_global()
+def mail_list_time(message):
+    try:
+        when = datetime.strptime(message.get('date', ''), '%a, %b %d, %Y at %I:%M %p')
+    except (TypeError, ValueError):
+        try:
+            when = datetime.fromtimestamp(message['internal_date'] / 1000, tz=timezone.utc).astimezone()
+        except (KeyError, TypeError, ValueError, OSError, OverflowError):
+            return message.get('time', '')
+    if when.date() == datetime.now().astimezone().date():
+        return when.strftime('%I:%M %p').lstrip('0')
+    return message.get('time', '')
 
 
 def gmail_message_full_time(value):
@@ -1143,22 +1164,129 @@ def telegram_photo_size(photo):
 
 def telegram_message_media(message, chat_id):
     media = getattr(message, 'media', None)
+    filename = 'telegram-' + str(message.id)
     if isinstance(media, telegram_types.MessageMediaPhoto) and isinstance(media.photo, telegram_types.Photo):
         photo = telegram_photo_size(media.photo)
         if photo is None: return None
         size = getattr(photo, 'size', None) or max(getattr(photo, 'sizes', []) or [len(getattr(photo, 'bytes', b''))])
         mime = 'image/jpeg'
+        filename += '.jpg'
     elif isinstance(media, telegram_types.MessageMediaDocument) and isinstance(media.document, telegram_types.Document):
         size, mime = media.document.size, media.document.mime_type
+        filename = next((attribute.file_name for attribute in media.document.attributes if isinstance(attribute, telegram_types.DocumentAttributeFilename)), filename + (mimetypes.guess_extension(mime) or '.bin'))
     else:
         return None
-    if mime not in TELEGRAM_MEDIA_TYPES: return None
-    return {'kind': TELEGRAM_MEDIA_TYPES[mime], 'mime_type': mime, 'size': size,
+    kind = TELEGRAM_MEDIA_TYPES.get(mime, 'file')
+    return {'kind': kind, 'mime_type': mime if kind != 'file' else 'application/octet-stream', 'size': size,
+        'name':secure_filename(filename) or 'attachment.bin',
         'url': url_for('telegram_media_route', chat_id=chat_id, message_id=message.id),
         'available': size <= TELEGRAM_MEDIA_LIMIT}
 
 
-def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', before=0, after=0, text=None, request_id=None):
+def _telegram_in_topic(message, topic_id):
+    if not topic_id: return True
+    if isinstance(getattr(message, 'action', None), telegram_types.MessageActionTopicCreate):
+        return message.id == int(topic_id)
+    reply = getattr(message, 'reply_to', None)
+    root = getattr(reply, 'reply_to_top_id', None) or (getattr(reply, 'reply_to_msg_id', None) if getattr(reply, 'forum_topic', False) else None)
+    return root in (None, 1) if topic_id == '1' else root == int(topic_id) or message.id == int(topic_id)
+
+
+def _telegram_can_pin(dialog):
+    entity = dialog.entity
+    admin = getattr(entity, 'admin_rights', None)
+    if getattr(entity, 'creator', False) or getattr(admin, 'pin_messages', False): return True
+    if getattr(entity, 'broadcast', False): return False
+    return not any(getattr(rights, 'pin_messages', False) for rights in
+        (getattr(entity, 'banned_rights', None), getattr(entity, 'default_banned_rights', None)))
+
+
+def _telegram_message_data(message, dialog):
+    sender = getattr(message, 'sender', None)
+    name = getattr(sender, 'title', None) or (_telegram_account(sender)['name'] if sender else 'Telegram')
+    media = telegram_message_media(message, str(dialog.id))
+    own = bool(message.out) and not getattr(message, 'action', None)
+    link = None
+    if getattr(dialog.entity, 'username', None): link = f'https://t.me/{dialog.entity.username}/{message.id}'
+    elif str(dialog.id).startswith('-100'): link = f'https://t.me/c/{str(dialog.id)[4:]}/{message.id}'
+    reactions = [{'emoji':item.reaction.emoticon, 'count':item.count, 'chosen':getattr(item, 'chosen_order', None) is not None}
+        for item in getattr(getattr(message, 'reactions', None), 'results', []) if isinstance(item.reaction, telegram_types.ReactionEmoji)]
+    return {'id':str(message.id), 'sender':'You' if message.out else name, 'outgoing':bool(message.out),
+        'text':message.message or ('' if media else '(Media or service message)'), 'media':media,
+        'time':message.date.astimezone().strftime('%b %d, %H:%M'), 'edited':bool(getattr(message, 'edit_date', None)),
+        'pinned':bool(getattr(message, 'pinned', False)), 'reactions':reactions, 'link':link,
+        'can_edit':own and bool(message.message or getattr(message, 'media', None)),
+        'edit_limit':1024 if getattr(message, 'media', None) else 4096,
+        'can_delete':own, 'can_delete_for_me':own and not dialog.is_channel,
+        'can_forward':own and not (getattr(dialog.entity, 'noforwards', False) or getattr(message, 'noforwards', False)),
+        'can_pin':own and _telegram_can_pin(dialog), 'can_react':own}
+
+
+async def _telegram_message(client, dialog, message_id, topic_id=None):
+    message = await client.get_messages(dialog.input_entity, ids=message_id)
+    if not message or message.id != message_id or str(getattr(message, 'chat_id', '')) != str(dialog.id) or not _telegram_in_topic(message, topic_id):
+        raise ValueError('This message is no longer available in this conversation or topic.')
+    return message
+
+
+def telegram_message_action(config, user_id, chat_id, message_id, action, *, text='', topic_id=None,
+                            original=None, destination=None, destination_topic=None, request_id='', emoji='', revoke=True):
+    async def change(client):
+        dialog = await _telegram_dialog(client, chat_id)
+        message = await _telegram_message(client, dialog, message_id, topic_id)
+        data = _telegram_message_data(message, dialog)
+        if not data.get('can_' + ('react' if action == 'reaction' else 'pin' if action == 'unpin' else action)):
+            raise ValueError('This action is unavailable for this message or your Telegram permissions.')
+        try:
+            if action == 'edit':
+                if len(text.encode('utf-16-le')) // 2 > data['edit_limit'] or (not text.strip() and not getattr(message, 'media', None)):
+                    raise ValueError(f"Enter a message of up to {data['edit_limit']:,} characters.")
+                if message.message != text:
+                    if original is not None and (message.message or '') != original:
+                        raise ValueError('This message changed since you opened it. Cancel and refresh before editing again.')
+                    await client.edit_message(dialog.input_entity, message_id, text, parse_mode=None, link_preview=False)
+            elif action == 'delete':
+                if not revoke and not data['can_delete_for_me']:
+                    raise ValueError('Messages in this conversation can only be deleted for everyone.')
+                await client.delete_messages(dialog.input_entity, [message_id], revoke=revoke)
+                return {'deleted':True, 'id':str(message_id)}
+            elif action == 'forward':
+                target = await _telegram_dialog(client, destination)
+                if not _telegram_can_send(target): raise ValueError('The destination is read-only.')
+                if getattr(target.entity, 'forum', False):
+                    if not destination_topic: raise ValueError('Choose a destination topic for this forum group.')
+                    topics = await client(telegram_functions.messages.GetForumTopicsByIDRequest(peer=target.input_entity, topics=[int(destination_topic)]))
+                    topic = next((item for item in topics.topics if isinstance(item, telegram_types.ForumTopic) and str(item.id) == destination_topic), None)
+                    if not topic or topic.closed or topic.hidden: raise ValueError('The destination topic is unavailable or read-only.')
+                elif destination_topic: raise ValueError('The destination has topics disabled.')
+                identity = '\0'.join((str(user_id), config['session'], chat_id, str(message_id), destination, destination_topic or '', request_id))
+                random_id = int.from_bytes(hashlib.sha256(identity.encode()).digest()[:8], 'big') & ((1 << 63) - 1)
+                await client(telegram_functions.messages.ForwardMessagesRequest(from_peer=dialog.input_entity, id=[message_id],
+                    to_peer=target.input_entity, random_id=[random_id], top_msg_id=int(destination_topic) if destination_topic and destination_topic != '1' else None))
+                return {'forwarded':True}
+            elif action in {'pin', 'unpin'}:
+                await client(telegram_functions.messages.UpdatePinnedMessageRequest(peer=dialog.input_entity, id=message_id, silent=True, unpin=action == 'unpin'))
+            elif action == 'reaction':
+                await client(telegram_functions.messages.SendReactionRequest(peer=dialog.input_entity, msg_id=message_id,
+                    reaction=[telegram_types.ReactionEmoji(emoji)] if emoji else []))
+        except telegram_errors.MessageNotModifiedError:
+            pass
+        except telegram_errors.MessageEditTimeExpiredError:
+            raise ValueError('Telegram’s time limit for editing this message has passed.') from None
+        except telegram_errors.MessageAuthorRequiredError:
+            raise ValueError('You can only edit your own Telegram messages.') from None
+        except telegram_errors.ChatAdminRequiredError:
+            raise ValueError('Telegram requires administrator permission for this action.') from None
+        except telegram_errors.ChatForwardsRestrictedError:
+            raise ValueError('Forwarding is disabled in this conversation.') from None
+        except telegram_errors.ReactionInvalidError:
+            raise ValueError('This reaction is not available in this conversation. Try another emoji.') from None
+        updated = await _telegram_message(client, dialog, message_id, topic_id)
+        return {'message':_telegram_message_data(updated, dialog)}
+    return _telegram_run(config, user_id, change)
+
+
+def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', before=0, after=0, text=None, request_id=None, reply_id=None, known_ids=()):
     async def conversation(client):
         dialog = await _telegram_dialog(client, chat_id)
         forum = bool(getattr(dialog.entity, 'forum', False))
@@ -1180,9 +1308,10 @@ def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', be
                 raise ValueError('Choose a topic before sending a message.')
             if not can_send:
                 raise ValueError('This conversation or topic is read-only for your account.')
-            identity = '\0'.join((str(user_id), config['session'], chat_id, topic_id or '', request_id))
+            if reply_id: await _telegram_message(client, dialog, reply_id, topic_id)
+            identity = '\0'.join((str(user_id), config['session'], chat_id, topic_id or '', str(reply_id or ''), request_id))
             random_id = int.from_bytes(hashlib.sha256(identity.encode()).digest()[:8], 'big') & ((1 << 63) - 1)
-            reply = telegram_types.InputReplyToMessage(reply_to_msg_id=int(topic_id)) if topic_id and topic_id != '1' else None
+            reply = telegram_types.InputReplyToMessage(reply_to_msg_id=reply_id or int(topic_id), top_msg_id=int(topic_id) if reply_id and topic_id and topic_id != '1' else None) if reply_id or (topic_id and topic_id != '1') else None
             # Telegram deduplicates retries with the same random_id after uncertain sends.
             await client(telegram_functions.messages.SendMessageRequest(peer=dialog.input_entity, message=text, random_id=random_id, reply_to=reply, no_webpage=True))
             return {'sent':True}
@@ -1200,12 +1329,14 @@ def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', be
                     root = getattr(reply, 'reply_to_top_id', None) or (getattr(reply, 'reply_to_msg_id', None) if getattr(reply, 'forum_topic', False) else None)
                     if root not in (None, 1):
                         continue
-                sender = getattr(message, 'sender', None)
-                name = _telegram_account(sender)['name'] if sender else 'Telegram'
-                if sender and getattr(sender, 'title', None): name = sender.title
-                media = telegram_message_media(message, chat_id)
-                messages.append({'id':str(message.id), 'sender':'You' if message.out else name, 'outgoing':bool(message.out), 'text':message.message or ('' if media else '(Media or service message)'), 'media':media, 'time':message.date.astimezone().strftime('%b %d, %H:%M')})
-        return {'chat_id':chat_id, 'name':dialog.name, 'forum':forum, 'topics':topics, 'topic_id':topic_id, 'can_send':can_send and (not forum or topic is not None), 'messages':messages, 'next_before':str(raw[-1].id) if len(raw) == 50 and not after else None, 'latest_seen':str(raw[-1 if after else 0].id) if raw else None, 'has_more_new':bool(after and len(raw) == 50)}
+                messages.append(_telegram_message_data(message, dialog))
+        updated = []
+        if known_ids:
+            current = await client.get_messages(dialog.input_entity, ids=list(known_ids))
+            updated = [_telegram_message_data(message, dialog) for message in current if message and str(getattr(message, 'chat_id', '')) == chat_id and _telegram_in_topic(message, topic_id)]
+        return {'chat_id':chat_id, 'name':dialog.name, 'forum':forum, 'topics':topics, 'topic_id':topic_id, 'can_send':can_send and (not forum or topic is not None), 'messages':messages,
+            'updated_messages':updated, 'deleted_ids':[str(identifier) for identifier in known_ids if str(identifier) not in {message['id'] for message in updated}],
+            'next_before':str(raw[-1].id) if len(raw) == 50 and not after else None, 'latest_seen':str(raw[-1 if after else 0].id) if raw else None, 'has_more_new':bool(after and len(raw) == 50)}
     return _telegram_run(config, user_id, conversation)
 
 
@@ -1223,14 +1354,14 @@ def telegram_message_download(config, user_id, chat_id, message_id):
         if not message or message.id != message_id or str(getattr(message, 'chat_id', '')) != chat_id:
             raise ValueError('This media is no longer available in this conversation.')
         media = telegram_message_media(message, chat_id)
-        if not media: raise ValueError('This message does not contain a supported photo or video.')
+        if not media: raise ValueError('This message does not contain a downloadable file.')
         if not media['available']: raise ValueError('Open Telegram for media larger than 64 MB.')
         # Telethon accepts progressive photo sizes by key, but not by object.
         kwargs = {'thumb': telegram_photo_size(message.media.photo).type} if isinstance(message.media, telegram_types.MessageMediaPhoto) else {}
         content = await client.download_media(message, file=bytes, **kwargs)
         if not isinstance(content, bytes) or not content or len(content) > TELEGRAM_MEDIA_LIMIT:
             raise ValueError('This media could not be loaded.')
-        return content, media['mime_type']
+        return content, media['mime_type'], media['name']
     return _telegram_run(config, user_id, download, timeout=60)
 
 
@@ -2466,6 +2597,12 @@ def inbox(compose_draft=None):
 
 def workspace_connections(user):
     connections = []
+    chat = get_integration(user['id'], 'google_chat')
+    account = next((account for account in email_accounts(user) if account['key'] == chat.get('account_key') and account['kind'] == 'gmail'), None) if chat else None
+    stored = (get_google_token(user) if account['key'] == 'gmail' else account['config']['token']) if account else {}
+    connected = bool(account and set(google_chat.SCOPES.split()).issubset(set(stored.get('scope','').split())))
+    connections.append({'key':'google-chat','name':'Google Chat','subtitle':account['email'] if account else 'Chats and spaces',
+        'connected':connected, 'messages_url':url_for('google_chat_spaces') if connected else ''})
     for provider, name in [('telegram','Telegram'), ('teams','Microsoft Teams'), ('discord','Discord'), ('whatsapp','WhatsApp')]:
         config = get_integration(user['id'], provider)
         if not config or (provider == 'telegram' and config.get('stage') != 'connected'):
@@ -2646,6 +2783,8 @@ def settings():
 
 @app.get('/integrations')
 def integrations(email_error='', email_value=''):
+    chat_config = get_integration(g.user['id'], 'google_chat')
+    chat_account = next((account for account in email_accounts(g.user) if chat_config and account['key'] == chat_config.get('account_key') and account['kind'] == 'gmail'), None)
     telegram = get_integration(g.user["id"], "telegram")
     telegram_stage = telegram.get("stage") if telegram else None
     telegram_account = telegram.get("account") if telegram else None
@@ -2681,6 +2820,8 @@ def integrations(email_error='', email_value=''):
         whatsapp_webhook_url=url_for('whatsapp_webhook', _external=True),
         discord=discord,
         teams=teams,
+        google_chat=chat_config if chat_account else None,
+        google_chat_email=chat_account['email'] if chat_account else None,
 
         social_cards=social_cards,
         social_state=social_state,
@@ -2864,6 +3005,133 @@ def integration_messages(provider):
     return jsonify(messages=messages)
 
 
+@app.get('/integrations/google-chat/connect')
+def google_chat_connect():
+    return redirect(url_for('authenticate', provider='google', connect=1, service='chat'))
+
+
+@app.post('/integrations/google-chat/disconnect')
+def google_chat_disconnect():
+    delete_integration(g.user['id'], 'google_chat')
+    flash('Google Chat disconnected. Your Gmail connection is still available.', 'info')
+    return redirect(url_for('integrations'))
+
+
+def _google_chat_api(operation):
+    try:
+        config = get_integration(g.user['id'], 'google_chat')
+        account = next((item for item in email_accounts(g.user) if config and item['key'] == config.get('account_key') and item['kind'] == 'gmail'), None)
+        if not account: raise google_chat.ChatError('Connect Google Chat from Integrations first.', 409)
+        stored = get_google_token(g.user) if account['key'] == 'gmail' else account['config']['token']
+        if not set(google_chat.SCOPES.split()).issubset(set(stored.get('scope','').split())):
+            raise google_chat.ChatError('Reconnect Google Chat and allow the requested permissions.', 409)
+        token = get_gmail_access_token(g.user, account)
+        if not token: raise google_chat.ChatError('Reconnect Google Chat to refresh your Google access.', 409)
+        me = {'id':str((stored.get('userinfo') or {}).get('sub') or ''), 'email':account['email']}
+        return operation(token, me, account['key'])
+    except ValueError as error: return jsonify(error=str(error)), 400
+    except google_chat.ChatError as error: return jsonify(error=str(error)), error.status
+    except (requests.RequestException, KeyError, TypeError):
+        app.logger.warning('Google Chat request failed for user id=%s', g.user['id'])
+        return jsonify(error='Google Chat could not confirm the request. Your draft is kept; refresh before retrying.'), 502
+
+
+def _google_chat_message_links(data, space_id):
+    for message in [*data.get('messages', []), *data.get('updated_messages', []), *([data['message']] if data.get('message') else [])]:
+        for attachment in message.get('attachments', []):
+            if attachment.pop('downloadable', False):
+                attachment['url'] = url_for('google_chat_attachment', space_id=space_id,
+                    message_id=message['id'].split('/messages/')[1], attachment_index=attachment['index'])
+    return data
+
+
+@app.route('/api/integrations/google-chat/spaces', methods=['GET','POST'])
+def google_chat_spaces():
+    def operation(token, me, account):
+        if request.method == 'GET': return jsonify(google_chat.spaces(token, me, request.args.get('cursor')))
+        identity = request.form.get('request_id','')
+        if not re.fullmatch(r'[0-9a-f]{32}', identity): raise ValueError('Retry creating the conversation from the form.')
+        members = list(dict.fromkeys(normalize_email(value.strip()) for value in request.form.get('members','').split(',') if value.strip()))
+        if any(not valid_email(email) or email == me['email'] for email in members): raise ValueError('Enter other participants’ email addresses, separated by commas.')
+        return jsonify(conversation=google_chat.create_space(token, request.form.get('kind','DIRECT_MESSAGE'), request.form.get('title',''), members, identity))
+    return _google_chat_api(operation)
+
+
+@app.route('/api/integrations/google-chat/spaces/<space_id>/messages', methods=['GET','POST'])
+def google_chat_messages(space_id):
+    def operation(token, me, account):
+        space = google_chat.resource('spaces/' + space_id)
+        if request.method == 'GET':
+            identifiers = request.args.get('known_ids','').split(',') if request.args.get('known_ids') else []
+            if len(identifiers) > 50: raise ValueError('Too many Google Chat message identifiers.')
+            names = [google_chat.resource(space + '/messages/' + identifier,'message',space) for identifier in identifiers]
+            after, cursor = request.args.get('after') or None, None
+            signer = URLSafeSerializer(app.config['SECRET_KEY'],salt='google-chat-page')
+            if request.args.get('cursor'):
+                try:
+                    saved = signer.loads(request.args['cursor'])
+                    if saved['owner'] != g.user['id'] or saved['account'] != account or saved['space'] != space: raise ValueError
+                    after, cursor = saved['after'], saved['cursor']
+                except (BadSignature,KeyError,TypeError,ValueError): raise ValueError('This Google Chat page is invalid or belongs to another conversation.') from None
+            data = google_chat.messages(token, me, space, cursor, names, after)
+            if data.get('next_cursor'): data['next_cursor'] = signer.dumps({'owner':g.user['id'],'account':account,'space':space,'after':after,'cursor':data['next_cursor']})
+            data['incoming_page'] = bool(after)
+            return jsonify(_google_chat_message_links(data, space_id))
+        identity = request.form.get('request_id','')
+        if not re.fullmatch(r'[0-9a-f]{32}',identity): raise ValueError('Retry sending from the message form.')
+        attachment = None
+        if request.form.get('attachment_token'):
+            try:
+                saved = URLSafeSerializer(app.config['SECRET_KEY'],salt='google-chat-attachment').loads(request.form['attachment_token'])
+                if saved['owner'] != g.user['id'] or saved['account'] != account or saved['space'] != space or time.time() - saved['time'] > 3600: raise ValueError
+                attachment = saved['ref']
+            except (BadSignature, KeyError, TypeError, ValueError): raise ValueError('The attachment expired or belongs to another conversation. Select the file again.') from None
+        sent = google_chat.send(token, space, request.form.get('text',''), identity, request.form.get('reply') or None, attachment)
+        return jsonify(_google_chat_message_links({'message':google_chat.message_data(sent,me)},space_id))
+    return _google_chat_api(operation)
+
+
+@app.post('/api/integrations/google-chat/spaces/<space_id>/messages/<message_id>/actions')
+def google_chat_action(space_id, message_id):
+    def operation(token, me, account):
+        name = google_chat.resource(f'spaces/{space_id}/messages/{message_id}','message')
+        force = request.form.get('force','false')
+        if force not in {'true','false'}: raise ValueError('Choose a valid deletion option.')
+        data = google_chat.change_message(token, me, name, request.form.get('action',''), text=request.form.get('text',''),
+            original=request.form.get('original'), force=force == 'true', emoji=request.form.get('emoji',''))
+        return jsonify(_google_chat_message_links(data,space_id))
+    return _google_chat_api(operation)
+
+
+@app.post('/api/integrations/google-chat/spaces/<space_id>/attachments')
+def google_chat_upload(space_id):
+    def operation(token, me, account):
+        space = google_chat.resource('spaces/' + space_id)
+        file = request.files.get('file')
+        if not file: raise ValueError('Choose a file to upload.')
+        ref = google_chat.upload(token,space,file.filename,file.stream.read(google_chat.FILE_LIMIT + 1))
+        signed = URLSafeSerializer(app.config['SECRET_KEY'],salt='google-chat-attachment').dumps({'owner':g.user['id'],'account':account,'space':space,'ref':ref,'time':time.time()})
+        return jsonify(attachment_token=signed, name=secure_filename(file.filename) or 'attachment.bin')
+    return _google_chat_api(operation)
+
+
+@app.get('/api/integrations/google-chat/spaces/<space_id>/messages/<message_id>/attachments/<int:attachment_index>')
+def google_chat_attachment(space_id, message_id, attachment_index):
+    def operation(token, me, account):
+        name = google_chat.resource(f'spaces/{space_id}/messages/{message_id}','message')
+        message = google_chat.request(token,'GET',name)
+        attachments = message.get('attachment',[])
+        if not 0 <= attachment_index < len(attachments): raise ValueError('This attachment is no longer available.')
+        attachment = attachments[attachment_index]
+        resource = (attachment.get('attachmentDataRef') or {}).get('resourceName')
+        if not resource: raise ValueError('Open this Google Drive attachment through Google Chat.')
+        content = google_chat.download(token, resource)
+        response = send_file(BytesIO(content),mimetype='application/octet-stream',as_attachment=True,download_name=secure_filename(attachment.get('contentName','')) or 'attachment.bin')
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
+    return _google_chat_api(operation)
+
+
 @app.route('/api/integrations/telegram/chats/<chat_id>', methods=['GET', 'POST'])
 def telegram_chat_route(chat_id):
     if not re.fullmatch(r'-?[1-9][0-9]{0,15}', chat_id):
@@ -2878,15 +3146,50 @@ def telegram_chat_route(chat_id):
         return jsonify(error='Invalid topic or message cursor.'), 400
     text = request.form.get('text', '') if request.method == 'POST' else None
     request_id = request.form.get('request_id', '')
+    reply_id = request.form.get('reply_id') or None
+    known_ids = request.args.get('known_ids', '').split(',') if request.args.get('known_ids') else []
+    if (reply_id and (not re.fullmatch(r'[1-9][0-9]{0,9}', reply_id) or int(reply_id) > 2147483647)) or len(known_ids) > 50 or any(not re.fullmatch(r'[1-9][0-9]{0,9}', value) or int(value) > 2147483647 for value in known_ids):
+        return jsonify(error='Invalid Telegram message.'), 400
     if text is not None and (not text.strip() or len(text.encode('utf-16-le')) // 2 > 4096 or not re.fullmatch(r'[0-9a-f]{32}', request_id)):
         return jsonify(error='Enter a message of up to 4,096 characters and retry from the chat form.'), 400
     try:
-        return jsonify(telegram_chat(config, g.user['id'], chat_id, topic_id=topic_id, topic_query=request.args.get('topic_search','').strip()[:100], before=int(before), after=int(after), text=text, request_id=request_id))
+        return jsonify(telegram_chat(config, g.user['id'], chat_id, topic_id=topic_id, topic_query=request.args.get('topic_search','').strip()[:100], before=int(before), after=int(after), text=text, request_id=request_id, reply_id=int(reply_id) if reply_id else None, known_ids=tuple(map(int, known_ids))))
     except ValueError as error:
         return jsonify(error=str(error)), 400
     except Exception as error:
         app.logger.warning('Telegram chat request failed for user id=%s', g.user['id'])
         message = telegram_error_text(error) if isinstance(error, RuntimeError) or (TELETHON_AVAILABLE and isinstance(error, FloodWaitError)) else 'Telegram could not complete the request. Your draft is kept; refresh before retrying.'
+        return jsonify(error=message), 502
+
+
+@app.post('/api/integrations/telegram/chats/<chat_id>/messages/<int:message_id>/actions')
+def telegram_message_action_route(chat_id, message_id):
+    action = request.form.get('action', '')
+    topic = request.form.get('topic') or None
+    target = request.form.get('destination') or None
+    target_topic = request.form.get('destination_topic') or None
+    text, emoji, identity = request.form.get('text', ''), request.form.get('emoji', ''), request.form.get('request_id', '')
+    if not re.fullmatch(r'-?[1-9][0-9]{0,15}', chat_id) or not 1 <= message_id <= 2147483647 or action not in {'edit', 'delete', 'forward', 'pin', 'unpin', 'reaction'}:
+        return jsonify(error='Invalid Telegram message action.'), 400
+    if any(value and (not re.fullmatch(r'[1-9][0-9]{0,9}', value) or int(value) > 2147483647) for value in (topic, target_topic)):
+        return jsonify(error='Invalid Telegram topic.'), 400
+    if len(text.encode('utf-16-le')) // 2 > 4096 or len(emoji.encode('utf-16-le')) // 2 > 32 or any(ord(char) < 32 for char in emoji):
+        return jsonify(error='The message or reaction is too long or invalid.'), 400
+    if action == 'forward' and (not target or not re.fullmatch(r'-?[1-9][0-9]{0,15}', target) or not re.fullmatch(r'[0-9a-f]{32}', identity)):
+        return jsonify(error='Choose a destination conversation and retry from the forwarding form.'), 400
+    revoke = request.form.get('revoke', 'true')
+    if revoke not in {'true', 'false'}: return jsonify(error='Choose a valid deletion option.'), 400
+    config = get_integration(g.user['id'], 'telegram')
+    if not config or config.get('stage') != 'connected': return jsonify(error='Connect Telegram first.'), 409
+    try:
+        return jsonify(telegram_message_action(config, g.user['id'], chat_id, message_id, action, text=text,
+            topic_id=topic, original=request.form.get('original'), destination=target, destination_topic=target_topic,
+            request_id=identity, emoji=emoji, revoke=revoke == 'true'))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except Exception as error:
+        app.logger.warning('Telegram message action failed for user id=%s', g.user['id'])
+        message = telegram_error_text(error) if isinstance(error, RuntimeError) or (TELETHON_AVAILABLE and isinstance(error, FloodWaitError)) else 'Telegram could not confirm this action. Your edit is kept; refresh the conversation before retrying.'
         return jsonify(error=message), 502
 
 
@@ -2910,13 +3213,14 @@ def telegram_media_route(chat_id, message_id):
     config = get_integration(g.user['id'], 'telegram')
     if not config or config.get('stage') != 'connected': abort(404)
     try:
-        content, mime = telegram_message_download(config, g.user['id'], chat_id, message_id)
+        content, mime, filename = telegram_message_download(config, g.user['id'], chat_id, message_id)
     except ValueError as error:
         return jsonify(error=str(error)), 404
     except Exception:
         app.logger.warning('Telegram media request failed for user id=%s', g.user['id'])
         return jsonify(error='This media could not be loaded. Try again.'), 502
-    response = send_file(BytesIO(content), mimetype=mime, conditional=True, etag=False)
+    response = send_file(BytesIO(content), mimetype=mime, conditional=True, etag=False,
+        as_attachment=mime == 'application/octet-stream', download_name=filename)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
 
@@ -3285,16 +3589,21 @@ def authenticate(provider):
         if (callback.hostname in loopback and origin.hostname in loopback
                 and callback.scheme == origin.scheme and callback.port == origin.port
                 and callback.netloc != origin.netloc):
-            path = url_for('authenticate', provider='google', connect=1) if g.user is not None or request.args.get('connect') == '1' else url_for('authenticate', provider='google')
+            path = url_for('authenticate', provider='google', connect=1, **({'service':'chat'} if request.args.get('service') == 'chat' else {})) if g.user is not None or request.args.get('connect') == '1' else url_for('authenticate', provider='google')
             return redirect(f"{callback.scheme}://{callback.netloc}{path}")
         if g.user is not None:
             session['google_connect_user']=g.user['id']
+            session['google_connect_chat'] = request.args.get('service') == 'chat'
         try:
             if g.user is not None:
-                return google.authorize_redirect(callback_uri, prompt='select_account consent', access_type='offline')
+                options = {'prompt':'select_account consent','access_type':'offline','include_granted_scopes':'true'}
+                if session.get('google_connect_chat'):
+                    options['scope'] = google.client_kwargs['scope'] + ' ' + google_chat.SCOPES
+                return google.authorize_redirect(callback_uri, **options)
             return google.authorize_redirect(callback_uri)
         except (requests.RequestException, OAuthError, ValueError):
             session.pop('google_connect_user',None)
+            session.pop('google_connect_chat',None)
             flash("Could not connect to Google. Please try signing in again.", "error")
             return redirect(url_for('login'))
 
@@ -3320,6 +3629,7 @@ def authenticate(provider):
 @app.get('/auth/google/callback')
 def google_callback():
     connect_user = session.pop('google_connect_user', None)
+    connect_chat = session.pop('google_connect_chat', False)
     if connect_user is not None and (g.user is None or g.user['id'] != connect_user):
         abort(400, description="Sign in to the account that started this Gmail connection.")
     if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
@@ -3368,6 +3678,12 @@ def google_callback():
                 token['refresh_token'] = previous.get('token',{}).get('refresh_token')
             save_integration(g.user['id'], key, {'kind':'gmail','name':'Gmail','email':email,'account_id':account_id,'token':token})
         session['mail_account'] = key
+        if connect_chat:
+            if set(google_chat.SCOPES.split()).issubset(set(token.get('scope','').split())):
+                save_integration(g.user['id'], 'google_chat', {'account_key':key})
+                flash(f'Google Chat connected: {email}.', 'success')
+                return redirect(url_for('inbox') + '#apps')
+            flash('Google Chat permission was not granted. Reconnect Google Chat and allow the requested access.', 'error')
         flash(f"Gmail connected: {email}.", 'success')
         return redirect(url_for('inbox', account=key))
 

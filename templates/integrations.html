@@ -99,9 +99,16 @@
                 <p class="eyebrow">Messaging</p>
                 <h2 id="messaging-integrations-heading">Chats and communities</h2>
             </div>
-            <span>4 services</span>
+            <span>5 services</span>
         </div>
         <div class="integration-grid">
+        <article class="integration-card">
+            <div class="integration-card-top"><div class="integration-mark"><img src="{{ url_for('static',filename='images/integrations/google-chat.svg') }}" alt="" aria-hidden="true"></div><div><h2>Google Chat</h2><p class="integration-subtitle">Messages, group chats and spaces</p></div><span class="m3e-badge m3e-badge--large status-pill {% if google_chat %}is-connected{% endif %}">{{ 'Connected' if google_chat else 'Not connected' }}</span></div>
+            {% if google_chat %}<dl class="integration-facts"><div><dt>Account</dt><dd>{{ google_chat_email }}</dd></div></dl>{% endif %}
+            <p class="integration-copy">Read and send messages, reply, edit your messages, react, and share files in Apps. Uses your Google connection with additional Chat permissions.</p>
+            <details class="integration-guide"><summary>How to connect Google Chat</summary><p>Enable the Google Chat API and configure its app in the same Google Cloud project as Gmail. Then connect below and allow Chat access. See the <a href="https://github.com/Kwadwo-O/CentroMail/blob/main/docs/google-chat-setup.md" target="_blank" rel="noreferrer">Google Chat setup guide</a>. Your Workspace administrator may need to allow the app.</p></details>
+            <div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('google_chat_connect') }}">{{ 'Reconnect Google Chat' if google_chat else 'Connect Google Chat' }}</a>{% if google_chat %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox') }}#apps">Open Apps</a><form method="post" action="{{ url_for('google_chat_disconnect') }}" data-confirm="Disconnect Google Chat?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form>{% endif %}</div>
+        </article>
         <article class="integration-card">
             <div class="integration-card-top"><div class="integration-mark"><img src="{{ url_for('static',filename='images/integrations/teams.svg') }}" alt="" aria-hidden="true"></div><div><h2>Microsoft Teams</h2><p class="integration-subtitle">Work and school chats and team channels</p></div><span class="m3e-badge m3e-badge--large status-pill {% if teams %}is-connected{% endif %}">{{ 'Connected' if teams else 'Not connected' }}</span></div>
             {% if teams %}<dl class="integration-facts"><div><dt>Account</dt><dd>{{ teams.account.name }}</dd></div><div><dt>Email</dt><dd>{{ teams.account.email }}</dd></div></dl>{% endif %}

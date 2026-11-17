@@ -1,0 +1,40 @@
+<section class="cm-teams-workspace" id="google-chat-workspace" aria-label="Google Chat" data-spaces-url="{{ url_for('google_chat_spaces') }}" data-csrf="{{ csrf_token() }}" hidden>
+    <aside class="cm-teams-sidebar">
+        <button type="button" id="google-chat-new" class="m3e-button m3e-button--tonal"><span class="m3e-icon" aria-hidden="true">add</span>New conversation</button>
+        <label for="google-chat-select">Conversation<select id="google-chat-select"></select></label>
+        <div id="google-chat-conversations" class="cm-teams-conversations"></div>
+        <button type="button" id="google-chat-more-spaces" class="m3e-button m3e-button--text" hidden>More conversations</button>
+    </aside>
+    <div class="cm-teams-reader">
+        <header class="cm-teams-heading"><h3 id="google-chat-title">Choose a conversation</h3><a id="google-chat-open" class="m3e-button m3e-button--text" target="_blank" rel="noreferrer" hidden>Open in Google Chat</a><p id="google-chat-status" role="status" aria-live="polite"></p></header>
+        <button type="button" id="google-chat-older" class="m3e-button m3e-button--text" hidden>Older messages</button>
+        <div id="google-chat-thread" class="cm-teams-thread" role="region" aria-label="Google Chat messages" tabindex="0"></div>
+        <form id="google-chat-send-form" class="telegram-send-form cm-teams-composer">
+            <p id="google-chat-reply-status" role="status" hidden></p><button type="button" id="google-chat-cancel-reply" class="m3e-button m3e-button--text" hidden>Cancel reply</button>
+            <label for="google-chat-text">Message</label><textarea id="google-chat-text" rows="3" maxlength="32000" placeholder="Write a message…" disabled></textarea>
+            <label for="google-chat-file">Attach a file (up to 64 MB)</label><input type="file" id="google-chat-file" disabled><p id="google-chat-file-status"></p><button type="button" id="google-chat-remove-file" class="m3e-button m3e-button--text" hidden>Remove attachment</button>
+            <p id="google-chat-send-status" role="status" aria-live="polite">Choose a conversation before sending.</p>
+            <button type="submit" id="google-chat-send" class="m3e-button m3e-button--filled" disabled><span class="m3e-icon" aria-hidden="true">send</span><span data-google-chat-send-label>Send message</span></button>
+        </form>
+    </div>
+    <dialog id="google-chat-action-dialog" class="chat-action-dialog" aria-labelledby="google-chat-action-title">
+        <form id="google-chat-action-form">
+            <h3 id="google-chat-action-title">Edit message</h3>
+            <div id="google-chat-edit-fields"><label for="google-chat-edit">Message</label><textarea id="google-chat-edit" rows="5" maxlength="32000"></textarea></div>
+            <div id="google-chat-reaction-fields" hidden><label for="google-chat-emoji">Emoji reaction</label><input id="google-chat-emoji" maxlength="32"><div class="chat-reaction-picker">{% for emoji in ['👍','❤️','😂','🎉','🔥','👀','🙏','👎'] %}<button type="button" class="m3e-button m3e-button--text" data-google-chat-emoji="{{ emoji }}">{{ emoji }}</button>{% endfor %}</div><p>Choose the same emoji again to remove your reaction.</p></div>
+            <div id="google-chat-delete-fields" hidden><p>Delete this message for everyone? This cannot be undone.</p><label><input id="google-chat-delete-replies" type="checkbox">Also delete replies in this thread</label></div>
+            <p id="google-chat-action-status" role="status" aria-live="polite"></p>
+            <div class="chat-action-buttons"><button type="button" id="google-chat-action-cancel" class="m3e-button m3e-button--text">Cancel</button><button type="submit" id="google-chat-action-save" class="m3e-button m3e-button--filled">Save changes</button></div>
+        </form>
+    </dialog>
+    <dialog id="google-chat-new-dialog" class="chat-action-dialog" aria-labelledby="google-chat-new-title">
+        <form id="google-chat-new-form">
+            <h3 id="google-chat-new-title">New conversation</h3>
+            <label for="google-chat-new-kind">Type</label><select id="google-chat-new-kind"><option value="DIRECT_MESSAGE">Direct message</option><option value="GROUP_CHAT">Group chat</option><option value="SPACE">Named space</option></select>
+            <label for="google-chat-new-name" id="google-chat-new-name-label" hidden>Space name</label><input id="google-chat-new-name" maxlength="128" hidden>
+            <label for="google-chat-new-members">People’s email addresses, separated by commas</label><input id="google-chat-new-members" maxlength="12000" placeholder="person@example.com">
+            <p id="google-chat-new-status" role="status" aria-live="polite"></p>
+            <div class="chat-action-buttons"><button type="button" id="google-chat-new-cancel" class="m3e-button m3e-button--text">Cancel</button><button type="submit" id="google-chat-new-save" class="m3e-button m3e-button--filled">Create conversation</button></div>
+        </form>
+    </dialog>
+</section>

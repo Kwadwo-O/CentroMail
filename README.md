@@ -245,6 +245,10 @@ Open Integrations after signing in.
 
 Microsoft Teams supports work and school chats, team channels, thread replies and sending from **Apps**. It connects separately from Outlook through Microsoft OAuth. See [Teams setup](docs/teams-setup.md) for the app registration, callback and delegated permissions; channel history may require administrator consent.
 
+Google Chat uses the existing Gmail Google OAuth connection with additional Chat permissions. Apps supports conversations, spaces, history, sending, replies, edits/deletion of your own messages, emoji reactions and attachments. Enable the Chat API in the same Google Cloud project and reconnect through Integrations. See [Google Chat setup](docs/google-chat-setup.md).
+
+Telegram message menus support editing text/captions, replies, forwarding, reactions, pin/unpin, copying and permitted deletion. Documents and audio also have downloads; see the [Telegram guide](docs/telegram-setup.md) for provider limits.
+
 Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram supports private chats, regular groups, and forum groups with a topic picker, profile pictures, text sending, and automatic incoming-message checks while the chat is visible. Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail. See [Telegram setup and chat support](docs/telegram-setup.md).
 
 Connections are stored in `centro.db` on this machine, and non-secret UI state is mirrored to browser `localStorage`.
@@ -304,7 +308,7 @@ Integrations are organised into three logical groups for easier navigation:
 | Group                          | Services                                                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | Email accounts                 | Gmail                                                                                                                    |
-| Chats and communities          | Telegram, WhatsApp, Discord                                                                                              |
+| Chats and communities          | Google Chat, Teams, Telegram, WhatsApp, Discord                                                                          |
 | Social networks and workspaces | X (Twitter), LinkedIn, Reddit, Mastodon, Bluesky, TikTok, Pinterest, Tumblr, Twitch, Slack |
 
 Each group has a collapsible "How to connect" guide accessible via the disclosure marker next to the service name. The guides walk through the required setup steps for each provider.

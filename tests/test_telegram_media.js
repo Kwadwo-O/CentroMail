@@ -7,13 +7,14 @@ const vm = require('node:vm');
 function history() {
     const create = tag => ({tag, children: [], dataset: {}, events: {}, attributes: {},
         classList: {toggle() {}}, append(...items) { this.children.push(...items.flatMap(item => item.tag === 'fragment' ? item.children : [item])); },
+        querySelector(selector) { return this.children.find(child => child.dataset?.messageText !== undefined && selector === '[data-message-text]') || null; },
         prepend(fragment) { this.children.unshift(...fragment.children); },
         setAttribute(name, value) { this.attributes[name] = value; },
         addEventListener(name, callback) { this.events[name] = callback; },
         load() { this.loaded = true; }});
     const thread = {...create('thread'), scrollHeight: 200, scrollTop: 0, clientHeight: 200,
         querySelector(selector) { return this.children.find(row => selector.includes('"' + row.dataset.telegramMessage + '"')) || null; }};
-    const context = {thread, CSS: {escape: value => value}, document: {createElement: create,
+    const context = {thread, renderMessageActions() {}, CSS: {escape: value => value}, document: {createElement: create,
         createDocumentFragment: () => create('fragment')}};
     const source = readFileSync('static/js/telegram-chat.js', 'utf8');
     vm.runInNewContext(source.slice(source.indexOf('const renderMessages ='), source.indexOf('const loadChat =')) +
@@ -39,7 +40,7 @@ test('chat photos and media-only videos render with captions and native controls
     assert.equal(video.preload, 'none');
     assert.equal(video.playsInline, true);
     assert.equal(assets(thread.children[0], 'p')[0].textContent, '<Photo caption>');
-    assert.equal(assets(thread.children[1], 'p').length, 1); // error region only
+    assert.equal(assets(thread.children[1], 'p').filter(element => !element.hidden).length, 0);
     render([{id: '1', sender: 'Friend', text: '', media: {kind: 'photo', url: '/private/photo'}}]);
     assert.equal(thread.children.length, 2);
 });
@@ -49,7 +50,7 @@ test('failed media has a visible retry and oversized files avoid loading', () =>
     render([{id: '1', sender: 'Friend', text: '', media: {kind: 'video', url: '/private/video'}},
         {id: '2', sender: 'Friend', text: 'Large clip', media: {kind: 'video', available: false, url: '/large'}}]);
     const video = assets(thread, 'video')[0], retry = assets(thread, 'button')[0];
-    const error = assets(thread.children[0], 'p')[0];
+    const error = assets(thread.children[0], 'p')[1];
     video.events.error();
     assert.equal(video.hidden, true);
     assert.equal(error.hidden, false);

@@ -42,6 +42,114 @@ class TelegramChatTests(IntegrationFixture):
     def post_chat(self,**values):
         return self.client.post('/api/integrations/telegram/chats/-100123',data={'csrf_token':'test-token','text':'Hello <everyone>','request_id':'a'*32,**values})
 
+    def message_action(self, action='edit', **values):
+        return self.client.post('/api/integrations/telegram/chats/-100123/messages/7/actions',
+            data={'csrf_token':'test-token', 'action':action, **values})
+
+    def test_own_message_edit_is_plain_text_and_returns_the_updated_message(self):
+        message = self.message(7, 'Original', out=True)
+        self.telegram.get_messages.return_value = message
+        async def edit(peer, identifier, text, **kwargs):
+            message.message = text; message.edit_date = datetime.now(timezone.utc)
+        self.telegram.edit_message.side_effect = edit
+        response = self.message_action(text='Edited <text> 😀', original='Original')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['message']['text'], 'Edited <text> 😀')
+        self.assertTrue(response.json['message']['edited'])
+        self.telegram.edit_message.assert_awaited_once_with(self.dialog.input_entity, 7, 'Edited <text> 😀', parse_mode=None, link_preview=False)
+
+    def test_actions_reject_incoming_foreign_and_missing_messages_without_mutating_them(self):
+        for message in (self.message(7, 'Incoming'), self.message(8, 'Wrong ID', out=True), None):
+            self.telegram.get_messages.return_value = message
+            for action in ('edit', 'delete', 'pin', 'unpin', 'reaction', 'forward'):
+                self.assertEqual(self.message_action(action, text='Edit', destination='123', request_id='a'*32).status_code, 400)
+        message = self.message(7, 'Foreign', out=True); message.chat_id = -999
+        self.telegram.get_messages.return_value = message
+        self.assertEqual(self.message_action(text='Edit').status_code, 400)
+        self.telegram.edit_message.assert_not_awaited(); self.telegram.delete_messages.assert_not_awaited()
+        self.telegram.assert_not_awaited()
+
+    def test_edit_preserves_concurrent_changes_and_enforces_text_caption_and_telegram_time_limits(self):
+        message = self.message(7, 'Changed elsewhere', out=True)
+        self.telegram.get_messages.return_value = message
+        self.assertEqual(self.message_action(text='Edit', original='Original').status_code, 400)
+        self.assertEqual(self.message_action(text=' ').status_code, 400)
+        message.media = self.photo()
+        self.assertEqual(self.message_action(text='😀'*513).status_code, 400)
+        self.telegram.edit_message.assert_not_awaited()
+        self.assertEqual(self.message_action(text='').status_code, 200)
+        message.media = None
+        self.telegram.edit_message.side_effect = a.telegram_errors.MessageEditTimeExpiredError(request=None)
+        response = self.message_action(text='Edit')
+        self.assertEqual(response.status_code, 400); self.assertIn('time limit', response.json['error'])
+
+    def test_delete_and_pin_apply_to_the_selected_own_message_and_respect_permissions(self):
+        self.telegram.get_messages.return_value = self.message(7, 'Own', out=True)
+        self.assertEqual(self.message_action('delete').json, {'deleted':True, 'id':'7'})
+        self.telegram.delete_messages.assert_awaited_once_with(self.dialog.input_entity, [7], revoke=True)
+        self.assertEqual(self.message_action('delete', revoke='false').status_code, 400)
+        self.assertEqual(self.message_action('pin').status_code, 200)
+        self.assertFalse(self.telegram.call_args.args[0].unpin)
+        self.assertEqual(self.message_action('unpin').status_code, 200)
+        self.assertTrue(self.telegram.call_args.args[0].unpin)
+        self.dialog.entity.default_banned_rights = Item(pin_messages=True)
+        count = self.telegram.await_count
+        self.assertEqual(self.message_action('pin').status_code, 400)
+        self.assertEqual(self.telegram.await_count, count)
+
+    def test_reactions_can_be_set_and_removed_and_forward_retries_are_deduplicated(self):
+        self.telegram.get_messages.return_value = self.message(7, 'Own', out=True)
+        self.assertEqual(self.message_action('reaction', emoji='👍').status_code, 200)
+        self.assertEqual(self.telegram.call_args.args[0].reaction[0].emoticon, '👍')
+        self.assertEqual(self.message_action('reaction', emoji='').status_code, 200)
+        self.assertEqual(self.telegram.call_args.args[0].reaction, [])
+        target = Item(id=123, entity=Item(forum=False), input_entity=a.telegram_types.InputPeerUser(123,456))
+        self.telegram.get_dialogs.return_value.append(target)
+        ids = []
+        for _ in range(2):
+            self.assertEqual(self.message_action('forward', destination='123', request_id='a'*32).json, {'forwarded':True})
+            sent = self.telegram.call_args.args[0]
+            self.assertIsInstance(sent, a.telegram_functions.messages.ForwardMessagesRequest)
+            self.assertEqual(sent.id, [7]); self.assertEqual(sent.to_peer, target.input_entity); ids.append(sent.random_id)
+        self.assertEqual(ids[0], ids[1])
+        self.dialog.entity.noforwards = True
+        self.assertEqual(self.message_action('forward', destination='123', request_id='a'*32).status_code, 400)
+
+    def test_reply_targets_stay_in_the_selected_topic_and_keep_retry_identity(self):
+        self.forum()
+        self.telegram.get_messages.return_value = self.message(7, 'Reply target', root=20)
+        self.assertEqual(self.post_chat(topic='20', reply_id='7').status_code, 200)
+        reply = self.telegram.call_args.args[0].reply_to
+        self.assertEqual(reply.reply_to_msg_id, 7); self.assertEqual(reply.top_msg_id, 20)
+        self.telegram.get_messages.return_value = self.message(7, 'Other topic', root=30)
+        count = self.telegram.await_count
+        self.assertEqual(self.post_chat(topic='20', reply_id='7').status_code, 400)
+        self.assertEqual(self.telegram.await_count, count + 1, 'only the topic lookup runs')
+
+    def test_polling_reports_edits_reactions_and_deletions_for_already_loaded_messages(self):
+        edited = self.message(2, 'Edited externally', out=True)
+        edited.edit_date = datetime.now(timezone.utc)
+        edited.reactions = Item(results=[Item(reaction=a.telegram_types.ReactionEmoji('👍'), count=2, chosen_order=0)])
+        self.telegram.get_messages.side_effect = [[], [edited]]
+        response = self.client.get('/api/integrations/telegram/chats/-100123?after=2&known_ids=2,7')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['updated_messages'][0]['text'], 'Edited externally')
+        self.assertTrue(response.json['updated_messages'][0]['edited'])
+        self.assertEqual(response.json['updated_messages'][0]['reactions'], [{'emoji':'👍', 'count':2, 'chosen':True}])
+        self.assertEqual(response.json['deleted_ids'], ['7'])
+
+    def test_message_actions_require_login_csrf_account_and_valid_identifiers(self):
+        route = '/api/integrations/telegram/chats/-100123/messages/7/actions'
+        self.assertEqual(a.app.test_client().post(route).status_code, 302)
+        self.assertEqual(self.client.post(route, data={'action':'edit', 'text':'Edit'}).status_code, 400)
+        for values in ({'topic':'bad'}, {'action':'invalid'}, {'revoke':'maybe'}, {'text':'😀'*2049}, {'emoji':'x'*33}):
+            self.assertEqual(self.message_action(**values).status_code, 400)
+        for ids in ('../7', '2147483648', ','.join(str(i) for i in range(1,52))):
+            self.assertEqual(self.client.get('/api/integrations/telegram/chats/-100123', query_string={'known_ids':ids}).status_code, 400)
+        self.telegram.connect.assert_not_awaited()
+        with a.app.app_context(): a.delete_integration(self.user_id, 'telegram')
+        self.assertEqual(self.message_action(text='Edit').status_code, 409)
+
     def test_regular_groups_receive_chronological_messages_and_have_no_topics(self):
         response=self.client.get('/api/integrations/telegram/chats/-100123')
         self.assertEqual(response.status_code,200)
@@ -232,8 +340,7 @@ class TelegramChatTests(IntegrationFixture):
         anonymous=a.app.test_client()
         self.assertEqual(anonymous.get(route).status_code,302)
         self.assertEqual(self.client.get(route.replace('-100123','-999')).status_code,404)
-        for message in (self.message(7,'File',media=self.video(mime='text/html')),
-                self.message(7,'Large',media=self.video(size=a.TELEGRAM_MEDIA_LIMIT+1)),
+        for message in (self.message(7,'Large',media=self.video(size=a.TELEGRAM_MEDIA_LIMIT+1)),
                 self.message(8,'Wrong ID',media=self.photo())):
             self.telegram.get_messages.return_value=message
             self.assertEqual(self.client.get(route).status_code,404)
@@ -243,6 +350,21 @@ class TelegramChatTests(IntegrationFixture):
         self.telegram.download_media.assert_not_awaited()
         with a.app.app_context():a.delete_integration(self.user_id,'telegram')
         self.assertEqual(self.client.get(route).status_code,404)
+
+    def test_documents_download_as_attachments_without_executing_html(self):
+        message = self.message(7, 'File', media=self.video(mime='text/html'))
+        message.media.document.attributes = [a.telegram_types.DocumentAttributeFilename(file_name='example.html')]
+        self.telegram.get_messages.return_value = [message]
+        data = self.client.get('/api/integrations/telegram/chats/-100123').json['messages'][0]['media']
+        self.assertEqual((data['kind'], data['name']), ('file', 'example.html'))
+        self.telegram.get_messages.return_value = message
+        self.telegram.download_media.return_value = b'<script>danger()</script>'
+        response = self.client.get(data['url'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'application/octet-stream')
+        self.assertIn('attachment;', response.headers['Content-Disposition'])
+        self.assertIn('example.html', response.headers['Content-Disposition'])
+        self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
 
     def test_oversized_media_has_a_clear_fallback_and_failed_downloads_can_retry(self):
         message=self.message(7,'Large video caption',media=self.video(size=a.TELEGRAM_MEDIA_LIMIT+1))

@@ -12,10 +12,25 @@
         <button class="m3e-button m3e-button--text" id="telegram-load-older" type="button" hidden>Load older messages</button>
         <div class="telegram-thread" id="telegram-thread" role="region" aria-label="Telegram message history, including photos and videos" tabindex="0"></div>
         <form id="telegram-send-form" class="telegram-send-form">
+            <p id="telegram-reply-status" role="status" hidden></p>
+            <button class="m3e-button m3e-button--text" id="telegram-cancel-reply" type="button" hidden>Cancel reply</button>
             <label for="telegram-message">Message</label>
             <textarea id="telegram-message" name="text" rows="3" maxlength="4096" placeholder="Write a message…" aria-describedby="telegram-send-status" required disabled></textarea>
             <p id="telegram-send-status" role="status">Choose a conversation before sending.</p>
             <button class="m3e-button m3e-button--filled" id="telegram-send-button" type="submit" disabled><span class="m3e-icon" aria-hidden="true">send</span><span data-telegram-send-label>Send message</span></button>
         </form>
+        <dialog id="telegram-message-dialog" class="chat-action-dialog" aria-labelledby="telegram-action-title">
+            <form id="telegram-action-form">
+                <h3 id="telegram-action-title">Edit message</h3>
+                <div id="telegram-edit-fields"><label for="telegram-edit-text">Message or caption</label><textarea id="telegram-edit-text" rows="5"></textarea></div>
+                <div id="telegram-forward-fields" hidden>
+                    <label for="telegram-forward-chat">Forward to</label><select id="telegram-forward-chat"></select>
+                    <div id="telegram-forward-topic-picker" hidden><label for="telegram-forward-topic">Topic</label><select id="telegram-forward-topic"></select></div>
+                </div>
+                <div id="telegram-reaction-fields" hidden><label for="telegram-reaction">Reaction</label><input id="telegram-reaction" maxlength="32" placeholder="An emoji, or leave blank to remove your reaction"><div class="chat-reaction-picker">{% for emoji in ['👍','❤️','😂','🎉','🔥','👀','🙏','👎'] %}<button type="button" class="m3e-button m3e-button--text" data-telegram-reaction="{{ emoji }}">{{ emoji }}</button>{% endfor %}</div></div>
+                <p id="telegram-action-status" role="status" aria-live="polite"></p>
+                <div class="chat-action-buttons"><button type="button" class="m3e-button m3e-button--text" id="telegram-action-cancel">Cancel</button><button type="submit" class="m3e-button m3e-button--filled" id="telegram-action-save">Save changes</button></div>
+            </form>
+        </dialog>
     </div>
 </div>

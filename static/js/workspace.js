@@ -5,17 +5,27 @@
     const status = document.querySelector('#apps-feed-status');
     const refresh = document.querySelector('#refresh-app-feed');
     const loading = document.querySelector('#apps-feed-loading');
+    const connectionPrompt = document.querySelector('#apps-connection-prompt');
     let selected, controller;
     const load = async button => {
         selected = button;
         window.CentroMailTelegram.close();
         window.CentroMailTeams?.close();
+        window.CentroMailGoogleChat?.close();
         controller?.abort();
         controller = null;
         buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
         document.querySelector('#apps-feed-title').textContent = button.dataset.appName;
         feed.replaceChildren();
         loading.hidden = true;
+        connectionPrompt.hidden = true;
+        if (button.dataset.appConnected === 'false') {
+            connectionPrompt.hidden = false;
+            refresh.disabled = true;
+            feed.removeAttribute('aria-busy');
+            status.textContent = 'Connect Google Chat to open your conversations and spaces.';
+            return;
+        }
         if (!button.dataset.appFeed) {
             refresh.disabled = true;
             feed.removeAttribute('aria-busy');
@@ -45,6 +55,11 @@
                 status.textContent = 'Your Teams chats and team channels.';
                 return;
             }
+            if (button.dataset.appProvider === 'google-chat') {
+                window.CentroMailGoogleChat.open(data);
+                status.textContent = 'Your Google Chat conversations and spaces.';
+                return;
+            }
             for (const message of data.messages || []) {
                 const row = document.createElement('article');
                 row.className = 'apps-feed-message';
@@ -65,6 +80,6 @@
     };
     buttons.forEach(button => button.addEventListener('click', () => load(button)));
     refresh.addEventListener('click', () => { if (selected?.dataset.appProvider === 'teams') window.CentroMailTeams.refresh(); else if (selected) load(selected); });
-    document.querySelector('#workspace-tab-apps').addEventListener('click', () => { if (!selected) load(buttons[0]); });
+    document.querySelector('#workspace-tab-apps').addEventListener('click', () => { if (!selected) load(buttons.find(button => button.dataset.appConnected !== 'false') || buttons[0]); });
     if (location.hash === '#apps') document.querySelector('#workspace-tab-apps').click();
 })();

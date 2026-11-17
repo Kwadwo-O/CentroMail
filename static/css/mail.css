@@ -294,7 +294,12 @@ body:has(.gmail-app) .site-footer {
     font-weight: 700;
 }
 
-.workspace-tab .material-symbols-rounded,
+.workspace-tab > .m3e-icon {
+    inline-size: 1em;
+    block-size: 1em;
+    flex-shrink: 0;
+}
+
 .inbox-tab .ui-icon {
     font-size: 19px;
     height: 17px;
@@ -1596,6 +1601,7 @@ body:has(.message-page) .site-footer { display: none; }
 .apps-connection strong,.apps-connection small { display:block; overflow-wrap:anywhere; }
 .apps-connection small { font-size:.75rem; font-weight:400; margin-top:4px; }
 .apps-feed-panel { min-width:0; padding:20px; }
+#apps-connection-prompt[hidden] { display:none; }
 .apps-feed-header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .apps-feed-header > div { flex:1; min-width:180px; }
 .apps-feed-header h2 { margin:0; }
@@ -1628,8 +1634,8 @@ body:has(.message-page) .site-footer { display: none; }
 .telegram-topic-picker select,.telegram-mobile-picker select { width:100%; min-width:0; min-height:44px; padding:8px 12px; font:inherit; border:1px solid var(--m3e-sys-color-outline); border-radius:var(--m3e-sys-shape-corner-small); background:var(--m3e-sys-color-surface); color:var(--m3e-sys-color-on-surface); }
 .telegram-thread { max-height:55dvh; min-height:180px; overflow-y:auto; padding:4px; border-radius:var(--m3e-sys-shape-corner-medium); }
 .telegram-thread:focus-visible { outline:var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary); outline-offset:2px; }
-.telegram-message.is-outgoing { background:var(--m3e-sys-color-secondary-container); color:var(--m3e-sys-color-on-secondary-container); }
-.telegram-message.is-outgoing time { color:inherit; }
+:is(.telegram-message,.google-chat-message).is-outgoing { background:var(--m3e-sys-color-secondary-container); color:var(--m3e-sys-color-on-secondary-container); }
+:is(.telegram-message,.google-chat-message).is-outgoing time { color:inherit; }
 .telegram-message-media { margin-top:12px; }
 .telegram-message-media img,.telegram-message-media video { display:block; width:auto; max-width:100%; max-height:360px; border-radius:var(--m3e-sys-shape-corner-medium); object-fit:contain; background:var(--m3e-sys-color-surface-container-low); }
 .telegram-message-media video { width:100%; min-height:120px; }
@@ -1638,6 +1644,16 @@ body:has(.message-page) .site-footer { display: none; }
 .telegram-send-form { display:grid; gap:8px; margin-top:16px; }
 .telegram-send-form textarea { resize:vertical; width:100%; box-sizing:border-box; padding:12px; font:inherit; border:1px solid var(--m3e-sys-color-outline); border-radius:var(--m3e-sys-shape-corner-medium); background:var(--m3e-sys-color-surface); color:var(--m3e-sys-color-on-surface); }
 .telegram-send-form .m3e-button { justify-self:end; }
+.chat-action-dialog { width:min(540px,calc(100dvw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; border:1px solid var(--m3e-sys-color-outline-variant); border-radius:var(--m3e-sys-shape-corner-extra-large); background:var(--m3e-sys-color-surface); color:var(--m3e-sys-color-on-surface); padding:24px; }
+.chat-action-dialog::backdrop { background:color-mix(in srgb,var(--m3e-sys-color-scrim) 40%,transparent); }
+.chat-action-dialog form,.chat-action-dialog label { display:grid; gap:8px; }
+.chat-action-dialog input,.chat-action-dialog select,.chat-action-dialog textarea { width:100%; min-width:0; min-height:44px; padding:12px; border:1px solid var(--m3e-sys-color-outline); border-radius:var(--m3e-sys-shape-corner-small); background:var(--m3e-sys-color-surface-container-low); color:inherit; font:inherit; }
+.chat-action-dialog [hidden] { display:none; }
+.chat-action-dialog input[type=checkbox] { width:24px; min-height:24px; }
+.chat-action-buttons,.chat-reaction-picker,.chat-message-footer { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.chat-action-buttons { justify-content:flex-end; margin-top:12px; }
+.chat-message-footer { margin-top:8px; }
+.chat-message-meta { font-size:.75rem; opacity:.8; }
 .telegram-mobile-picker { display:none; }
 .reply-button-wrap { display:inline-flex; border-radius:var(--m3e-sys-shape-corner-full); }
 .reply-button-wrap.is-positioned { position:fixed; z-index:80; gap:4px; padding:4px; background:var(--m3e-sys-color-surface); border:1px solid var(--m3e-sys-color-outline-variant); }

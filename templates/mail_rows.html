@@ -15,7 +15,7 @@
         {% if message.is_no_reply %}<span class="message-no-reply m3e-badge m3e-badge--large">No reply</span>{% endif %}
         <span class="message-summary"><b class="message-subject">{{ message.subject }}</b><span class="message-preview"> — {{ message.preview }}</span></span>
     </a>
-    <time class="message-date" title="{{ message.date or message.time }}">{{ message.time }}</time>
+    <time class="message-date" title="{{ message.date or message.time }}">{{ mail_list_time(message) }}</time>
     {% if message.otp_code %}<button class="m3e-button m3e-button--tonal message-code" type="button" data-copy-code="{{ message.otp_code }}" aria-label="Copy verification code {{ message.otp_code }}"><span class="m3e-icon" aria-hidden="true">content_copy</span>Copy code <code>{{ message.otp_code }}</code></button>{% endif %}
 </article>
 {% endfor %}

@@ -39,6 +39,28 @@ class MailFeatureTests(IntegrationFixture):
         response.json.return_value = {'id':identifier, 'labelIds':['INBOX'], 'messagesUnread':2, 'messagesTotal':1}
         return response
 
+    def test_cached_emails_from_today_show_local_time_and_older_emails_keep_date(self):
+        today = a.datetime.now().astimezone().replace(hour=15, minute=24, second=0, microsecond=0)
+        yesterday = today - a.timedelta(days=1)
+        items = []
+        for identifier, when in (('today', today), ('yesterday', yesterday)):
+            metadata = a.gmail_metadata_from_payload(self.payload(identifier=identifier), identifier)
+            metadata.update(internal_date=int(when.timestamp()*1000), time=when.strftime('%b %d').replace(' 0',' '),
+                            date=when.strftime('%a, %b %d, %Y at %I:%M %p').replace(' 0',' '))
+            items.append(metadata)
+            with a.app.app_context(): a.gmail_cache_put(self.user_id,identifier,metadata=metadata)
+        with patch.object(a, 'datetime', wraps=a.datetime) as clock:
+            clock.now.return_value = today
+            page = self.client.get('/inbox')
+            self.assertEqual(page.status_code, 200)
+            self.assertIn(b'>3:24 PM</time>', page.data)
+            self.assertIn(('>'+items[1]['time']+'</time>').encode(), page.data)
+            self.assertIn(('title="'+items[0]['date']+'"').encode(), page.data)
+            self.assertEqual(a.mail_list_time({**items[1], 'internal_date':items[0]['internal_date']}), items[1]['time'])
+            self.assertEqual(a.mail_list_time({'time':'Unknown date'}), 'Unknown date')
+            clock.now.return_value = today + a.timedelta(days=1)
+            self.assertEqual(a.mail_list_time(items[0]), items[0]['time'])
+
     def test_gmail_status_syncs_both_directions_without_extending_metadata_ttl(self):
         metadata = a.gmail_metadata_from_payload(self.payload(), 'sample')
         metadata.update(unread=True, label_ids=['INBOX','UNREAD','STARRED'])
