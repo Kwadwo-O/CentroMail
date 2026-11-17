@@ -21,6 +21,9 @@ class AuthTests(unittest.TestCase):
     password = "correct horse battery staple"
 
     def setUp(self):
+        dns = patch('email_validation.resolver')
+        self.addCleanup(dns.stop)
+        dns.start().resolve.return_value = [Mock(preference=10, exchange='mx.example.com.')]
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.previous_config = {

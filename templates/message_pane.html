@@ -1,10 +1,11 @@
 <article class="reader-message" data-mark-email-read="{{ 'true' if message.unread else 'false' }}" data-read-message-id="{{ message.id }}" data-read-account="{{ mail_account_key }}" data-read-folder="{{ folder }}" data-read-url="{{ url_for('mail_action') }}" data-read-csrf="{{ csrf_token() }}">
     {% from '_sender_avatar.html' import sender_avatar %}
+    {% from '_email_tags.html' import spam_tag %}
     {% set subject_heading = 'h2' if request.args.get('pane') == '1' else 'h1' %}
     <{{ subject_heading }} class="reader-subject">{{ message.subject }}</{{ subject_heading }}>
     <header class="reader-message-header m3e-card m3e-card--filled">
         {{ sender_avatar(message, 'reader-sender-avatar') }}
-        <div class="reader-sender"><strong>{{ message.sender }}</strong><span>{{ message.email }}</span></div>
+        <div class="reader-sender"><strong>{{ message.sender }}</strong><span>{{ message.email }}</span>{{ spam_tag(message, folder) }}</div>
         <time>{{ message.date or message.time }}</time>
     </header>
     <div class="reader-actions" role="group" aria-label="Email actions">

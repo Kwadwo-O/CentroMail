@@ -28,6 +28,7 @@ import imaplib
 import smtplib
 import email_providers
 import graph_mail
+from email_validation import email_address_error
 from sender_logos import logo_cdn_enabled, sender_logo_source
 import bleach
 import tinycss2
@@ -128,7 +129,6 @@ def load_secret_key():
 
 
 app.secret_key = load_secret_key()
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def get_db():
     if "db" not in g:
@@ -235,7 +235,7 @@ def normalize_email(email):
 
 
 def valid_email(email):
-    return len(email) <= 254 and EMAIL_RE.fullmatch(email) is not None
+    return not email_address_error(email)
 
 
 def find_user(email):
@@ -1954,6 +1954,8 @@ def register():
             flash("Use between 12 and 1024 characters for your password.", "error")
         elif password != confirmation:
             flash("Your passwords do not match.", "error")
+        elif error := email_address_error(email, check_domain=True):
+            flash(error, "error")
         else:
             db = get_db()
             try:
@@ -2467,6 +2469,8 @@ def compose():
         error_message = "Write a message before sending."
     else:
         try:
+            if error := email_address_error(recipient, check_domain=True):
+                raise RuntimeError(error)
             sent_warning=None
             original = fetch_email_message(g.user, account, reply_id, folder) if reply_id else None
             if reply_id and original is None:

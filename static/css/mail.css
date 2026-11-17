@@ -1414,6 +1414,7 @@ body:has(.gmail-app) .site-footer {
 .message-summary { color: var(--m3e-sys-color-on-surface-variant); display: block; font-size: 0.83rem; line-height: 1.5; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .message-subject { color: var(--m3e-sys-color-on-surface); font-weight: 500; }
 .message.unread .message-subject { font-weight: 650; }
+.message-spam.m3e-badge { background: var(--m3e-sys-color-error-container); color: var(--m3e-sys-color-on-error-container); width: max-content; margin-block: 3px; }
 .message-date { align-self: start; color: var(--m3e-sys-color-on-surface-variant); font-size: 0.72rem; padding-top: 2px; margin-left: 12px; white-space: nowrap; }
 .star-button .material-symbols-rounded { font-size: 21px; font-variation-settings: "FILL" 0; }
 .star-button.starred { color: var(--m3e-sys-color-primary); }

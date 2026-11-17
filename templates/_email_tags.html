@@ -1,0 +1,3 @@
+{% macro spam_tag(message, folder) -%}
+{% if folder == 'spam' or 'SPAM' in message.get('label_ids', []) %}<span class="message-spam m3e-badge m3e-badge--large">Spam</span>{% endif %}
+{%- endmacro %}

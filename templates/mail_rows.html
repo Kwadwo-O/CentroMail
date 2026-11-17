@@ -1,4 +1,5 @@
 {% from '_sender_avatar.html' import sender_avatar %}
+{% from '_email_tags.html' import spam_tag %}
 {% for message in messages %}
 <article class="message{% if message.unread %} unread{% endif %}" data-message-id="{{ message.id }}" data-can-reply="{{ 'true' if message.can_reply else 'false' }}" data-no-reply="{{ 'true' if message.is_no_reply else 'false' }}" data-message-time="{{ message.internal_date|default(0) }}" data-category="{{ message.category }}" data-message-url="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
     <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select message from {{ message.sender }}: {{ message.subject }}"><span class="checkmark"></span></label>
@@ -7,6 +8,7 @@
     <a class="message-details" href="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
         <span class="message-read-state sr-only">{{ 'Unread: ' if message.unread else '' }}</span>
         <strong class="message-sender">{{ message.sender }}</strong>
+        {{ spam_tag(message, folder) }}
         {% if message.is_no_reply %}<span class="message-no-reply m3e-badge m3e-badge--large">No reply</span>{% endif %}
         <span class="message-summary"><b class="message-subject">{{ message.subject }}</b><span class="message-preview"> — {{ message.preview }}</span></span>
     </a>
