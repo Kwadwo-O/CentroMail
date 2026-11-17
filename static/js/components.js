@@ -51,13 +51,23 @@ const watchEmailSize = frame => {
     if (!frame.isConnected) { frameObservers.delete(frame); return; }
     const body = frame.contentDocument?.body;
     if (!body) return;
+    // Email templates may force viewport heights, clipping their overflowing content.
+    for (const root of [frame.contentDocument.documentElement, body]) {
+        root.style.setProperty('height', 'auto', 'important');
+        root.style.setProperty('min-height', '0', 'important');
+        root.style.setProperty('max-height', 'none', 'important');
+    }
     const fit = () => {
         if (!frame.isConnected || frame.contentDocument?.body !== body) return;
-        const height = Math.min(100000, Math.max(64, Math.ceil(body.getBoundingClientRect().height) + 2));
+        const height = Math.min(100000, Math.max(64,
+            Math.ceil(Math.max(body.getBoundingClientRect().height, body.scrollHeight)) + 2));
         if (frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
     };
-    const observer = new ResizeObserver(() => requestAnimationFrame(fit));
+    const scheduleFit = () => requestAnimationFrame(fit);
+    const observer = new ResizeObserver(scheduleFit);
     observer.observe(body);
+    body.addEventListener('load', scheduleFit, true);
+    body.addEventListener('error', scheduleFit, true);
     frameObservers.set(frame, observer);
     fit();
 };
