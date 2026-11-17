@@ -15,6 +15,7 @@ function preferences(saved = {}) {
             addEventListener: (type, fn) => {listeners[type] = fn;}, dispatchEvent() {}, createElement: () => ({dataset: {}})},
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key)},
         matchMedia: () => ({matches: true, addEventListener() {}}), Event: class {}, confirm: () => false,
+        getComputedStyle: () => ({getPropertyValue: () => '800'}),
     };
     vm.runInNewContext(readFileSync('static/js/appearance.js', 'utf8'), context);
     return {appearance: context.window.CentroMailAppearance, root, storage, listeners};
@@ -50,4 +51,22 @@ test('confirmation preference controls shared destructive form submission', () =
     appearance.set('confirm-actions', 'false');
     listeners.submit(event);
     assert.equal(cancelled, false);
+});
+
+test('animation choices persist, validate and reset together without changing inbox preferences', () => {
+    const {appearance, root, storage} = preferences();
+    const keys = groups.find(group => group.key === 'motion').settings.map(item => item.key);
+    for (const key of keys.filter(key => key.endsWith('-motion') && key !== 'reduce-motion')) {
+        appearance.set(key, 'false');
+        assert.equal(storage.get('centromail-' + key), 'false');
+        assert.equal(appearance.get(key), 'false');
+    }
+    appearance.set('motion-speed', '1.4'); appearance.set('motion-intensity', '1.5');
+    assert.equal(root.dataset.cmMotionIntensity, '1.5');
+    assert.throws(() => appearance.set('motion-intensity', '10'));
+    appearance.set('reading-pane', 'page');
+    appearance.reset(keys);
+    assert.equal(appearance.get('motion-intensity'), '1');
+    assert.equal(appearance.get('copy-motion'), 'true');
+    assert.equal(appearance.get('reading-pane'), 'page');
 });

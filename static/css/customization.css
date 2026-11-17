@@ -5,13 +5,13 @@
 :root[data-theme] h1 { font-size:calc(2.5rem * var(--cm-heading-scale)); }
 :root[data-theme] h2 { font-size:calc(1.5rem * var(--cm-heading-scale)); }
 :root[data-theme] h3 { font-size:calc(1.25rem * var(--cm-heading-scale)); }
-:root[data-theme] .landing-hero h1 { font-size:clamp(calc(2.7rem * var(--cm-heading-scale)),6vw,calc(5rem * var(--cm-heading-scale))); }
+:root[data-theme] .landing-hero h1 { font-size:clamp(calc(2.5rem * var(--cm-heading-scale)),4.1vw,calc(3.75rem * var(--cm-heading-scale))); }
 :root[data-theme] .form-panel h1 { font-size:calc(2.1rem * var(--cm-heading-scale)); }
 :root[data-theme] .reader-subject { font-size:calc(1.5rem * var(--cm-heading-scale)); }
 :root[data-cm-underline-links=true] a:not(.m3e-button,.m3e-icon-button,.nav-link,.brand,.landing-brand,.message-details,.mail-nav-link,.dashboard-nav-link) { text-decoration:underline; text-underline-offset:3px; }
 :root[data-theme] :is(.container,.settings-page) { max-width:var(--cm-content-width); }
 :root[data-theme] .container { width:min(var(--cm-content-width),calc(100% - 2.5rem)); }
-:root[data-theme] .landing-shell { width:min(var(--cm-content-width),calc(100% - 40px)); }
+:root[data-theme] .landing-shell { width:min(1160px,var(--cm-content-width),calc(100% - 40px)); }
 :root[data-theme] :is(.settings-content,.dashboard-main) { gap:calc(24px * var(--cm-spacing)); }
 :root[data-theme] :is(.m3e-card,.settings-section,.form-card,.landing-feature,.settings-preview) { padding:var(--cm-card-padding); border-width:var(--cm-border-width); }
 :root[data-theme] :is(.mail-reader,.inbox,.legal-page) { border-width:var(--cm-border-width); }
@@ -51,7 +51,7 @@
 :root[data-cm-dashboard-stats=false] .dashboard-stats,
 :root[data-cm-dashboard-actions=false] .dashboard-panel,
 :root[data-cm-dashboard-tips=false] .dashboard-tip { display:none; }
-:root[data-cm-landing-decoration=false] :is(.landing-preview-wrap,.landing-preview-shape,.landing-floating-note) { display:none; }
+:root[data-cm-landing-decoration=false] .landing-preview-wrap { display:none; }
 :root[data-cm-landing-decoration=false] .landing-hero { grid-template-columns:1fr; }
 :root[data-cm-auth-decoration=false] .auth-shapes { display:none; }
 :root[data-theme] .cm-brand-logo { width:calc(132px * var(--cm-logo-size)); height:auto; object-fit:contain; max-height:72px; }

@@ -1,65 +1,145 @@
-@layer cm.overrides {
-    :root {
-        --cm-motion-fast: calc(160ms * var(--cm-motion-speed,1));
-        --cm-motion-enter: calc(340ms * var(--cm-motion-speed,1));
-        --cm-motion-ease: var(--m3e-sys-motion-spring-default-spatial-bezier, cubic-bezier(.16,1,.3,1));
-    }
-    :root[data-cm-motion-style="standard"] { --cm-motion-enter: 220ms; }
+:root {
+    --cm-motion-fast: calc(var(--m3e-sys-motion-spring-fast-spatial-duration) * var(--cm-motion-speed,1));
+    --cm-motion-enter: calc(var(--m3e-sys-motion-spring-default-spatial-duration) * var(--cm-motion-speed,1));
+    --cm-motion-ease: var(--m3e-sys-motion-spring-fast-spatial-easing);
+    --cm-effects-time: calc(var(--m3e-sys-motion-spring-fast-effects-duration) * var(--cm-motion-speed,1));
+    --cm-effects-ease: var(--m3e-sys-motion-spring-fast-effects-easing);
+    --cm-press-time: calc(var(--m3e-sys-motion-spring-default-effects-duration) * var(--cm-motion-speed,1));
+    --cm-button-rest-radius: calc(var(--cm-button-height,44px) / 2);
+    --cm-motion-distance: var(--cm-motion-intensity,1);
+    --cm-theme-time: var(--cm-effects-time);
+    --cm-selection-time: var(--cm-effects-time);
+    --cm-control-time: var(--cm-motion-fast);
+    --cm-focus-time: var(--cm-motion-fast);
+    --cm-expand-time: var(--cm-motion-enter);
+    --cm-panel-time: var(--cm-motion-enter);
+    --cm-reader-time: var(--cm-motion-fast);
+    --cm-drag-time: var(--cm-motion-fast);
+}
+:root[data-cm-motion-style="standard"] {
+    --cm-motion-distance: calc(var(--cm-motion-intensity,1) * .5);
+}
+:root[data-cm-button-shape="rounded"] { --cm-button-rest-radius: 12px; }
+:root[data-cm-button-shape="square"] { --cm-button-rest-radius: 4px; }
+:root[data-cm-press-motion="false"] { --cm-press-time: 0s; }
+:root[data-cm-theme-motion="false"] { --cm-theme-time: 0s; }
+:root[data-cm-selection-motion="false"] { --cm-selection-time: 0s; }
+:root[data-cm-control-motion="false"] { --cm-control-time: 0s; }
+:root[data-cm-focus-motion="false"] { --cm-focus-time: 0s; }
+:root[data-cm-expand-motion="false"] { --cm-expand-time: 0s; }
+:root[data-cm-panel-motion="false"] { --cm-panel-time: 0s; }
+:root[data-cm-reader-motion="false"] { --cm-reader-time: 0s; }
+:root[data-cm-drag-motion="false"] { --cm-drag-time: 0s; }
 
-    /* Animate paint and individual transforms, keeping layout and navigation stable. */
-    body, .site-header, .m3e-card, .form-card, .mail-sidebar, .inbox, .mail-reader, .dashboard-welcome {
-        transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease;
-    }
-    .button, .m3e-button, .m3e-icon-button, .icon-button, .color-swatch, .cm-color-swatch, .dashboard-action,
-    .cm-picker-service, button.cm-connected-item, .cm-primary-link, .mail-nav-link {
-        transition: scale var(--cm-motion-fast) var(--cm-motion-ease),
-            translate var(--cm-motion-fast) var(--cm-motion-ease),
-            background-color 180ms ease, color 180ms ease, border-color 180ms ease,
-            box-shadow 180ms ease;
-    }
-    .button:not(:disabled):active, .m3e-button:not(:disabled):active, .m3e-icon-button:not(:disabled):active,
-    .icon-button:not(:disabled):active, .cm-color-swatch:active, .dashboard-action:active,
-    .cm-picker-service:active, button.cm-connected-item:active { scale: .97; }
-    .cm-nav-icon, .dashboard-action > .m3e-icon, .purpose-actions .m3e-icon {
-        transition: scale 220ms var(--cm-motion-ease), translate 220ms var(--cm-motion-ease);
-    }
-    .m3e-text-field__container, .search-box {
-        transition: background-color 200ms ease, box-shadow 200ms ease;
-    }
-    .cm-color-swatch { transition: scale 180ms var(--cm-motion-ease), box-shadow 220ms ease; }
-    .cm-color-swatch[aria-pressed="true"] { scale: 1.08; }
-    .account-menu, .quick-menu, .profile-menu { transform-origin: top right; }
-    .compose-window { transform-origin: bottom right; }
-    .cm-connection-panel > summary .cm-panel-chevron, .mail-more summary .more-icon {
-        transition: transform 220ms var(--cm-motion-ease);
-    }
-    .switch-track, .switch-track::before, .m3e-switch__handle, .m3e-switch__track {
-        transition: translate 220ms var(--cm-motion-ease), transform 220ms var(--cm-motion-ease),
-            background-color 200ms ease, border-color 200ms ease;
-    }
-    .mail-reader, .cm-connected-reader { scroll-behavior: smooth; }
-    dialog[open]::backdrop { animation: cm-backdrop-enter 200ms ease both; }
-    @keyframes cm-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+/* Paint transitions leave layout and fixed Reply coordinates unchanged. */
+:root[data-theme] :is(body, .site-header, .landing-header, .m3e-card, .form-card, .mail-sidebar, .inbox, .mail-reader, .dashboard-welcome, .settings-section, .settings-preview, .settings-motion-preview, .motion-preview-view, .motion-preview-panel, .integration-card) {
+    transition: background-color var(--cm-theme-time) ease, color var(--cm-theme-time) ease, border-color var(--cm-theme-time) ease;
+}
+:root[data-theme] :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .color-swatch, .cm-color-swatch, .dashboard-action, .cm-picker-service, button.cm-connected-item, .cm-primary-link, .mail-nav-link) {
+    transition: border-radius var(--cm-press-time) var(--m3e-sys-motion-spring-default-effects-easing),
+        scale var(--cm-motion-fast) var(--cm-motion-ease), translate var(--cm-motion-fast) var(--cm-motion-ease),
+        background-color var(--cm-theme-time) ease, color var(--cm-theme-time) ease,
+        border-color var(--cm-theme-time) ease, box-shadow var(--cm-drag-time) ease;
+}
+:root[data-theme] :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .color-swatch, .cm-color-swatch, .dashboard-action, .cm-picker-service, button.cm-connected-item):not(:disabled):active {
+    scale: 1;
+}
+:root[data-theme] .m3e-button:not(:disabled):active {
+    border-radius: max(4px,calc(var(--cm-button-rest-radius) + (var(--m3e-comp-button-small-container-shape-pressed) - var(--cm-button-rest-radius)) * var(--cm-motion-distance)));
+}
+:root[data-theme] :is(.cm-nav-icon, .dashboard-action > .m3e-icon, .purpose-actions .m3e-icon) {
+    transition: scale var(--cm-motion-fast) var(--cm-motion-ease), translate var(--cm-motion-fast) var(--cm-motion-ease);
+}
+:root[data-theme] :is(.m3e-text-field__container, .search-box, .settings-search .m3e-search__view, input:not([type=checkbox],[type=radio]), textarea, select) {
+    transition: background-color var(--cm-focus-time) ease, border-color var(--cm-focus-time) ease, box-shadow var(--cm-focus-time) ease;
+}
+:root[data-theme] :is(.cm-color-swatch, .color-swatch)[aria-pressed="true"] { scale: calc(1 + .08 * var(--cm-motion-distance)); }
+:root[data-theme] :is(.message, .telegram-conversation, .cm-teams-conversation, .apps-connection, .settings-navigation a, .workspace-tab, .inbox-tab, .checkmark) {
+    transition: background-color var(--cm-selection-time) ease, border-color var(--cm-selection-time) ease, color var(--cm-selection-time) ease, box-shadow var(--cm-selection-time) ease;
+}
+.account-menu, .quick-menu, .profile-menu { transform-origin: top right; }
+.compose-window { transform-origin: bottom right; }
+:root[data-theme] :is(.cm-panel-chevron, .mail-more summary .more-icon, .settings-preview-summary .m3e-icon, .motion-preview-details summary .m3e-icon) {
+    transition: transform var(--cm-expand-time) var(--cm-motion-ease);
+}
+:root[data-theme] :is(.switch-track, .switch-track::before, .switch-track::after, .m3e-switch__handle, .m3e-switch__track) {
+    transition: translate var(--cm-control-time) var(--cm-motion-ease), transform var(--cm-control-time) var(--cm-motion-ease),
+        background-color var(--cm-control-time) ease, border-color var(--cm-control-time) ease;
+}
+:root[data-theme] .reader-content { transition: opacity var(--cm-reader-time) ease; }
+.mail-reader, .cm-connected-reader { scroll-behavior: smooth; }
+:root[data-theme] .reader-resizer-handle {
+    transition: background-color var(--cm-drag-time) ease, height var(--cm-drag-time) var(--cm-motion-ease), box-shadow var(--cm-drag-time) ease;
+}
+:root[data-theme] :is([data-reply-movable].is-dragging, .reader-resizer.is-dragging .reader-resizer-handle) {
+    box-shadow: 0 0 0 calc(4px * var(--cm-motion-distance)) var(--highlight);
+}
+:root[data-cm-drag-motion="false"] :is([data-reply-movable].is-dragging, .reader-resizer.is-dragging .reader-resizer-handle) { box-shadow: none; }
+:root[data-theme] .mail-sidebar { transition: transform var(--cm-panel-time) var(--cm-motion-ease), background-color var(--cm-theme-time) ease; }
+:root[data-theme] .sidebar-scrim { transition: opacity var(--cm-panel-time) ease; }
+dialog[open]::backdrop { animation: cm-backdrop-enter var(--cm-panel-time) ease both; }
+@keyframes cm-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
 
-    @media (hover: hover) and (pointer: fine) {
-        .button:not(:disabled):hover, .m3e-button:not(.cm-primary-link):not(:disabled):hover { translate: 0 -2px; }
-        .cm-primary-link:hover .cm-nav-icon { scale: 1.1; }
-        .dashboard-action:hover > .m3e-icon:last-child { translate: 3px 0; }
-        .cm-picker-service:hover, button.cm-connected-item:hover { translate: 2px 0; }
-        .m3e-icon-button:not(:disabled):hover, .icon-button:not(:disabled):hover { scale: 1.05; }
+:root[data-theme] .refresh-button[aria-busy="true"] .material-symbols-rounded { animation-duration: calc(1s * var(--cm-motion-speed,1)); }
+:root[data-theme] .gmail-sync-spinner { animation-duration: calc(.8s * var(--cm-motion-speed,1)); }
+:root[data-theme] .m3e-linear-progress:not([aria-valuenow]) { animation-duration: calc(1750ms * var(--cm-motion-speed,1)); }
+:root[data-cm-loading-motion="false"] .m3e-linear-progress, :root[data-cm-loading-motion="false"] .m3e-linear-progress > span { animation: none !important; }
+:root[data-cm-loading-motion="false"] .m3e-linear-progress:not([aria-valuenow]) > .m3e-linear-progress__indicator { left: 32%; right: auto; width: 36%; }
+:root[data-cm-loading-motion="false"] .m3e-linear-progress > .m3e-linear-progress__indicator:nth-child(4) { opacity: 0; }
+:root[data-theme] :is(.apps-skeleton-sender, .apps-skeleton-body) { animation-duration: calc(1.25s * var(--cm-motion-speed,1)); }
+:root[data-theme] :is(#telegram-send-button, #teams-send-button, #compose-window button[type=submit])[aria-busy="true"] {
+    animation: cm-send-pulse calc(1.2s * var(--cm-motion-speed,1)) ease-in-out infinite;
+}
+@keyframes cm-send-pulse { 50% { box-shadow: 0 0 0 calc(4px * var(--cm-motion-distance)) var(--highlight); } }
+:root[data-cm-send-motion="false"] :is(#telegram-send-button, #teams-send-button, #compose-window button[type=submit])[aria-busy="true"],
+:root[data-cm-loading-motion="false"] :is(.gmail-sync-spinner, .refresh-button[aria-busy="true"] .material-symbols-rounded, .apps-skeleton-sender, .apps-skeleton-body) { animation: none !important; }
+
+:root[data-theme] :is(.theme-toggle-icon, [data-theme-menu-icon], [data-inbox-theme-icon]) { transition: transform var(--cm-theme-time) var(--cm-motion-ease); }
+:root[data-cm-panel-motion="false"] :is(m3e-menu, .m3e-menu, m3e-tooltip, .m3e-tooltip),
+:root.reduce-motion :is(m3e-menu, .m3e-menu, m3e-tooltip, .m3e-tooltip, m3e-snackbar-host, .m3e-snackbar-host) {
+    --m3e-sys-motion-spring-fast-spatial-duration: 0ms;
+    --m3e-sys-motion-spring-fast-effects-duration: 0ms;
+    --m3e-sys-motion-spring-default-spatial-duration: 0ms;
+    --m3e-sys-motion-spring-default-effects-duration: 0ms;
+}
+:root[data-cm-notification-motion="false"] :is(m3e-snackbar-host, .m3e-snackbar-host) {
+    --m3e-sys-motion-spring-fast-spatial-duration: 0ms;
+    --m3e-sys-motion-spring-fast-effects-duration: 0ms;
+}
+:root[data-cm-notification-motion="false"] .m3e-snackbar-host__item { scale: 1 !important; opacity: 1 !important; }
+:root[data-theme] .m3e-snackbar-host { --m3e-comp-snackbar-host-bottom-offset: 16px; }
+:root.reduce-motion .m3e-snackbar-host__item { scale: 1 !important; opacity: 1 !important; }
+:root[data-cm-panel-motion="false"] :is(.m3e-menu,.m3e-tooltip)[data-driven],
+:root.reduce-motion :is(.m3e-menu,.m3e-tooltip)[data-driven] { scale: 1 !important; opacity: 1 !important; }
+:root[data-theme] [data-ripple][data-pressed]::before { animation-duration: var(--cm-press-time); }
+
+@media (hover: hover) and (pointer: fine) {
+    :root[data-theme] :is(.button, .m3e-button):not(.cm-primary-link):not(:disabled):hover { translate: none; box-shadow: var(--_m3e-button-shadow-hovered,var(--m3e-sys-elevation-level1-shadow)); }
+    :root[data-theme] .cm-primary-link:hover .cm-nav-icon { scale: calc(1 + .1 * var(--cm-motion-distance)); }
+    :root[data-theme] .dashboard-action:hover > .m3e-icon:last-child { translate: calc(3px * var(--cm-motion-distance)) 0; }
+    :root[data-theme] :is(.cm-picker-service, button.cm-connected-item):hover { translate: calc(2px * var(--cm-motion-distance)) 0; }
+    :root[data-theme] :is(.m3e-icon-button, .icon-button):not(:disabled):hover { scale: calc(1 + .05 * var(--cm-motion-distance)); }
+}
+:root[data-cm-hover-motion="false"] :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .cm-nav-icon, .dashboard-action, .dashboard-action > .m3e-icon, .cm-picker-service, button.cm-connected-item):hover { translate: none; scale: 1; }
+:root[data-cm-press-motion="false"] :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .color-swatch, .cm-color-swatch, .dashboard-action, .cm-picker-service, button.cm-connected-item):active { scale: 1; }
+:root[data-cm-press-motion="false"] .m3e-button:active { border-radius: var(--cm-button-rest-radius); }
+:root[data-cm-press-motion="false"] [data-ripple][data-pressed]::before { animation: none !important; }
+:root[data-cm-hover-motion="false"] .m3e-button:hover { box-shadow: var(--_m3e-button-shadow); }
+:root[data-cm-control-motion="false"] :is(.cm-color-swatch, .color-swatch)[aria-pressed="true"] { scale: 1; }
+
+:root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+}
+:root.reduce-motion :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .cm-nav-icon, .dashboard-action, .dashboard-action > .m3e-icon, .color-swatch, .cm-color-swatch, .cm-picker-service, button.cm-connected-item) { scale: 1 !important; translate: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    :is(m3e-menu, .m3e-menu, m3e-tooltip, .m3e-tooltip, m3e-snackbar-host, .m3e-snackbar-host) {
+        --m3e-sys-motion-spring-fast-spatial-duration: 0ms;
+        --m3e-sys-motion-spring-fast-effects-duration: 0ms;
+        --m3e-sys-motion-spring-default-spatial-duration: 0ms;
+        --m3e-sys-motion-spring-default-effects-duration: 0ms;
     }
-    :root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after {
-        animation: none !important; transition: none !important; scroll-behavior: auto !important;
-    }
-    :root.reduce-motion .button, :root.reduce-motion .m3e-button, :root.reduce-motion .m3e-icon-button,
-    :root.reduce-motion .icon-button, :root.reduce-motion .cm-nav-icon,
-    :root.reduce-motion .dashboard-action, :root.reduce-motion .dashboard-action > .m3e-icon,
-    :root.reduce-motion .cm-color-swatch, :root.reduce-motion .cm-picker-service,
-    :root.reduce-motion button.cm-connected-item { scale: 1; translate: none; }
-    @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-        .button, .m3e-button, .m3e-icon-button, .icon-button, .cm-nav-icon, .dashboard-action,
-        .dashboard-action > .m3e-icon, .cm-color-swatch, .cm-picker-service,
-        button.cm-connected-item { scale: 1; translate: none; }
-    }
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    :root[data-theme] :is(.button, .m3e-button, .m3e-icon-button, .icon-button, .cm-nav-icon, .dashboard-action, .dashboard-action > .m3e-icon, .color-swatch, .cm-color-swatch, .cm-picker-service, button.cm-connected-item) { scale: 1 !important; translate: none !important; }
+    .m3e-snackbar-host__item { scale: 1 !important; opacity: 1 !important; }
+    :is(.m3e-menu, .m3e-tooltip)[data-driven] { scale: 1 !important; opacity: 1 !important; }
 }

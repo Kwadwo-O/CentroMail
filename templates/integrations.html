@@ -99,9 +99,16 @@
                 <p class="eyebrow">Messaging</p>
                 <h2 id="messaging-integrations-heading">Chats and communities</h2>
             </div>
-            <span>3 services</span>
+            <span>4 services</span>
         </div>
         <div class="integration-grid">
+        <article class="integration-card">
+            <div class="integration-card-top"><div class="integration-mark"><img src="{{ url_for('static',filename='images/integrations/teams.svg') }}" alt="" aria-hidden="true"></div><div><h2>Microsoft Teams</h2><p class="integration-subtitle">Work and school chats and team channels</p></div><span class="m3e-badge m3e-badge--large status-pill {% if teams %}is-connected{% endif %}">{{ 'Connected' if teams else 'Not connected' }}</span></div>
+            {% if teams %}<dl class="integration-facts"><div><dt>Account</dt><dd>{{ teams.account.name }}</dd></div><div><dt>Email</dt><dd>{{ teams.account.email }}</dd></div></dl>{% endif %}
+            <p class="integration-copy">Browse your chats, channel posts, and replies in Apps. Sign in with your Microsoft work or school account; channel access may need administrator consent.</p>
+            <details class="integration-guide"><summary>How to connect Microsoft Teams</summary><p>Use the same Microsoft app registration as Outlook and add the Teams callback and delegated permissions from the <a href="https://github.com/Kwadwo-O/CentroMail/blob/main/docs/teams-setup.md" target="_blank" rel="noreferrer">Teams setup guide</a>. Teams connects separately from your email account.</p></details>
+            <div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('teams_connect') }}">{{ 'Reconnect Teams' if teams else 'Connect Microsoft Teams' }}</a>{% if teams %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox') }}#apps">Open Apps</a><form method="post" action="{{ url_for('teams_disconnect') }}" data-confirm="Disconnect Microsoft Teams?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form>{% endif %}</div>
+        </article>
         <article class="integration-card">
             <div class="integration-card-top">
                 <div class="integration-mark integration-mark-telegram"><img src="{{ url_for('static', filename='images/integrations/telegram.svg') }}" alt="" aria-hidden="true" draggable="false"></div>

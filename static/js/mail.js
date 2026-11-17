@@ -194,6 +194,11 @@
             status.textContent = hasMore ? 'Scroll to load more messages.' : (count ? 'All messages loaded.' : '');
             updateSelection();
             if (force) loadCounts(true);
+            if (force && !data.warning) {
+                const message = hasMore ? 'Recent emails synced. Scroll to load older messages.' : 'Emails synced.';
+                status.textContent = message;
+                document.querySelector('#mail-sync-snackbar')?.showSnackbar?.({message, withDismissAction: true, duration: 'short'});
+            }
         } catch (error) {
             if (currentGeneration !== generation) return;
             failed = true;

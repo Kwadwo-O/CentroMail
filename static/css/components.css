@@ -30,6 +30,10 @@ input[aria-invalid="true"] { border-color: var(--m3e-sys-color-error); }
     --m3e-comp-loading-indicator-container-height: 28px;
 }
 .mail-load-feedback { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.cm-progress-shell { display: block; width: min(240px,100%); min-width: 80px; flex-shrink: 1; }
+.cm-progress-shell .m3e-linear-progress { inline-size: 100%; }
+.auth-loading .auth-progress { width: 120px; }
+.mail-load-feedback:has(.cm-progress-shell) { flex-direction: column; width: 100%; }
 .status-pill.m3e-badge { padding-inline: 10px; min-height: 24px; }
 @media (forced-colors: active) {
     .cm-brand-logo { filter: none; background: white; }

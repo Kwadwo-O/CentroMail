@@ -23,6 +23,8 @@ const syncSenderLogos = () => document.querySelectorAll('img.sender-logo').forEa
 syncSenderLogos();
 
 if (document.querySelector('m3e-loading-indicator')) await import('../vendor/m3e/loading-indicator/index.js');
+if (document.querySelector('m3e-linear-progress')) await import('../vendor/m3e/linear-progress/index.js');
+if (document.querySelector('m3e-snackbar-host')) await import('../vendor/m3e/snackbar-host/index.js');
 
 // Generate paired Material roles for custom accents, including light/dark contrast.
 let themeModule, lastTheme;
@@ -115,10 +117,12 @@ if (messagePage) {
 // Stop indeterminate morphs when an indicator is hidden or motion is reduced.
 const indicatorMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const syncIndicators = () => document.querySelectorAll('m3e-loading-indicator').forEach(indicator => {
-    const still = indicatorMotion.matches || document.documentElement.classList.contains('reduce-motion') || !!indicator.closest('[hidden]');
+    const root = document.documentElement;
+    const still = indicatorMotion.matches || root.classList.contains('reduce-motion') || root.dataset.cmLoadingMotion === 'false' || !!indicator.closest('[hidden]');
     if (still) indicator.setAttribute('progress', '0');
     else indicator.removeAttribute('progress');
 });
 indicatorMotion.addEventListener('change', syncIndicators);
 syncIndicators();
-new MutationObserver(syncIndicators).observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ['hidden', 'class']});
+document.addEventListener('centromail-appearance-change', syncIndicators);
+new MutationObserver(syncIndicators).observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'class', 'data-cm-loading-motion']});

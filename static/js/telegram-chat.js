@@ -37,6 +37,7 @@
     const syncComposer = () => {
         field.disabled = !canSend || sending;
         send.disabled = !canSend || sending || !field.value.trim();
+        send.setAttribute('aria-busy', String(sending));
         send.querySelector('[data-telegram-send-label]').textContent = sending ? 'Sending…' : 'Send message';
     };
     const schedule = () => {
@@ -224,7 +225,7 @@
         try {
             await readJson(await fetch(url, {method:'POST',signal:pending.signal,body:new URLSearchParams({text:draft.text,request_id:draft.requestId,csrf_token:pane.dataset.csrf})}));
             if (drafts.get(destination) === draft) drafts.delete(destination);
-            if (key() === destination) { field.value = ''; sendStatus.textContent = 'Message sent.'; loadChat(); }
+            if (key() === destination) { field.value = ''; sendStatus.textContent = 'Message sent.'; window.CentroMailMotion?.feedback(send, 'send'); loadChat(); }
         } catch (error) {
             if (key() === destination) sendStatus.textContent = error.name === 'AbortError' ? 'Send confirmation took too long. Your draft is kept; Refresh to check before retrying.' : error.message;
         } finally { clearTimeout(timeout); sending = false; syncComposer(); schedule(); }

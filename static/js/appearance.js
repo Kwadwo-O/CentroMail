@@ -25,11 +25,18 @@
             'body-weight':'--cm-body-weight','heading-weight':'--cm-heading-weight','heading-scale':'--cm-heading-scale',
             'spacing':'--cm-spacing','content-width':'--cm-content-width','sidebar-width':'--cm-sidebar-width','card-padding':'--cm-card-padding',
             'border-width':'--cm-border-width','button-height':'--cm-button-height','icon-size':'--cm-icon-size','icon-fill':'--cm-icon-fill',
-            'focus-width':'--cm-focus-width','motion-speed':'--cm-motion-speed','loader-size':'--cm-loader-size',
+            'focus-width':'--cm-focus-width','motion-speed':'--cm-motion-speed','motion-intensity':'--cm-motion-intensity','loader-size':'--cm-loader-size',
             'reader-width':'--cm-reader-width','reader-text-size':'--cm-reader-text-size','reader-line-height':'--cm-reader-line-height','logo-size':'--cm-logo-size'};
         for (const [key, variable] of Object.entries(variables)) {
             const unit = ['content-width','sidebar-width','card-padding','border-width','button-height','icon-size','focus-width','loader-size','reader-width','reader-text-size'].includes(key) ? 'px' : key === 'letter-spacing' ? 'em' : '';
             root.style.setProperty(variable, get(key) + unit);
+        }
+        for (const token of ['default-spatial', 'default-effects', 'fast-spatial', 'fast-effects', 'slow-spatial', 'slow-effects']) {
+            for (const field of ['duration', 'easing', 'damping-ratio', 'stiffness']) {
+                root.style.setProperty(`--m3e-sys-motion-spring-${token}-${field}`, `var(--m3e-sys-motion-spring-${get('motion-style')}-${token}-${field})`);
+            }
+            const stiffness = parseFloat(getComputedStyle(root).getPropertyValue(`--m3e-sys-motion-spring-${get('motion-style')}-${token}-stiffness`));
+            if (Number.isFinite(stiffness)) root.style.setProperty(`--m3e-sys-motion-spring-${token}-stiffness`, String(stiffness / Number(get('motion-speed')) ** 2));
         }
         for (const role of ['primary', 'primary-dim', 'surface-tint', 'on-primary']) root.style.removeProperty('--m3e-sys-color-' + role);
         const font = get('font'); root.style.setProperty('--cm-font-family', fontStacks[font]);

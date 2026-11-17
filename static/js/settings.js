@@ -19,6 +19,40 @@
     const categoryButton = document.querySelector('#settings-category-button');
     const mobileSettings = matchMedia('(max-width: 900px)');
     const preview = document.querySelector('.settings-preview');
+    const motionPreview = document.querySelector('.settings-motion-preview');
+    const motionStatus = document.querySelector('#motion-preview-status');
+    const previewKind = document.querySelector('#motion-preview-kind');
+    const previewLoading = motionPreview.querySelector('[data-motion-sample="loading"]');
+    let loadingPreviewTimer;
+    let previewTimer;
+    const previewMotion = () => {
+        clearTimeout(previewTimer);
+        const family = previewKind.value;
+        clearTimeout(loadingPreviewTimer);
+        previewLoading.hidden = family !== 'loading';
+        if (!previewLoading.hidden) loadingPreviewTimer = setTimeout(() => {previewLoading.hidden = true;}, 1800);
+        if (family === 'notification') document.querySelector('#motion-preview-snackbar')?.showSnackbar?.({message: 'Preview: emails synced.', withDismissAction: true, duration: 'short'});
+        window.CentroMailMotion?.preview(motionPreview, family);
+        motionStatus.textContent = !window.CentroMailMotion?.enabled() ? 'Motion is reduced by your settings or device preference.' : family !== 'all' && !window.CentroMailMotion.enabled(family) ? 'This animation is switched off. Enable it to preview.' : 'Playing your enabled animations. No message is sent.';
+    };
+    document.querySelector('#replay-motion-preview').addEventListener('click', previewMotion);
+    previewKind.addEventListener('change', previewMotion);
+    motionPreview.querySelector('[data-motion-sample="copy"]').addEventListener('click', event => {
+        const button = event.currentTarget;
+        button.querySelector('.m3e-icon').textContent = 'check';
+        window.CentroMailMotion?.feedback(button, 'copy');
+        motionStatus.textContent = 'Copy animation preview. Your clipboard is unchanged.';
+    });
+    motionPreview.querySelector('[data-motion-sample="send"]').addEventListener('click', event => {
+        window.CentroMailMotion?.feedback(event.currentTarget, 'send');
+        motionStatus.textContent = 'Send animation preview. No message is sent.';
+    });
+    document.addEventListener('centromail-appearance-change', () => {
+        if (!motionPreview.hidden) {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(previewMotion, 80);
+        }
+    });
     const page = document.querySelector('.settings-page');
     const header = document.querySelector('.site-header');
     const syncHeader = () => page.style.setProperty('--settings-header-offset', getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().height + 'px' : '0px');
@@ -44,6 +78,9 @@
             if (sectionMatch) matches++;
             section.hidden = query ? !(sectionMatch || rows.some(row => !row.hidden)) : section.dataset.settingsSection !== category;
         });
+        const showMotion = !document.querySelector('#settings-motion').hidden;
+        motionPreview.hidden = !showMotion;
+        document.querySelector('.settings-content').classList.toggle('has-motion-preview', showMotion);
         links.forEach(link => { if (!query && link.dataset.settingsNav === category) link.setAttribute('aria-current','location'); else link.removeAttribute('aria-current'); });
         const categoryItems = [...categoryMenu.querySelectorAll('m3e-menu-item')];
         categoryItems.forEach(item => {

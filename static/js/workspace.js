@@ -9,6 +9,7 @@
     const load = async button => {
         selected = button;
         window.CentroMailTelegram.close();
+        window.CentroMailTeams?.close();
         controller?.abort();
         controller = null;
         buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
@@ -39,6 +40,11 @@
                 status.textContent = 'Your recent Telegram conversations.';
                 return;
             }
+            if (button.dataset.appProvider === 'teams') {
+                window.CentroMailTeams.open(data);
+                status.textContent = 'Your Teams chats and team channels.';
+                return;
+            }
             for (const message of data.messages || []) {
                 const row = document.createElement('article');
                 row.className = 'apps-feed-message';
@@ -58,6 +64,7 @@
         }
     };
     buttons.forEach(button => button.addEventListener('click', () => load(button)));
-    refresh.addEventListener('click', () => { if (selected) load(selected); });
+    refresh.addEventListener('click', () => { if (selected?.dataset.appProvider === 'teams') window.CentroMailTeams.refresh(); else if (selected) load(selected); });
     document.querySelector('#workspace-tab-apps').addEventListener('click', () => { if (!selected) load(buttons[0]); });
+    if (location.hash === '#apps') document.querySelector('#workspace-tab-apps').click();
 })();

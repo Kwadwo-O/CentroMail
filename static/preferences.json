@@ -627,9 +627,9 @@
   },
   {
     "key": "motion",
-    "title": "Motion and loading",
+    "title": "Animations and loading",
     "icon": "animation",
-    "description": "Choose quieter motion or a more expressive feel.",
+    "description": "Tune each animation, then try your choices in the live preview. Changes apply immediately and stay saved on this browser.",
     "settings": [
       {
         "key": "reduce-motion",
@@ -660,7 +660,7 @@
       {
         "key": "motion-speed",
         "label": "Animation speed",
-        "description": "Duration of page and panel transitions.",
+        "description": "Make animations throughout the app faster or more relaxed.",
         "default": "1",
         "type": "select",
         "id": "motion-speed-preference",
@@ -680,9 +680,31 @@
         ]
       },
       {
+        "key": "motion-intensity",
+        "label": "Animation intensity",
+        "description": "How far elements move, lift, and spring. Fades remain gentle.",
+        "default": "1",
+        "type": "select",
+        "id": "motion-intensity-preference",
+        "choices": [
+          {
+            "value": "0.5",
+            "label": "Gentle"
+          },
+          {
+            "value": "1",
+            "label": "Balanced"
+          },
+          {
+            "value": "1.5",
+            "label": "Lively"
+          }
+        ]
+      },
+      {
         "key": "hover-motion",
         "label": "Animate hover",
-        "description": "Allow buttons to lift or scale when hovered.",
+        "description": "Use M3E hover states and elevation for buttons and navigation.",
         "default": "true",
         "type": "switch",
         "id": "hover-motion-preference"
@@ -690,10 +712,138 @@
       {
         "key": "entrance-motion",
         "label": "Animate entrances",
-        "description": "Animate content as it first enters the viewport.",
+        "description": "Reveal page sections as they first enter the viewport.",
         "default": "true",
         "type": "switch",
         "id": "entrance-motion-preference"
+      },
+      {
+        "key": "press-motion",
+        "label": "Button presses",
+        "description": "Use M3E button shape changes and ripples when clicked or tapped.",
+        "default": "true",
+        "type": "switch",
+        "id": "press-motion-preference"
+      },
+      {
+        "key": "list-motion",
+        "label": "Message arrivals",
+        "description": "Stagger newly loaded emails and chats into place without shifting the list.",
+        "default": "true",
+        "type": "switch",
+        "id": "list-motion-preference"
+      },
+      {
+        "key": "navigation-motion",
+        "label": "View switching",
+        "description": "Fade between Email, Apps, inbox categories, and Settings sections.",
+        "default": "true",
+        "type": "switch",
+        "id": "navigation-motion-preference"
+      },
+      {
+        "key": "panel-motion",
+        "label": "Menus and dialogs",
+        "description": "Ease menus and the compose window into view, with a soft dialog backdrop.",
+        "default": "true",
+        "type": "switch",
+        "id": "panel-motion-preference"
+      },
+      {
+        "key": "reader-motion",
+        "label": "Reading pane",
+        "description": "Smooth the inbox width when opening or closing mail, and reveal the loaded email.",
+        "default": "true",
+        "type": "switch",
+        "id": "reader-motion-preference"
+      },
+      {
+        "key": "expand-motion",
+        "label": "Expanding sections",
+        "description": "Reveal conversation history, setup guides, and FAQs as they expand.",
+        "default": "true",
+        "type": "switch",
+        "id": "expand-motion-preference"
+      },
+      {
+        "key": "selection-motion",
+        "label": "Selection and stars",
+        "description": "Ease row highlights and give stars and selected controls a small pop.",
+        "default": "true",
+        "type": "switch",
+        "id": "selection-motion-preference"
+      },
+      {
+        "key": "copy-motion",
+        "label": "Copy code feedback",
+        "description": "Celebrate a successfully copied verification code with a checkmark pop.",
+        "default": "true",
+        "type": "switch",
+        "id": "copy-motion-preference"
+      },
+      {
+        "key": "send-motion",
+        "label": "Sending feedback",
+        "description": "Pulse while sending and animate the send icon after a message is confirmed.",
+        "default": "true",
+        "type": "switch",
+        "id": "send-motion-preference"
+      },
+      {
+        "key": "notification-motion",
+        "label": "Notifications",
+        "description": "Gently reveal status messages, confirmations, and errors.",
+        "default": "true",
+        "type": "switch",
+        "id": "notification-motion-preference"
+      },
+      {
+        "key": "focus-motion",
+        "label": "Field focus",
+        "description": "Ease field borders and surfaces while keeping keyboard focus visible immediately.",
+        "default": "true",
+        "type": "switch",
+        "id": "focus-motion-preference"
+      },
+      {
+        "key": "control-motion",
+        "label": "Switches and choices",
+        "description": "Slide switch handles and animate changes to selected options.",
+        "default": "true",
+        "type": "switch",
+        "id": "control-motion-preference"
+      },
+      {
+        "key": "theme-motion",
+        "label": "Theme changes",
+        "description": "Blend surface and text colours when changing your theme.",
+        "default": "true",
+        "type": "switch",
+        "id": "theme-motion-preference"
+      },
+      {
+        "key": "drag-motion",
+        "label": "Dragging and resizing",
+        "description": "Highlight Reply while dragging and the reading-pane handle while resizing.",
+        "default": "true",
+        "type": "switch",
+        "id": "drag-motion-preference"
+      },
+      {
+        "key": "media-motion",
+        "label": "Loaded photos and videos",
+        "description": "Fade in successfully loaded chat media and sender photos.",
+        "default": "true",
+        "type": "switch",
+        "id": "media-motion-preference"
+      },
+      {
+        "key": "loading-motion",
+        "label": "Loading motion",
+        "description": "Animate refresh icons, loading shapes, and placeholder pulses. Status text remains visible when off.",
+        "default": "true",
+        "type": "switch",
+        "id": "loading-motion-preference"
       },
       {
         "key": "smooth-scroll",
@@ -741,9 +891,18 @@
         "type": "select",
         "id": "mail-sort-preference",
         "choices": [
-          {"value": "replyable", "label": "Replyable first"},
-          {"value": "newest", "label": "Newest first"},
-          {"value": "noreply", "label": "No-reply first"}
+          {
+            "value": "replyable",
+            "label": "Replyable first"
+          },
+          {
+            "value": "newest",
+            "label": "Newest first"
+          },
+          {
+            "value": "noreply",
+            "label": "No-reply first"
+          }
         ]
       },
       {

@@ -1,0 +1,20 @@
+<section class="cm-teams-workspace" id="teams-chat-pane" aria-label="Microsoft Teams chats and channels" data-conversations-url="{{ url_for('teams_conversations') }}" data-csrf="{{ csrf_token() }}" hidden>
+    <aside class="cm-teams-sidebar" aria-label="Teams conversations">
+        <label for="teams-source">Browse<select id="teams-source"><option value="chats">Chats</option><option value="channels">Team channels</option></select></label>
+        <div id="teams-team-picker" hidden><label for="teams-team">Team<select id="teams-team"></select></label><button class="m3e-button m3e-button--text" id="teams-more-teams" type="button" hidden>More teams</button></div>
+        <p id="teams-list-status" role="status" aria-live="polite"></p>
+        <div id="teams-conversations" class="cm-teams-conversations"></div>
+        <button class="m3e-button m3e-button--text" id="teams-more-conversations" type="button" hidden>More conversations</button>
+    </aside>
+    <div class="cm-teams-reader">
+        <header class="cm-teams-heading"><h3 id="teams-chat-title">Choose a conversation</h3><p id="teams-chat-status" role="status" aria-live="polite"></p></header>
+        <span class="cm-progress-shell" id="teams-chat-loading" aria-hidden="true" hidden><m3e-linear-progress aria-label="Loading Teams messages"></m3e-linear-progress></span>
+        <button class="m3e-button m3e-button--text" id="teams-older-messages" type="button" hidden>Older messages</button>
+        <div id="teams-thread" class="cm-teams-thread" aria-label="Teams messages"></div>
+        <form id="teams-send-form" class="cm-teams-composer">
+            <p id="teams-reply-status" role="status" hidden></p><button class="m3e-button m3e-button--text" id="teams-cancel-reply" type="button" hidden>Back to channel</button>
+            <label for="teams-message-text">Message<textarea id="teams-message-text" rows="3" maxlength="4096" placeholder="Write a message…" disabled required></textarea></label>
+            <div><p id="teams-send-status" role="status" aria-live="polite">Choose a chat or channel to send a message.</p><button class="m3e-button m3e-button--filled" id="teams-send-button" type="submit" disabled><span class="m3e-icon" aria-hidden="true">send</span><span data-teams-send-label>Send message</span></button></div>
+        </form>
+    </div>
+</section>

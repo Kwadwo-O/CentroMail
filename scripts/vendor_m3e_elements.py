@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 package = root / 'node_modules/@kyralabs/m3e-elements'
 source = package / 'dist'
 destination = root / 'static/vendor/m3e'
-pending = [source / 'loading-indicator/index.js', source / 'menu/index.js', source / 'tooltip/index.js', source / 'ripple/index.js']
+pending = [source / f'{name}/index.js' for name in ('loading-indicator', 'linear-progress', 'snackbar-host', 'menu', 'tooltip', 'ripple')]
 copied = set()
 while pending:
     path = pending.pop().resolve()

@@ -131,6 +131,7 @@
             status.textContent = 'Verification code copied.';
             const icon = button.querySelector('.m3e-icon');
             icon.textContent = 'check';
+            window.CentroMailMotion?.feedback(button, 'copy');
             setTimeout(() => { if (icon.isConnected) icon.textContent = 'content_copy'; }, 1800);
         } catch {
             status.textContent = 'Could not copy automatically. Select the code and copy it.';

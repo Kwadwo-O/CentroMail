@@ -29,6 +29,7 @@ import imaplib
 import smtplib
 import email_providers
 import graph_mail
+import graph_teams
 from email_validation import email_address_error
 from sender_logos import logo_cdn_enabled, sender_logo_source
 import bleach
@@ -77,6 +78,7 @@ app.config.update(
     MICROSOFT_CLIENT_SECRET=os.environ.get("MICROSOFT_CLIENT_SECRET"),
     MICROSOFT_TENANT=os.environ.get("MICROSOFT_TENANT", "common"),
     MICROSOFT_REDIRECT_URI=os.environ.get("MICROSOFT_REDIRECT_URI"),
+    MICROSOFT_TEAMS_REDIRECT_URI=os.environ.get("MICROSOFT_TEAMS_REDIRECT_URI"),
     WHATSAPP_APP_SECRET=os.environ.get("WHATSAPP_APP_SECRET"),
     GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
     GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
@@ -112,6 +114,11 @@ microsoft = oauth.register(name="microsoft", client_id=app.config["MICROSOFT_CLI
     authorize_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/authorize",
     access_token_url=f"https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/token",
     client_kwargs={"scope":"offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send", "default_timeout":(5,20)})
+teams_oauth = oauth.register(name='teams', client_id=app.config['MICROSOFT_CLIENT_ID'],
+    client_secret=app.config['MICROSOFT_CLIENT_SECRET'],
+    authorize_url=f'https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/authorize',
+    access_token_url=f'https://login.microsoftonline.com/{microsoft_tenant}/oauth2/v2.0/token',
+    client_kwargs={'scope': graph_teams.SCOPES, 'default_timeout': (5,20)})
 
 
 def load_secret_key():
@@ -322,6 +329,7 @@ PROTECTED_ENDPOINTS = {
     "disconnect_discord_route", "connect_social_route", "test_social_route",
     "disconnect_social_route", "integration_messages", "connect_email", "disconnect_email", "microsoft_callback",
     "telegram_chat_route", "telegram_photo_route", "telegram_media_route",
+    "teams_connect", "teams_callback", "teams_disconnect", "teams_conversations", "teams_messages",
 }
 
 
@@ -405,7 +413,7 @@ def microsoft_access_token(account):
     if token.get("access_token") and token.get("expires_at",0) > time.time()+60:
         return token["access_token"]
     if not token.get("refresh_token"):
-        raise RuntimeError("Reconnect Microsoft to refresh mail access.")
+        raise RuntimeError("Reconnect Microsoft to refresh access.")
     response = requests.post(f"https://login.microsoftonline.com/{app.config['MICROSOFT_TENANT']}/oauth2/v2.0/token",
         data={"grant_type":"refresh_token","refresh_token":token["refresh_token"],"client_id":app.config["MICROSOFT_CLIENT_ID"],"client_secret":app.config["MICROSOFT_CLIENT_SECRET"]},timeout=(5,20))
     response.raise_for_status(); refreshed=response.json()
@@ -648,6 +656,13 @@ def gmail_message_date(metadata):
     return metadata.get("time", "")
 
 
+def email_html_text(source):
+    text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", source)
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(r"(?i)</p\s*>|</div\s*>|</tr\s*>", "\n", text)
+    return html.unescape(re.sub(r"<[^>]+>", " ", text)).strip()
+
+
 def decode_gmail_body(payload):
     """Return readable text and safe HTML from Gmail's nested MIME payload."""
     plain_parts = []
@@ -676,10 +691,7 @@ def decode_gmail_body(payload):
     if plain_parts:
         plain_text = "\n\n".join(part.strip() for part in plain_parts if part.strip()).strip()
     elif html_parts:
-        text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", "\n".join(html_parts))
-        text = re.sub(r"(?i)<br\s*/?>", "\n", text)
-        text = re.sub(r"(?i)</p\s*>|</div\s*>|</tr\s*>", "\n", text)
-        plain_text = html.unescape(re.sub(r"<[^>]+>", " ", text)).strip()
+        plain_text = email_html_text("\n".join(html_parts))
     else:
         plain_text = "(This email has no readable message body.)"
 
@@ -1122,12 +1134,18 @@ TELEGRAM_MEDIA_TYPES = {'image/jpeg': 'photo', 'image/png': 'photo', 'image/webp
     'image/gif': 'photo', 'video/mp4': 'video', 'video/webm': 'video', 'video/ogg': 'video'}
 
 
+def telegram_photo_size(photo):
+    return max((size for size in photo.sizes if isinstance(size, (telegram_types.PhotoSize,
+        telegram_types.PhotoSizeProgressive, telegram_types.PhotoCachedSize, telegram_types.PhotoStrippedSize))),
+        key=lambda size: getattr(size, 'size', None) or max(getattr(size, 'sizes', []) or [len(getattr(size, 'bytes', b''))]),
+        default=None)
+
+
 def telegram_message_media(message, chat_id):
     media = getattr(message, 'media', None)
     if isinstance(media, telegram_types.MessageMediaPhoto) and isinstance(media.photo, telegram_types.Photo):
-        sizes = media.photo.sizes
-        if not sizes: return None
-        photo = sizes[-1]
+        photo = telegram_photo_size(media.photo)
+        if photo is None: return None
         size = getattr(photo, 'size', None) or max(getattr(photo, 'sizes', []) or [len(getattr(photo, 'bytes', b''))])
         mime = 'image/jpeg'
     elif isinstance(media, telegram_types.MessageMediaDocument) and isinstance(media.document, telegram_types.Document):
@@ -1207,7 +1225,8 @@ def telegram_message_download(config, user_id, chat_id, message_id):
         media = telegram_message_media(message, chat_id)
         if not media: raise ValueError('This message does not contain a supported photo or video.')
         if not media['available']: raise ValueError('Open Telegram for media larger than 64 MB.')
-        kwargs = {'thumb': message.media.photo.sizes[-1]} if isinstance(message.media, telegram_types.MessageMediaPhoto) else {}
+        # Telethon accepts progressive photo sizes by key, but not by object.
+        kwargs = {'thumb': telegram_photo_size(message.media.photo).type} if isinstance(message.media, telegram_types.MessageMediaPhoto) else {}
         content = await client.download_media(message, file=bytes, **kwargs)
         if not isinstance(content, bytes) or not content or len(content) > TELEGRAM_MEDIA_LIMIT:
             raise ValueError('This media could not be loaded.')
@@ -2447,12 +2466,12 @@ def inbox(compose_draft=None):
 
 def workspace_connections(user):
     connections = []
-    for provider, name in [('telegram','Telegram'), ('discord','Discord'), ('whatsapp','WhatsApp')]:
+    for provider, name in [('telegram','Telegram'), ('teams','Microsoft Teams'), ('discord','Discord'), ('whatsapp','WhatsApp')]:
         config = get_integration(user['id'], provider)
         if not config or (provider == 'telegram' and config.get('stage') != 'connected'):
             continue
         subtitle = config.get('channel_name') or config.get('display_phone_number') or (config.get('account') or {}).get('username') or 'Recent conversations'
-        connections.append({'key':provider,'name':name,'subtitle':subtitle,'messages_url':url_for('integration_messages',provider=provider)})
+        connections.append({'key':provider,'name':name,'subtitle':subtitle,'messages_url':url_for('teams_conversations') if provider == 'teams' else url_for('integration_messages',provider=provider)})
     for spec in SOCIAL_PROVIDERS:
         if get_integration(user['id'],'social:'+spec['key']):
             connections.append({'key':spec['key'],'name':spec['name'],'subtitle':'Connected integration','messages_url':''})
@@ -2553,8 +2572,9 @@ def message_detail(message_id):
         if message is None:
             raise RuntimeError("Connect Google to read this email.")
         message = {**message, **email_reply_info(message, account)}
-        body_text = message['body'].get('text','') if isinstance(message['body'],dict) else str(message['body'])
-        message['otp_code'] = extract_otp_code(message['subject'], body_text)
+        body = message['body']
+        body_text = (body.get('text') or email_html_text(body.get('html', ''))) if isinstance(body, dict) else str(body)
+        message['otp_code'] = extract_otp_code(message['subject'], body_text + '\n' + message.get('preview', ''))
     except (RuntimeError, requests.RequestException, KeyError, ValueError, OSError, imaplib.IMAP4.error) as error:
         if request.args.get("pane") == "1":
             return render_template('message_error.html', error="Could not open this email. Check the account connection and try again."), 502
@@ -2631,6 +2651,7 @@ def integrations(email_error='', email_value=''):
     telegram_account = telegram.get("account") if telegram else None
     whatsapp = get_integration(g.user["id"], "whatsapp")
     discord = get_integration(g.user["id"], "discord")
+    teams = get_integration(g.user['id'], 'teams')
     social_cards = [
         {
             "spec": spec,
@@ -2659,6 +2680,7 @@ def integrations(email_error='', email_value=''):
         whatsapp_messages=whatsapp_recent_messages(g.user["id"]) if whatsapp else [],
         whatsapp_webhook_url=url_for('whatsapp_webhook', _external=True),
         discord=discord,
+        teams=teams,
 
         social_cards=social_cards,
         social_state=social_state,
@@ -2735,6 +2757,91 @@ def microsoft_callback():
         flash("Microsoft could not be connected. Check the OAuth setup and try again.","error")
     else: flash("Microsoft Outlook connected.","success")
     return redirect(url_for('integrations'))
+
+
+@app.get('/integrations/teams/connect')
+def teams_connect():
+    if not app.config['MICROSOFT_CLIENT_ID'] or not app.config['MICROSOFT_CLIENT_SECRET']:
+        flash('Microsoft Teams sign-in is not configured. See the Microsoft Teams setup guide.', 'error')
+        return redirect(url_for('integrations'))
+    callback_uri = app.config['MICROSOFT_TEAMS_REDIRECT_URI'] or url_for('teams_callback', _external=True)
+    callback, origin = urlparse(callback_uri), urlparse(request.host_url)
+    if callback.hostname in {'localhost', '127.0.0.1', '::1'} and origin.hostname in {'localhost', '127.0.0.1', '::1'} and callback.scheme == origin.scheme and callback.port == origin.port and callback.netloc != origin.netloc:
+        return redirect(f'{callback.scheme}://{callback.netloc}{url_for("teams_connect")}')
+    session['teams_connect_user'] = g.user['id']
+    try:
+        return teams_oauth.authorize_redirect(callback_uri, prompt='select_account')
+    except (OAuthError, requests.RequestException, ValueError):
+        session.pop('teams_connect_user', None)
+        flash('Microsoft Teams sign-in could not start. Check the app registration and try again.', 'error')
+        return redirect(url_for('integrations'))
+
+
+@app.get('/auth/teams/callback')
+def teams_callback():
+    if session.pop('teams_connect_user', None) != g.user['id']: abort(400)
+    try:
+        token = teams_oauth.authorize_access_token()
+        profile = graph_mail.request(token['access_token'], 'GET', '/me', params={'$select': 'id,displayName,mail,userPrincipalName'})
+        graph_teams.segment(profile['id'])
+        save_integration(g.user['id'], 'teams', {'stage': 'connected', 'token': token,
+            'account': {'id': profile['id'], 'name': profile.get('displayName') or 'Microsoft Teams',
+                'email': profile.get('mail') or profile.get('userPrincipalName') or ''}})
+    except (OAuthError, requests.RequestException, ValueError, KeyError, TypeError, RuntimeError):
+        flash('Microsoft Teams could not be connected. Check the app registration and organisation consent, then try again.', 'error')
+    else:
+        flash('Microsoft Teams connected. Open Apps to browse chats and team channels.', 'success')
+    return redirect(url_for('integrations'))
+
+
+@app.post('/integrations/teams/disconnect')
+def teams_disconnect():
+    delete_integration(g.user['id'], 'teams')
+    flash('Microsoft Teams disconnected.', 'info')
+    return redirect(url_for('integrations'))
+
+
+def teams_api_result(operation):
+    config = get_integration(g.user['id'], 'teams')
+    if not config or config.get('stage') != 'connected': return jsonify(error='Connect Microsoft Teams first.'), 409
+    try:
+        token = microsoft_access_token({'key': 'teams', 'config': config})
+        signer = URLSafeSerializer(app.config['SECRET_KEY'], salt='teams-conversations')
+        return jsonify(operation(token, signer, g.user['id'], config['account']['id']))
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except requests.HTTPError as error:
+        code = error.response.status_code if error.response is not None else 502
+        if code in {401,403}:
+            return jsonify(error='Microsoft Teams denied access. Reconnect Teams and ask your administrator to approve the requested permissions.'), code
+        if code == 404: return jsonify(error='This Teams conversation is no longer available. Refresh the list.'), 404
+        return jsonify(error='Teams could not complete this request. Your draft is kept; check Teams before retrying a send.'), 502
+    except (requests.RequestException, KeyError, TypeError, RuntimeError):
+        app.logger.warning('Teams request failed for user id=%s', g.user['id'])
+        return jsonify(error='Teams could not complete this request. Reconnect if access has expired. Your draft is kept; check Teams before retrying a send.'), 502
+
+
+@app.get('/api/integrations/teams/conversations')
+def teams_conversations():
+    return teams_api_result(lambda token, signer, owner, account: graph_teams.conversations(token, signer, owner, account,
+        kind=request.args.get('kind', 'chats'), team=request.args.get('team'), cursor=request.args.get('cursor')))
+
+
+@app.route('/api/integrations/teams/conversations/<conversation>/messages', methods=['GET', 'POST'])
+def teams_messages(conversation):
+    reply = request.values.get('reply') or None
+    text = request.form.get('text', '')
+    if request.method == 'POST' and (not text.strip() or len(text.encode('utf-16-le')) // 2 > 4096):
+        return jsonify(error='Enter a message of up to 4,096 characters.'), 400
+    def operation(token, signer, owner, account):
+        if request.method == 'POST':
+            graph_teams.send(token, signer, owner, account, conversation, text, reply=reply)
+            return {'sent': True}
+        data = graph_teams.messages(token, signer, owner, account, conversation, cursor=request.args.get('cursor'), reply=reply)
+        for message in data['messages']:
+            if message.pop('html'): message['text'] = email_html_text(message['text'])
+        return data
+    return teams_api_result(operation)
 
 
 @app.get('/api/integrations/<provider>/messages')

@@ -69,6 +69,30 @@
                 <div class="settings-preview-actions"><button type="button" class="m3e-button m3e-button--filled" id="preview-button"><span class="m3e-icon" aria-hidden="true">favorite</span>Try a button</button><span class="m3e-badge m3e-badge--large">3</span><button type="button" class="m3e-icon-button m3e-icon-button--standard" id="preview-icon" aria-label="Preview icon"><span class="m3e-icon" aria-hidden="true">star</span></button></div>
                 </div>
             </details>
+            <aside class="settings-motion-preview" aria-labelledby="motion-preview-heading" hidden>
+                <header><span class="m3e-icon" aria-hidden="true">animation</span><h2 id="motion-preview-heading">Animation preview</h2></header>
+                <p>Try your current settings here.</p>
+                <label class="motion-preview-label" for="motion-preview-kind">Preview effect</label>
+                <select id="motion-preview-kind"><option value="all">Combined preview</option>{% for group in preference_groups if group.key == 'motion' %}{% for item in group.settings if item.type == 'switch' and item.key.endswith('-motion') and item.key != 'reduce-motion' %}<option value="{{ item.key[:-7] }}">{{ item.label }}</option>{% endfor %}{% endfor %}</select>
+                <div class="motion-preview-stage">
+                    <div class="motion-preview-view" data-motion-sample="view">
+                        <strong>Sample inbox</strong>
+                        <div class="motion-preview-row" data-motion-sample="row"><span class="motion-preview-avatar" aria-hidden="true">A</span><span><strong>Alex</strong><small>See you tomorrow</small></span></div>
+                        <div class="motion-preview-row" data-motion-sample="row"><span class="motion-preview-avatar" aria-hidden="true">C</span><span><strong>CentroMail</strong><small>Your code is ready</small></span></div>
+                    </div>
+                    <div class="motion-preview-panel" data-motion-sample="panel">
+                        <span class="motion-preview-label">Reading pane</span><p>Your verification code</p>
+                        <button class="m3e-button m3e-button--tonal" type="button" data-motion-sample="copy"><span class="m3e-icon" aria-hidden="true">content_copy</span><span>123456</span><span class="sr-only">Preview copy animation</span></button>
+                        <button class="m3e-button m3e-button--text" type="button" data-motion-sample="send"><span class="m3e-icon" aria-hidden="true">send</span>Preview send</button>
+                        <span class="cm-progress-shell" data-motion-sample="loading" aria-hidden="true" hidden><m3e-linear-progress aria-label="Loading preview"></m3e-linear-progress></span>
+                    </div>
+                </div>
+                <details class="motion-preview-details"><summary>Try expanding a section<span class="m3e-icon" aria-hidden="true">expand_more</span></summary><p>This sample uses your expanding-section preference.</p></details>
+                <button class="m3e-button m3e-button--filled" id="replay-motion-preview" type="button"><span class="m3e-icon" aria-hidden="true">replay</span>Replay animations</button>
+                <p id="motion-preview-status" role="status" aria-live="polite">Preview only. No message is sent.</p>
+            </aside>
+            <m3e-snackbar-host id="motion-preview-snackbar"></m3e-snackbar-host>
+            <div class="settings-sections">
             <p id="settings-empty" hidden>No settings match your search.</p>
             {% for group in preference_groups %}
             <section class="settings-section" id="settings-{{ group.key }}" data-settings-section="{{ group.key }}" aria-labelledby="{{ group.key }}-heading">
@@ -110,6 +134,7 @@
                 <div class="settings-danger"><h3>Delete account</h3><p>Permanently delete your account, cached email, saved connections, and locally stored messages.</p><form method="post" action="{{ url_for('delete_account') }}" data-confirm="Delete your CentroMail account and all locally stored data? This cannot be undone."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button-danger m3e-button m3e-button--filled" type="submit">Delete my account</button></form></div>
                 <nav class="settings-privacy-links" aria-label="Privacy and legal information"><a href="{{ url_for('privacy') }}">Privacy policy</a><a href="{{ url_for('terms') }}">Terms of service</a></nav>
             </section>
+            </div>
         </div>
     </div>
 </section>

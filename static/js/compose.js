@@ -57,11 +57,13 @@
     form.addEventListener('submit', () => {
         send.disabled = true;
         send.textContent = 'Sending…';
+        send.setAttribute('aria-busy', 'true');
         form.setAttribute('aria-busy', 'true');
     });
     window.addEventListener('pageshow', () => {
         send.disabled = false;
         send.innerHTML = sendLabel;
+        send.removeAttribute('aria-busy');
         form.removeAttribute('aria-busy');
     });
     if (composer.hasAttribute('data-compose-draft')) {

@@ -1432,7 +1432,7 @@ body:has(.gmail-app) .site-footer {
 .gmail-app.has-reader .mail-reader { flex-grow: 0; }
 .reader-resizer { align-items: center; align-self: stretch; background: transparent; border: 0; cursor: col-resize; display: flex; flex: 0 0 14px; justify-content: center; margin: 16px 0 28px; min-height: 120px; padding: 0; position: relative; touch-action: none; }
 .reader-resizer[hidden] { display: none; }
-.reader-resizer-handle { background: var(--m3e-sys-color-outline-variant); border-radius: 999px; height: 48px; width: 4px; transition: background 120ms ease, height 120ms ease; }
+.reader-resizer-handle { align-self: flex-start; position: sticky; top: 50dvh; transform: translateY(-50%); background: var(--m3e-sys-color-outline-variant); border-radius: 999px; height: 48px; width: 4px; transition: background 120ms ease, height 120ms ease; }
 .reader-resizer:hover .reader-resizer-handle, .reader-resizer:focus-visible .reader-resizer-handle, .reader-resizer.is-dragging .reader-resizer-handle { background: var(--m3e-sys-color-primary); height: 80px; }
 .reader-resizer:focus-visible { outline: var(--cm-focus-width, 3px) solid var(--m3e-sys-color-primary); outline-offset: -2px; border-radius: 8px; }
 body.is-resizing-reader, body.is-resizing-reader * { cursor: col-resize !important; user-select: none !important; }
@@ -1593,7 +1593,7 @@ body:has(.message-page) .site-footer { display: none; }
 }
 .apps-workspace.workspace-view:not([hidden]):has(.apps-feed-panel) { display:grid; grid-template-columns:minmax(220px,28%) minmax(0,1fr); }
 .apps-heading h2 { margin:0; font-size:1.4rem; }
-.apps-connection.m3e-button { border-radius:var(--m3e-sys-shape-corner-medium); justify-content:flex-start; padding:16px; text-align:left; white-space:normal; width:calc(100% - 24px); margin:4px 12px; }
+.apps-connection.m3e-button { block-size:auto; border-radius:var(--m3e-sys-shape-corner-medium); justify-content:flex-start; padding:16px; text-align:left; white-space:normal; width:calc(100% - 24px); margin:4px 12px; }
 .apps-connection[aria-pressed="true"] { background:var(--m3e-sys-color-secondary-container); color:var(--m3e-sys-color-on-secondary-container); }
 .apps-connection img { flex-shrink:0; }
 .apps-connection > span { min-width:0; }
@@ -1613,8 +1613,8 @@ body:has(.message-page) .site-footer { display: none; }
 @keyframes apps-loading-pulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
 .telegram-workspace:not([hidden]) { display:grid; grid-template-columns:minmax(180px,28%) minmax(0,1fr); gap:16px; margin-top:16px; }
 .telegram-workspace[hidden] { display:none; }
-.telegram-conversations { min-width:0; max-height:70dvh; overflow-y:auto; }
-.telegram-conversation.m3e-button { display:flex; width:100%; justify-content:flex-start; text-align:left; white-space:normal; padding:12px; gap:10px; border-radius:var(--m3e-sys-shape-corner-medium); }
+.telegram-conversations { position:sticky; top:calc(var(--mail-nav-height,0px) + var(--mail-search-height,88px) + 16px); align-self:start; min-width:0; max-height:calc(100dvh - var(--mail-nav-height,0px) - var(--mail-search-height,88px) - 32px); overflow-y:auto; padding:4px; }
+.telegram-conversation.m3e-button { block-size:auto; display:flex; width:100%; justify-content:flex-start; text-align:left; white-space:normal; padding:12px; gap:10px; border-radius:var(--m3e-sys-shape-corner-medium); }
 .telegram-conversation[aria-pressed="true"] { background:var(--m3e-sys-color-secondary-container); color:var(--m3e-sys-color-on-secondary-container); }
 .telegram-conversation > span:last-child { min-width:0; }
 .telegram-conversation strong,.telegram-conversation small { display:block; overflow-wrap:anywhere; }
@@ -1644,6 +1644,10 @@ body:has(.message-page) .site-footer { display: none; }
 .telegram-send-form .m3e-button { justify-self:end; }
 .telegram-mobile-picker { display:none; }
 .reply-button-wrap { display:inline-flex; border-radius:var(--m3e-sys-shape-corner-full); }
+.reply-button-wrap.is-positioned { position:fixed; z-index:80; gap:4px; padding:4px; background:var(--m3e-sys-color-surface); border:1px solid var(--m3e-sys-color-outline-variant); }
+.reply-button-wrap [data-reply-reset][hidden] { display:none; }
+[data-reply-movable] { cursor:grab; touch-action:none; }
+[data-reply-movable].is-dragging { cursor:grabbing; }
 .reply-button-wrap[aria-disabled="true"] > button { pointer-events:none; }
 .reply-button-wrap:focus-visible { outline:var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary); outline-offset:3px; }
 m3e-tooltip:not(:defined) { display:none; }

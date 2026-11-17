@@ -239,7 +239,11 @@ Microsoft Outlook mail now connects to an existing CentroMail account through OA
 
 ### Local integrations
 
+**Settings → Animations and loading** has individual switches for 18 animation groups, M3E expressive or subtle motion, speed, and intensity. The side preview replays each effect. Device reduced-motion preferences also apply. Loading uses M3E progress bars; a successful manual email refresh displays an M3E sync snackbar without claiming that unloaded older pages have synced.
+
 Open Integrations after signing in.
+
+Microsoft Teams supports work and school chats, team channels, thread replies and sending from **Apps**. It connects separately from Outlook through Microsoft OAuth. See [Teams setup](docs/teams-setup.md) for the app registration, callback and delegated permissions; channel history may require administrator consent.
 
 Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram supports private chats, regular groups, and forum groups with a topic picker, profile pictures, text sending, and automatic incoming-message checks while the chat is visible. Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail. See [Telegram setup and chat support](docs/telegram-setup.md).
 
@@ -248,6 +252,7 @@ Connections are stored in `centro.db` on this machine, and non-secret UI state i
 | Service  | What is needed                                                                                                                                                                                                             |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Gmail    | Google OAuth with the Gmail API enabled.                                                                                                                                                                                   |
+| Teams    | Microsoft work or school OAuth with chat and channel permissions. See [Teams setup](docs/teams-setup.md); an administrator may need to consent to channel history. |
 | Telegram | A Telegram account plus an API ID/API hash from my.telegram.org/apps. CentroMail signs in to your own account and stores the session locally; a login code and, if enabled, a two-step verification password are required. |
 | WhatsApp | A Meta WhatsApp Cloud API phone number ID and access token. Personal WhatsApp accounts do not have an official API. Inbound messages require a publicly reachable webhook URL and WHATSAPP_APP_SECRET set to the Meta app secret. Unsigned callbacks are rejected.               |
 | Discord  | A Discord application bot token plus a channel ID. Invite the bot with View Channels, Read Message History and Send Messages. Discord does not permit automating personal user accounts.                                   |

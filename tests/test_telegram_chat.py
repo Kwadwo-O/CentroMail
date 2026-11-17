@@ -197,7 +197,7 @@ class TelegramChatTests(IntegrationFixture):
         self.assertEqual(response.headers['Cache-Control'],'no-store')
         self.assertEqual(response.headers['X-Content-Type-Options'],'nosniff')
         self.telegram.get_messages.assert_awaited_with(self.dialog.input_entity,ids=7)
-        self.telegram.download_media.assert_awaited_once_with(message,file=bytes,thumb=message.media.photo.sizes[-1])
+        self.telegram.download_media.assert_awaited_once_with(message,file=bytes,thumb=message.media.photo.sizes[-1].type)
         video=self.message(8,'Video',media=self.video())
         self.telegram.get_messages.return_value=video
         self.telegram.download_media.return_value=b'0123456789'
@@ -207,6 +207,25 @@ class TelegramChatTests(IntegrationFixture):
         self.assertEqual(response.headers['Content-Range'],'bytes 2-5/10')
         self.assertEqual(response.mimetype,'video/mp4')
         self.telegram.download_media.assert_awaited_with(video,file=bytes)
+
+    def test_progressive_photos_use_a_thumbnail_key_accepted_by_telethon(self):
+        photo = self.photo()
+        progressive = a.telegram_types.PhotoSizeProgressive(type='w', w=2560, h=1440, sizes=[25820, 606431])
+        photo.photo.sizes.append(progressive)
+        message = self.message(7, 'Photo', media=photo)
+        self.telegram.get_messages.return_value = message
+
+        async def download(received, *, file, thumb):
+            selected = a.TelegramClient._get_thumb(received.media.photo.sizes, thumb)
+            return b'\xff\xd8\xffphoto' if selected is progressive else None
+
+        self.telegram.download_media.side_effect = download
+        route = '/api/integrations/telegram/chats/-100123/messages/7/media'
+        self.assertEqual(self.client.get(route).status_code, 200)
+        photo.photo.sizes.append(a.telegram_types.PhotoStrippedSize(type='i', bytes=b'tiny-preview'))
+        self.assertEqual(self.client.get(route).status_code, 200)
+        self.telegram.get_messages.return_value = [message]
+        self.assertEqual(self.client.get('/api/integrations/telegram/chats/-100123').json['messages'][0]['media']['size'], 606431)
 
     def test_media_proxy_rejects_other_users_chats_files_and_oversized_videos(self):
         route='/api/integrations/telegram/chats/-100123/messages/7/media'

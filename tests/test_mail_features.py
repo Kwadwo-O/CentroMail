@@ -162,6 +162,20 @@ class MailFeatureTests(IntegrationFixture):
             self.assertIn(b'<m3e-tooltip anchor="reply-tooltip-trigger-sample"',response.data)
             self.assertIn(b'data-mark-email-read="true"',response.data)
 
+    def test_reader_keeps_preview_codes_reads_html_and_rejects_conflicting_codes(self):
+        metadata = a.gmail_metadata_from_payload(self.payload(), 'sample')
+        cases = [({'text': 'Confirm your email address.'}, 'Your verification code is 012345', '012345'),
+            ({'text': '', 'html': '<style>.code { width:123456px; }</style><p>Your security code</p><strong>012345</strong>'}, '', '012345'),
+            ({'text': 'Your verification code is 654321'}, 'Your verification code is 012345', None)]
+        for body, preview, expected in cases:
+            for suffix in ('', '?pane=1'):
+                with self.subTest(body=body, suffix=suffix), patch.object(a, 'fetch_email_message',
+                        return_value={**metadata, 'preview': preview, 'body': body}):
+                    response = self.client.get('/message/sample' + suffix)
+                    self.assertEqual(response.status_code, 200)
+                    buttons = [attrs['data-copy-code'] for _, attrs, _ in PageMarkup(response.text).elements if 'data-copy-code' in attrs]
+                    self.assertEqual(buttons, [expected] if expected else [])
+
     def test_no_reply_post_is_blocked_for_all_mail_providers(self):
         for kind in ('gmail','imap','microsoft'):
             config={'kind':kind,'account_id':'a'*12,'email':'mail@example.com','name':kind,'folders':{'inbox':'INBOX'},'token':{'access_token':'test','expires_at':a.time.time()+3600}}
