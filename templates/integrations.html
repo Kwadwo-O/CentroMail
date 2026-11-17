@@ -72,7 +72,8 @@
                 <form method="post" action="{{ url_for('connect_email') }}" class="integration-form" id="email-connect-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <label>Provider<select name="provider" id="email-provider">{% for provider in email_presets %}<option value="{{ provider.key }}">{{ provider.name }}</option>{% endfor %}</select></label>
-                    <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+                    <label>Email address<input id="email-connect-address" name="email" type="email" autocomplete="email" maxlength="254" value="{{ email_value|default('', true) }}" aria-describedby="email-connect-address-error" {% if email_error %}aria-invalid="true"{% endif %} required></label>
+                    <span id="email-connect-address-error" class="email-field-error" aria-live="polite" {% if not email_error %}hidden{% endif %}>{{ email_error|default('', true) }}</span>
                     <label>App password or account password<input name="password" type="password" autocomplete="off" maxlength="1024" required></label>
                     <details class="integration-guide" id="email-server-details"><summary>Server settings</summary>
                         <label>IMAP server<input name="imap_host" id="imap-host" required></label><label>IMAP port<input name="imap_port" id="imap-port" type="number" min="1" max="65535" required></label><label>IMAP security<select name="imap_security" id="imap-security"><option value="ssl">TLS</option><option value="starttls">STARTTLS</option></select></label>
@@ -397,7 +398,7 @@
         </div>
         <div class="integration-grid">
         {% set social_logos = {
-            'x': 'x', 'facebook': 'facebook', 'instagram': 'instagram', 'threads': 'threads',
+            'x': 'x',
             'linkedin': 'linkedin', 'reddit': 'reddit', 'mastodon': 'mastodon',
             'bluesky': 'bluesky', 'tiktok': 'tiktok', 'pinterest': 'pinterest',
             'tumblr': 'tumblr', 'twitch': 'twitch', 'slack': 'slack'

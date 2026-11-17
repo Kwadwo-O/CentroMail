@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/email-validation.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
 </head>
 <body class="page-onboarding">
@@ -58,13 +59,14 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="m3e-text-field m3e-text-field--outlined input-group">
                     <span class="m3e-text-field__container">
-                        <input class="m3e-text-field__input" type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" required>
+                        <input class="m3e-text-field__input" type="email" id="onboardingEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="email" maxlength="254" aria-describedby="onboardingEmailError" required>
                         <label class="m3e-text-field__label" for="onboardingEmail">Email address</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Email address</span></legend>
                         </fieldset>
                     </span>
                 </div>
+                <span id="onboardingEmailError" class="email-field-error" aria-live="polite" hidden></span>
                 <button class="m3e-button m3e-button--filled m3e-button--size-l main-btn" type="submit">Continue with email</button>
             </form>
 

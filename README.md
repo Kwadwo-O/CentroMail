@@ -300,7 +300,7 @@ Integrations are organised into three logical groups for easier navigation:
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | Email accounts                 | Gmail                                                                                                                    |
 | Chats and communities          | Telegram, WhatsApp, Discord                                                                                              |
-| Social networks and workspaces | X (Twitter), Facebook, Instagram, Threads, LinkedIn, Reddit, Mastodon, Bluesky, TikTok, Pinterest, Tumblr, Twitch, Slack |
+| Social networks and workspaces | X (Twitter), LinkedIn, Reddit, Mastodon, Bluesky, TikTok, Pinterest, Tumblr, Twitch, Slack |
 
 Each group has a collapsible "How to connect" guide accessible via the disclosure marker next to the service name. The guides walk through the required setup steps for each provider.
 

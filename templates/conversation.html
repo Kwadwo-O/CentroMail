@@ -1,13 +1,25 @@
 {% from '_email_tags.html' import spam_tag %}
-<h2 class="conversation-heading">Conversation <span>{{ messages|length }} messages</span></h2>
+<header class="conversation-toolbar">
+    <h2 class="conversation-heading"><span class="m3e-icon" aria-hidden="true">forum</span>Conversation <span class="m3e-badge m3e-badge--large">{{ messages|length }} emails</span></h2>
+    <div class="conversation-controls" role="group" aria-label="Conversation display">
+        <button class="m3e-button m3e-button--text" type="button" data-expand-conversation><span class="m3e-icon" aria-hidden="true">unfold_more</span>Expand all</button>
+        <button class="m3e-button m3e-button--text" type="button" data-collapse-conversation><span class="m3e-icon" aria-hidden="true">unfold_less</span>Collapse all</button>
+    </div>
+</header>
+<div class="conversation-emails">
 {% for message in messages %}
-{% if message.id == current_id %}
-<div data-current-message></div>
-{% else %}
 {% set message_folder = message.get('mail_folder') or ('spam' if 'SPAM' in message.get('label_ids',[]) else 'trash' if 'TRASH' in message.get('label_ids',[]) else 'sent' if 'SENT' in message.get('label_ids',[]) else 'inbox') %}
-<details class="conversation-message" data-conversation-message-url="{{ url_for('message_detail', message_id=message.id, account=mail_account_key, folder=message_folder, pane=1, single=1) }}">
-    <summary><span class="conversation-sender">{{ message.sender }}{% if message.unread %}<span class="conversation-unread">Unread</span>{% endif %}{{ spam_tag(message, message_folder) }}</span><time>{{ message.date or message.time }}</time><span class="conversation-subject">{{ message.subject }}</span></summary>
-    <div class="conversation-body"></div>
+<details class="conversation-message m3e-card m3e-card--outlined" data-conversation-message {% if message.id == current_id %}open{% else %}data-conversation-message-url="{{ url_for('message_detail', message_id=message.id, account=mail_account_key, folder=message_folder, pane=1, single=1) }}"{% endif %}>
+    <summary class="m3e-list-item m3e-list-item--three-line m3e-list-item--interactive">
+        <span class="m3e-list-item__content">
+            <span class="conversation-sender m3e-list-item__headline">{{ message.sender }}{% if message.unread and message.id != current_id %}<span class="conversation-unread">Unread</span>{% endif %}{{ spam_tag(message, message_folder) }}</span>
+            <span class="conversation-address m3e-list-item__supporting">{{ message.email }}{% if message.to %}<span class="conversation-recipient">To {{ message.to }}</span>{% endif %}</span>
+            <span class="conversation-subject m3e-list-item__supporting">{{ message.subject }}</span>
+            {% if message.preview %}<span class="conversation-preview m3e-list-item__supporting">{{ message.preview }}</span>{% endif %}
+        </span>
+        <span class="conversation-trailing m3e-list-item__trailing"><time>{{ message.date or message.time }}</time><span class="m3e-icon conversation-expand-icon" aria-hidden="true">expand_more</span></span>
+    </summary>
+    <div class="conversation-body">{% if message.id == current_id %}<div data-current-message></div>{% endif %}</div>
 </details>
-{% endif %}
 {% endfor %}
+</div>

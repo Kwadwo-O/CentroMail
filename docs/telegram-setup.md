@@ -31,10 +31,11 @@ The view lists your 50 most recent Telegram conversations. It loads 50 history m
 - Incoming messages are checked every 10 seconds while the selected chat is visible. Polling pauses when you open the Email tab, choose another integration, or hide the browser tab. This is periodic refresh, rather than a persistent push connection. Use **Refresh** to reload conversations and the current history.
 - Failed or unconfirmed sends keep the draft in the current page. Retrying an unchanged draft reuses Telegram's message identifier to prevent duplicates. Refresh the conversation to check delivery before retrying an unconfirmed send. Drafts survive chat/topic switching within the page; a browser reload clears them.
 - Conversation, group and account profile pictures load from Telegram as they become visible. Telegram's privacy settings apply. Initials remain when a picture is missing or unavailable. Browser photo copies remain in memory for the current page.
-- Media and service messages currently show a text placeholder. File uploads, media downloads, reactions, voice messages and Secret Chats are not implemented.
+- Incoming photos and videos appear with their captions in chat history and integration previews. Photos load when visible; videos use playback controls. JPEG, PNG, WebP, GIF, MP4, WebM and Ogg files up to 64 MB are supported. Open Telegram for larger files. Albums show each photo or video as its own message.
+- Other media and service messages show a text placeholder. File uploads, reactions, voice messages and Secret Chats are not implemented.
 
 ## Verification
 
-Local tests simulate the Telegram client to check account isolation, topic routing, permissions, request validation, retry identifiers and picture responses. Browser checks cover sending, incoming polling, draft retention, topic selection and mobile layouts. Live Telegram delivery and real-device behavior require a connected account and network access to Telegram.
+Local tests simulate the Telegram client to check account isolation, topic routing, permissions, request validation, retry identifiers, picture responses, media captions and video byte ranges. Browser checks cover sending, incoming polling, draft retention, topic selection and mobile layouts. Live Telegram delivery and real-device behavior require a connected account and network access to Telegram.
 
 Topic routing follows [Telegram's official forum API](https://core.telegram.org/api/forum): General has ID 1; other topic messages reply to their topic's root message.

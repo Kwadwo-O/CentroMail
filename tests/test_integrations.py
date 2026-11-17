@@ -114,6 +114,29 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login", response.headers["Location"])
 
+    def test_removed_social_services_are_hidden_and_reject_saved_connections(self):
+        self.login()
+        removed = ('facebook', 'instagram', 'snapchat', 'threads')
+        with application.app.app_context():
+            for provider in removed:
+                application.save_integration(self.user_id, 'social:' + provider,
+                    {'access_token': 'old-token', 'account': 'Old account'})
+        with patch.object(application, 'social_request', side_effect=AssertionError('Removed services must not contact providers')):
+            body = self.client.get('/integrations').text
+            for provider in removed:
+                with self.subTest(provider=provider):
+                    self.assertNotIn('/integrations/social/' + provider, body)
+                    self.assertNotIn('"key": "' + provider + '"', body)
+                    for action in ('connect', 'test', 'disconnect'):
+                        response = self.client.post(f'/integrations/social/{provider}/{action}',
+                            data={'csrf_token': 'test-token', 'access_token': 'old-token', 'message': 'Hello'})
+                        self.assertEqual(response.status_code, 404)
+            with application.app.test_request_context('/inbox'):
+                connections = application.workspace_connections({'id': self.user_id})
+            self.assertFalse({item['key'] for item in connections} & set(removed))
+        self.assertIn('/integrations/social/linkedin/connect', body)
+        self.assertIn('/integrations/whatsapp', body)
+
     def test_whatsapp_webhook_verification(self):
         self.save_whatsapp()
         response = self.client.get(

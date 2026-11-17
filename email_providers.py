@@ -191,8 +191,10 @@ def read_message(config,message_id,folder='inbox'):
 
 
 def conversation_messages(config, current, folder):
-    references = re.findall(r'<[^<>\s\x00-\x1f\x7f]+@[^<>\s\x00-\x1f\x7f]+>',
+    reference_pattern = r'<[^<>\s\x00-\x1f\x7f]+@[^<>\s\x00-\x1f\x7f]+>'
+    references = [reference for reference in re.findall(reference_pattern,
         current.get('references','')+' '+current.get('in_reply_to','')+' '+current.get('message_id',''))
+        if reference.isascii()]
     if not references: return []
     root = ('"'+references[0].replace('\\','\\\\').replace('"','\\"')+'"').encode('ascii')
     folders = list(dict.fromkeys(['inbox' if folder=='starred' else folder, 'inbox', 'sent', 'archive']))
@@ -215,6 +217,9 @@ def conversation_messages(config, current, folder):
                     if not uid: continue
                     identifier = make_id(config, mail_folder, validity, int(uid[1]))
                     payload = message_payload(row[1], row[0], identifier, mail_folder)
+                    reference_headers = ' '.join(header['value'] for header in payload['payload']['headers']
+                        if header['name'] in {'Message-ID', 'References', 'In-Reply-To'})
+                    if references[0] not in re.findall(reference_pattern, reference_headers): continue
                     payload['mail_folder'] = mail_folder
                     header_id = BytesParser(policy=email.policy.default).parsebytes(row[1]).get('Message-ID')
                     key = str(header_id) if header_id else identifier

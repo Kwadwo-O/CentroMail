@@ -46,6 +46,7 @@
         <form class="mail-account-picker" method="get" action="{{ url_for('inbox') }}">
             <label class="sr-only" for="mail-account-select">Email account</label>
             <select name="account" id="mail-account-select" aria-label="Email account">
+                <option value="all" {% if mail_kind == 'aggregate' %}selected{% endif %}>All inboxes</option>
                 {% if not mail_accounts %}<option value="gmail">Gmail · connect an account</option>{% endif %}
                 {% for account in mail_accounts %}<option value="{{ account.key }}" {% if account.key == mail_account_key %}selected{% endif %}>{{ account.name }} · {{ account.email }}</option>{% endfor %}
             </select>
@@ -68,8 +69,11 @@
             <button class="close-mail-sidebar icon-button m3e-icon-button m3e-icon-button--standard" id="close-mail-sidebar" type="button" aria-label="Close mailbox menu"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
+                <a class="mail-nav-link{% if mail_kind == 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', account='all') }}" {% if mail_kind == 'aggregate' %}aria-current="page"{% endif %}>
+                    <span class="material-symbols-rounded" aria-hidden="true">all_inbox</span><span>All inboxes</span><b class="m3e-badge m3e-badge--large" data-folder-count="all_inboxes" hidden></b>
+                </a>
                 {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] if key in folders %}
-                <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=mail_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}>
+                <a class="mail-nav-link{% if folder == key and mail_kind != 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key and mail_kind != 'aggregate' %}aria-current="page"{% endif %}>
                     <span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span>
                     {% if key in ['inbox', 'drafts'] %}<b class="m3e-badge m3e-badge--large" data-folder-count="{{ key }}" hidden></b>{% endif %}
                 </a>
@@ -78,7 +82,7 @@
                     <summary class="mail-nav-link"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
                     <div class="mail-more-folders">
                         {% for key in ['archive', 'all', 'important', 'spam', 'trash'] if key in folders %}
-                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=mail_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
+                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
                         {% endfor %}
                     </div>
                 </details>
@@ -109,6 +113,7 @@
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
                 <form class="inbox-refresh-form" id="refresh-mail-form" method="get" action="{{ url_for('inbox') }}">
+                    <input type="hidden" name="account" value="{{ mail_account_key }}">
                     <input type="hidden" name="folder" value="{{ folder }}">
                     <input type="hidden" name="refresh" value="1">
                     <button class="toolbar-button refresh-button m3e-button m3e-button--filled" id="refresh-mail" type="submit" aria-label="Refresh inbox" title="Check for new mail">

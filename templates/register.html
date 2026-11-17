@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/email-validation.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/password-validation.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
 </head>
 <body class="page-register">
@@ -72,18 +74,19 @@
                         </fieldset>
                     </span>
                 </div>
-                <div class="m3e-text-field m3e-text-field--outlined input-group">
+                <div class="m3e-text-field m3e-text-field--outlined input-group{% if email_error %} m3e-text-field--error{% endif %}">
                     <span class="m3e-text-field__container">
-                        <input class="m3e-text-field__input" type="email" id="signupEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="username" maxlength="254" required>
+                        <input class="m3e-text-field__input" type="email" id="signupEmail" name="email" value="{{ email|default('', true) }}" placeholder=" " autocomplete="username" maxlength="254" aria-describedby="signupEmailError" {% if email_error %}aria-invalid="true" {% endif %}required>
                         <label class="m3e-text-field__label" for="signupEmail">Email address</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Email address</span></legend>
                         </fieldset>
                     </span>
+                    <span id="signupEmailError" class="email-field-error" aria-live="polite" {% if not email_error %}hidden{% endif %}>{{ email_error|default('', true) }}</span>
                 </div>
-                <div class="m3e-text-field m3e-text-field--outlined input-group">
+                <div class="m3e-text-field m3e-text-field--outlined input-group password-field">
                     <span class="m3e-text-field__container">
-                        <input class="m3e-text-field__input" type="password" id="signupPassword" name="password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" aria-describedby="passwordHelp" required>
+                        <input class="m3e-text-field__input" type="password" id="signupPassword" name="password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" aria-describedby="passwordRules signupPasswordError" required>
                         <label class="m3e-text-field__label" for="signupPassword">Password</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Password</span></legend>
@@ -92,18 +95,25 @@
                             <span class="password-icon" aria-hidden="true"></span>
                         </button>
                     </span>
+                    <span id="signupPasswordError" class="email-field-error" aria-live="polite" hidden></span>
                 </div>
-                <p class="form-help" id="passwordHelp">Use at least 12 characters.</p>
-                <ul class="password-rules" id="passwordRules" aria-label="Password requirements">
-                    <li data-rule="length">At least 12 characters</li>
-                    <li data-rule="uppercase">One uppercase letter</li>
-                    <li data-rule="digit">One number</li>
-                    <li data-rule="special">One special character (!@#$%…)</li>
-                    <li data-rule="common">Not a common password</li>
-                </ul>
-                <div class="m3e-text-field m3e-text-field--outlined input-group">
+                <section class="password-guide m3e-card m3e-card--filled" id="passwordGuide" aria-label="Password requirements" hidden>
+                    <div class="password-guide__progress" id="passwordProgress" role="progressbar" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-label="Core password requirements met">
+                        {% for rule in ['length', 'uppercase', 'digit', 'special'] %}<span data-rule-segment="{{ rule }}" aria-hidden="true"></span>{% endfor %}
+                    </div>
+                    <ul class="password-rules m3e-list" id="passwordRules" aria-label="Password requirements">
+                        {% for rule, label in [('length', '12–1024 characters long'), ('uppercase', 'At least one uppercase letter (A–Z)'), ('digit', 'At least one number (0–9)'), ('special', 'At least one special character (!@#$%)'), ('common', 'Avoid common passwords'), ('personal', 'Avoid your name or email address')] %}
+                        <li class="m3e-list-item" data-rule="{{ rule }}" {% if rule in ['common', 'personal'] %}hidden{% endif %}>
+                            <span class="m3e-list-item__leading"><span class="m3e-icon" data-rule-icon aria-hidden="true">cancel</span></span>
+                            <span class="m3e-list-item__content"><span class="m3e-list-item__headline">{{ label }}</span></span>
+                            <span class="password-rule-state" data-rule-state>Needed</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                <div class="m3e-text-field m3e-text-field--outlined input-group password-field">
                     <span class="m3e-text-field__container">
-                        <input class="m3e-text-field__input" type="password" id="signupConfirmPassword" name="confirm_password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" required>
+                        <input class="m3e-text-field__input" type="password" id="signupConfirmPassword" name="confirm_password" placeholder=" " autocomplete="new-password" minlength="12" maxlength="1024" aria-describedby="signupConfirmPasswordError" required>
                         <label class="m3e-text-field__label" for="signupConfirmPassword">Confirm password</label>
                         <fieldset class="m3e-text-field__outline" aria-hidden="true">
                             <legend class="m3e-text-field__notch"><span>Confirm password</span></legend>
@@ -112,6 +122,7 @@
                             <span class="password-icon" aria-hidden="true"></span>
                         </button>
                     </span>
+                    <span id="signupConfirmPasswordError" class="email-field-error" aria-live="polite" hidden></span>
                 </div>
                 <button type="submit" class="m3e-button m3e-button--filled m3e-button--size-l main-btn">Create account</button>
             </form>
@@ -148,70 +159,6 @@
             });
         });
 
-        const password = document.getElementById('signupPassword');
-        const confirmation = document.getElementById('signupConfirmPassword');
-        const rulesList = document.getElementById('passwordRules');
-        const COMMON_PASSWORDS = new Set(['password','password1','password12','password123','password1234','passw0rd','p@ssw0rd','p@ssword','123456','1234567','12345678','123456789','1234567890','qwerty','qwerty123','qwertyuiop','abc123','abcd1234','letmein','letmein123','welcome','welcome1','welcome123','admin','admin123','iloveyou','sunshine','monkey','dragon','football','baseball','princess','trustno1','master','shadow','superman','batman','starwars','whatever','freedom','changeme','secret','login','access','flower','hello123','charlie','donald','hunter2','summer2024','winter2024','spring2024','autumn2024','summer2025','winter2025','summer2026']);
-        const emailInput = document.getElementById('signupEmail');
-        const nameInput = document.getElementById('signupName');
-        const rules = {
-            length: value => value.length >= 12 && value.length <= 1024,
-            uppercase: value => /[A-Z]/.test(value),
-            digit: value => /[0-9]/.test(value),
-            special: value => /[^A-Za-z0-9]/.test(value),
-            common: value => {
-                const lowered = value.toLowerCase();
-                const normalized = lowered.replace(/^[^a-z]+|[^a-z]+$/g, '');
-                return !COMMON_PASSWORDS.has(lowered) && !COMMON_PASSWORDS.has(normalized);
-            },
-            personal: (value) => {
-                const lowered = value.toLowerCase();
-                const name = nameInput.value.trim().toLowerCase();
-                const emailLocal = emailInput.value.split('@')[0].toLowerCase();
-                for (const token of [name, emailLocal]) {
-                    if (token.length >= 4 && lowered.includes(token)) return false;
-                }
-                return true;
-            },
-        };
-        function updateRules() {
-            const value = password.value;
-            for (const [rule, test] of Object.entries(rules)) {
-                const item = rulesList.querySelector(`[data-rule="${rule}"]`);
-                if (!item) continue;
-                const passed = test(value);
-                item.classList.toggle('is-met', passed);
-                item.setAttribute('aria-checked', String(passed));
-            }
-        }
-        function checkPassword() {
-            const value = password.value;
-            let message = '';
-            if (!rules.length(value)) message = 'Use between 12 and 1024 characters for your password.';
-            else if (!rules.uppercase(value)) message = 'Your password needs at least one uppercase letter.';
-            else if (!rules.digit(value)) message = 'Your password needs at least one number.';
-            else if (!rules.special(value)) message = 'Your password needs at least one special character.';
-            else if (!rules.common(value)) message = 'That password is too common. Choose something harder to guess.';
-            else if (!rules.personal(value)) message = 'Do not include your name or email address in your password.';
-            password.setCustomValidity(message);
-            updateRules();
-        }
-        function checkConfirmation() {
-            confirmation.setCustomValidity(confirmation.value && confirmation.value !== password.value ? 'Passwords must match.' : '');
-        }
-        password.addEventListener('input', () => { checkPassword(); checkConfirmation(); });
-        confirmation.addEventListener('input', checkConfirmation);
-        nameInput.addEventListener('input', checkPassword);
-        emailInput.addEventListener('input', checkPassword);
-        document.getElementById('signupForm').addEventListener('submit', event => {
-            checkPassword(); checkConfirmation();
-            if (!password.checkValidity() || !confirmation.checkValidity()) {
-                event.preventDefault();
-                const firstInvalid = [password, confirmation].find(input => !input.checkValidity());
-                firstInvalid?.focus();
-            }
-        });
-        checkPassword();
     </script>
 </body>
 </html>

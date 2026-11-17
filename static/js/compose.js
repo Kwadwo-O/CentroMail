@@ -4,12 +4,18 @@
     const form = composer.querySelector('form');
     const title = composer.querySelector('#compose-title');
     const fields = form.elements;
+    const from = composer.querySelector('[data-compose-from]');
+    const defaultAccount = fields.account.value, defaultFolder = fields.folder.value, defaultFrom = from.textContent;
     const send = form.querySelector('[type="submit"]');
     const sendLabel = send.innerHTML;
     let returnFocus;
 
     const clearDraft = () => {
         for (const name of ['to', 'subject', 'body', 'reply_id']) fields[name].value = '';
+        fields.account.value = defaultAccount;
+        fields.folder.value = defaultFolder;
+        from.textContent = defaultFrom;
+        fields.to.dispatchEvent(new Event('centromail:email-reset'));
         title.textContent = 'New message';
     };
     const open = (trigger, reply) => {
@@ -21,9 +27,11 @@
         if (reply && !fields.reply_id.value) {
             fields.reply_id.value = replyId;
             fields.to.value = trigger.dataset.replyTo;
+            fields.to.dispatchEvent(new Event('input'));
             fields.subject.value = trigger.dataset.replySubject;
             fields.account.value = trigger.dataset.replyAccount;
             fields.folder.value = trigger.dataset.replyFolder;
+            from.textContent = trigger.dataset.replyFrom;
             title.textContent = 'Reply';
         }
         returnFocus = trigger;

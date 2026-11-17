@@ -17,7 +17,8 @@
             article.dataset.markEmailRead = 'false';
             article.closest('details')?.querySelector('.conversation-unread')?.remove();
             document.querySelectorAll('.message').forEach(row => {
-                if (row.dataset.messageId !== article.dataset.readMessageId) return;
+                const account = row.dataset.mailAccount || document.querySelector('.gmail-app')?.dataset.account;
+                if (row.dataset.messageId !== article.dataset.readMessageId || account !== article.dataset.readAccount) return;
                 row.classList.remove('unread');
                 row.querySelector('.message-read-state').textContent = '';
             });
@@ -48,13 +49,14 @@
             if (!section.isConnected) return;
             if (!data.html) { notice.remove(); return; }
             const fragment = document.createRange().createContextualFragment(data.html);
+            const scroller = section.closest('.reader-content');
+            const preservePosition = scroller ? scroller.scrollTop > 0 : window.scrollY > 0;
             const previousTop = current.getBoundingClientRect().top;
             fragment.querySelector('[data-current-message]').replaceWith(current);
             section.replaceChildren(fragment);
             const delta = current.getBoundingClientRect().top - previousTop;
-            const scroller = section.closest('.reader-content');
-            if (scroller) scroller.scrollTop += delta;
-            else window.scrollBy({top:delta, behavior:'instant'});
+            if (scroller) scroller.scrollTop = preservePosition ? scroller.scrollTop + delta : 0;
+            else if (preservePosition) window.scrollBy({top:delta, behavior:'instant'});
         } catch {
             if (!section.isConnected) return;
             pendingConversations.delete(section);
@@ -70,6 +72,7 @@
     const pendingMessages = new WeakSet();
     const loadConversationMessage = async details => {
         if (!details.open || pendingMessages.has(details)) return;
+        if (!details.dataset.conversationMessageUrl) return;
         pendingMessages.add(details);
         const body = details.querySelector('.conversation-body');
         body.textContent = 'Loading email…'; body.setAttribute('aria-busy', 'true');
@@ -90,10 +93,19 @@
         } finally { body.removeAttribute('aria-busy'); }
     };
     document.addEventListener('toggle', event => {
-        if (!event.target.matches('[data-conversation-message-url]')) return;
+        if (!event.target.matches('[data-conversation-message]')) return;
         loadConversationMessage(event.target); markOpenedEmails();
     }, true);
     document.addEventListener('click', event => {
+        const display = event.target.closest('[data-expand-conversation], [data-collapse-conversation]');
+        if (display) {
+            const expanded = display.hasAttribute('data-expand-conversation');
+            display.closest('[data-conversation-url]').querySelectorAll('[data-conversation-message]').forEach(details => {
+                details.open = expanded;
+                if (expanded) loadConversationMessage(details);
+            });
+            markOpenedEmails();
+        }
         if (event.target.closest('[data-retry-conversation]')) loadConversation(event.target.closest('[data-conversation-url]'));
         if (event.target.closest('[data-retry-conversation-message]')) loadConversationMessage(event.target.closest('details'));
     });

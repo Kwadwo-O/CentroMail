@@ -180,9 +180,6 @@
 .integration-mark-whatsapp { background: #e2f6e9; color: #1b8752; }
 .integration-mark-discord { background: #eceefe; color: #5865f2; }
 .integration-mark-x { background: #ececec; color: #202124; }
-.integration-mark-facebook { background: #e7f0fe; color: #1877f2; }
-.integration-mark-instagram { background: #fde8f1; color: #d62976; }
-.integration-mark-threads { background: #ececec; color: #202124; }
 .integration-mark-linkedin { background: #e6eef8; color: #0a66c2; }
 .integration-mark-reddit { background: #fdece5; color: #ff4500; }
 .integration-mark-mastodon { background: #e8e6fb; color: #6364ff; }
@@ -198,10 +195,7 @@
 :root[data-theme="dark"] .integration-mark-whatsapp { background: #123a27; color: #86e0ad; }
 :root[data-theme="dark"] .integration-mark-discord { background: #262b5c; color: #aeb5ff; }
 :root[data-theme="dark"] .integration-mark-x,
-:root[data-theme="dark"] .integration-mark-threads,
 :root[data-theme="dark"] .integration-mark-tiktok { background: #2f3033; color: #e8eaed; }
-:root[data-theme="dark"] .integration-mark-facebook { background: #12345c; color: #8ab4f8; }
-:root[data-theme="dark"] .integration-mark-instagram { background: #4a1c30; color: #f8a1c4; }
 :root[data-theme="dark"] .integration-mark-linkedin { background: #123449; color: #8ec8f0; }
 :root[data-theme="dark"] .integration-mark-reddit { background: #4a2418; color: #ffab91; }
 :root[data-theme="dark"] .integration-mark-mastodon { background: #2a2a5c; color: #b9b8ff; }
@@ -471,6 +465,12 @@
     font-size: 0.62rem;
     white-space: nowrap;
 }
+
+.telegram-preview-media { margin-top:0.5rem; min-width:0; }
+.telegram-preview-media :is(img,video) { display:block; max-width:100%; max-height:14rem; width:100%; object-fit:contain; border-radius:var(--m3e-sys-shape-corner-small); background:var(--m3e-sys-color-surface-container-highest); }
+.telegram-preview-media [hidden] { display:none; }
+.telegram-list .telegram-media-feedback { color:var(--m3e-sys-color-error); }
+.telegram-media-feedback button { margin-top:0.25rem; }
 
 .telegram-avatar {
     align-items: center;

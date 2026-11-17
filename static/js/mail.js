@@ -28,10 +28,11 @@
     const desktop = window.matchMedia('(min-width: 1200px)');
     let cursor = null, hasMore = true, loading = false, failed = false;
     let generation = 0, controller, searchTimer, readerController;
-    let actionPending = false, readerMessageId;
+    let actionPending = false, readerMessageKey;
     let statusController, statusOffset = 0, changeGeneration = 0;
     let focusedIndex = -1;
     const rows = () => [...list.querySelectorAll('.message')];
+    const messageKey = row => JSON.stringify([row.dataset.mailAccount || app.dataset.account, row.dataset.messageId]);
     const clearFocusedRow = () => {
         focusedIndex = -1;
         list.querySelectorAll('.message.is-focused').forEach(row => row.classList.remove('is-focused'));
@@ -107,7 +108,7 @@
         } catch { /* Existing counts remain when Gmail is unavailable. */ }
     };
     document.addEventListener('centromail-mail-read', event => {
-        if (event.detail.account === app.dataset.account) { changeGeneration++; statusController?.abort(); loadCounts(true); }
+        if (app.dataset.account === 'all' || event.detail.account === app.dataset.account) { changeGeneration++; statusController?.abort(); loadCounts(true); }
     });
     const syncGmailStatus = async () => {
         if (!app.dataset.statusUrl || document.hidden || search.disabled || loading || actionPending || statusController) return;
@@ -172,20 +173,20 @@
             const data = await readJson(await fetch(url, {signal: pending.signal}));
             if (currentGeneration !== generation) return;
             const fragment = document.createRange().createContextualFragment(data.html);
+            const known = new Set(reset ? [] : rows().map(messageKey));
+            fragment.querySelectorAll('.message').forEach(row => {
+                const key = messageKey(row);
+                if (known.has(key)) row.remove();
+                else known.add(key);
+            });
             if (reset) list.replaceChildren(fragment);
-            else {
-                const known = new Set(rows().map(row => row.dataset.messageId));
-                fragment.querySelectorAll('.message').forEach(row => {
-                    if (known.has(row.dataset.messageId)) row.remove();
-                });
-                list.append(fragment);
-            }
+            else list.append(fragment);
             sortMessages();
             const previousCursor = cursor;
             cursor = data.next_cursor;
             hasMore = Boolean(cursor) && cursor !== previousCursor;
             failed = false;
-            showFeedback('');
+            showFeedback(data.warning || '');
             const count = rows().length;
             document.querySelector('#mail-page-count').textContent = hasMore ? `${count} loaded${data.total == null ? '' : ` · about ${data.total} total`}` : `${count} messages`;
             document.querySelector('#empty-state').hidden = count > 0;
@@ -216,13 +217,16 @@
     };
     // Resizable reading pane ---------------------------------------------
     const resizer = document.querySelector('#reader-resizer');
+    const inbox = document.querySelector('#inbox');
     const widthKey = 'centromail-reader-width-custom';
     let customWidth = null;
     try {
         const stored = Number(localStorage.getItem(widthKey));
         if (Number.isFinite(stored) && stored >= 320) customWidth = stored;
     } catch { /* Storage can be unavailable in private mode. */ }
-    const clampReaderWidth = px => Math.max(320, Math.min(Math.round(innerWidth * 0.75), Math.round(px)));
+    const maxReaderWidth = () => Math.max(320, Math.min(Math.round(innerWidth * 0.75),
+        Math.floor(inbox.getBoundingClientRect().width + reader.getBoundingClientRect().width - 280)));
+    const clampReaderWidth = px => Math.max(320, Math.min(maxReaderWidth(), Math.round(px)));
     const applyReaderWidth = (px, persist = false) => {
         const width = clampReaderWidth(px);
         customWidth = width;
@@ -236,14 +240,19 @@
     const syncResizer = () => {
         resizer.hidden = reader.hidden || !desktop.matches;
         if (resizer.hidden) return;
+        if (customWidth) applyReaderWidth(customWidth);
         resizer.setAttribute('aria-valuemin', '320');
-        resizer.setAttribute('aria-valuemax', String(Math.round(innerWidth * 0.75)));
+        resizer.setAttribute('aria-valuemax', String(maxReaderWidth()));
         resizer.setAttribute('aria-valuenow', String(Math.round(reader.getBoundingClientRect().width || customWidth || 640)));
     };
     if (customWidth) applyReaderWidth(customWidth);
     let resizing = false;
+    let dragX, dragWidth, dragPointer;
     resizer.addEventListener('pointerdown', event => {
-        if (!desktop.matches || reader.hidden) return;
+        if (event.button !== 0 || !desktop.matches || reader.hidden) return;
+        dragX = event.clientX;
+        dragWidth = reader.getBoundingClientRect().width;
+        dragPointer = event.pointerId;
         resizing = true;
         resizer.setPointerCapture(event.pointerId);
         resizer.classList.add('is-dragging');
@@ -252,14 +261,14 @@
     });
     resizer.addEventListener('pointermove', event => {
         if (!resizing) return;
-        const rect = reader.getBoundingClientRect();
-        applyReaderWidth(rect.width + rect.right - event.clientX);
+        applyReaderWidth(dragWidth + dragX - event.clientX);
     });
     const stopResize = () => {
         if (!resizing) return;
         resizing = false;
         resizer.classList.remove('is-dragging');
         document.body.classList.remove('is-resizing-reader');
+        if (resizer.hasPointerCapture(dragPointer)) resizer.releasePointerCapture(dragPointer);
         applyReaderWidth(Number(resizer.getAttribute('aria-valuenow')), true);
     };
     resizer.addEventListener('pointerup', stopResize);
@@ -271,15 +280,16 @@
         if (event.key === 'ArrowLeft') width += step;
         else if (event.key === 'ArrowRight') width -= step;
         else if (event.key === 'Home') width = 320;
-        else if (event.key === 'End') width = Math.round(innerWidth * 0.75);
+        else if (event.key === 'End') width = maxReaderWidth();
         else return;
         event.preventDefault();
         applyReaderWidth(width, true);
     });
-    window.addEventListener('resize', syncResizer);
+    window.addEventListener('resize', () => { stopResize(); syncResizer(); });
     const setReaderOpen = open => {
         if (reader.hidden === !open) return;
         const update = () => {
+            if (!open) stopResize();
             reader.hidden = !open;
             app.classList.toggle('has-reader', open);
             syncResizer();
@@ -293,9 +303,9 @@
         setReaderOpen(false);
         readerContent.removeAttribute('aria-busy');
         rows().forEach(row => row.classList.remove('is-open'));
-        const link = rows().find(row => row.dataset.messageId === readerMessageId)?.querySelector('.message-details');
+        const link = rows().find(row => messageKey(row) === readerMessageKey)?.querySelector('.message-details');
         (link || list).focus();
-        readerMessageId = null;
+        readerMessageKey = null;
     };
     const openMessage = async row => {
         if (!desktop.matches || window.CentroMailAppearance.get('reading-pane') === 'page') {
@@ -304,7 +314,7 @@
         }
         rows().forEach(item => item.classList.toggle('is-open', item === row));
         setReaderOpen(true);
-        readerMessageId = row.dataset.messageId;
+        readerMessageKey = messageKey(row);
         readerContent.setAttribute('aria-busy', 'true');
         readerStatus.textContent = 'Opening email…';
         reader.focus();
@@ -342,39 +352,60 @@
         if (actionPending || !targets.length) return;
         changeGeneration++; statusController?.abort();
         const actionButton = document.activeElement.closest('[data-mail-action]');
-        const data = new URLSearchParams({action, csrf_token: app.dataset.csrf, account: app.dataset.account, folder});
-        targets.forEach(row => data.append('message_ids', row.dataset.messageId));
+        const groups = new Map();
+        for (const row of targets) {
+            const account = row.dataset.mailAccount || app.dataset.account;
+            const sourceFolder = row.dataset.mailFolder || folder;
+            if (!account || account === 'all') { showFeedback('Refresh the inbox before changing these messages.'); return; }
+            const key = JSON.stringify([account, sourceFolder]);
+            if (!groups.has(key)) groups.set(key, {account, folder: sourceFolder, rows: []});
+            groups.get(key).rows.push(row);
+        }
         actionPending = true;
         targets.forEach(row => row.querySelector('.star-button').disabled = true);
         updateSelection();
         showFeedback('Updating messages…');
+        let updated = 0, failed = 0, firstError, reconnect = false;
         try {
-            await readJson(await fetch(app.dataset.actionsUrl, {method: 'POST', body: data}));
-            targets.forEach(row => {
-                if (action === 'read' || action === 'unread') {
-                    row.classList.toggle('unread', action === 'unread');
-                    row.querySelector('.message-read-state').textContent = action === 'unread' ? 'Unread: ' : '';
+            for (const group of groups.values()) {
+                const data = new URLSearchParams({action, csrf_token: app.dataset.csrf, account: group.account, folder: group.folder});
+                group.rows.forEach(row => data.append('message_ids', row.dataset.messageId));
+                try {
+                    await readJson(await fetch(app.dataset.actionsUrl, {method: 'POST', body: data}));
+                } catch (error) {
+                    failed += group.rows.length;
+                    firstError ||= error;
+                    reconnect ||= error.reconnect;
+                    continue;
                 }
-                if (action === 'star' || action === 'unstar') {
-                    const star = row.querySelector('.star-button');
-                    star.classList.toggle('starred', action === 'star');
-                    star.setAttribute('aria-pressed', String(action === 'star'));
-                    star.setAttribute('aria-label', `${action === 'star' ? 'Unstar' : 'Star'} message: ${row.querySelector('.message-subject').textContent}`);
-                }
-                if ((action === 'trash' && folder !== 'trash') || (action === 'archive' && folder === 'inbox') ||
-                    (action === 'restore' && folder === 'trash') || (action === 'unstar' && folder === 'starred')) {
-                    if (row.classList.contains('is-open')) closeReader();
-                    const restoreFocus = row.contains(document.activeElement);
-                    row.remove();
-                    if (restoreFocus) list.focus();
-                }
-                row.querySelector('.message-check').checked = false;
-            });
-            showFeedback(`${targets.length} message${targets.length === 1 ? '' : 's'} updated.`);
+                updated += group.rows.length;
+                const affected = new Set(group.rows.map(messageKey));
+                rows().filter(row => affected.has(messageKey(row))).forEach(row => {
+                    if (action === 'read' || action === 'unread') {
+                        row.classList.toggle('unread', action === 'unread');
+                        row.querySelector('.message-read-state').textContent = action === 'unread' ? 'Unread: ' : '';
+                    }
+                    if (action === 'star' || action === 'unstar') {
+                        const star = row.querySelector('.star-button');
+                        star.classList.toggle('starred', action === 'star');
+                        star.setAttribute('aria-pressed', String(action === 'star'));
+                        star.setAttribute('aria-label', `${action === 'star' ? 'Unstar' : 'Star'} message: ${row.querySelector('.message-subject').textContent}`);
+                    }
+                    if ((action === 'trash' && group.folder !== 'trash') || (action === 'archive' && group.folder === 'inbox') ||
+                        (action === 'restore' && group.folder === 'trash') || (action === 'unstar' && group.folder === 'starred')) {
+                        if (row.classList.contains('is-open')) closeReader();
+                        const restoreFocus = row.contains(document.activeElement);
+                        row.remove();
+                        if (restoreFocus) list.focus();
+                    }
+                    row.querySelector('.message-check').checked = false;
+                });
+            }
+            const success = updated ? `${updated} message${updated === 1 ? '' : 's'} updated.` : '';
+            const failure = failed ? `${failed} message${failed === 1 ? '' : 's'} could not be updated. ${firstError.message}` : '';
+            showFeedback([success, failure].filter(Boolean).join(' '), reconnect);
             document.querySelector('#empty-state').hidden = rows().length > 0;
-            loadCounts(true);
-        } catch (error) {
-            showFeedback(error.message, error.reconnect);
+            if (updated) loadCounts(true);
         } finally {
             actionPending = false;
             targets.forEach(row => row.querySelector('.star-button').disabled = false);

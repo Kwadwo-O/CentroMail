@@ -11,7 +11,7 @@
     </header>
     <div class="reader-actions" role="group" aria-label="Email actions">
         <span class="reply-button-wrap" {% if not message.can_reply %}id="reply-tooltip-trigger-{{ message.id }}" tabindex="0" role="group" aria-label="Reply unavailable" aria-disabled="true" aria-describedby="reply-unavailable-{{ message.id }}"{% endif %}>
-            <button class="m3e-button m3e-button--tonal" type="button" data-email-reply data-reply-id="{{ message.id }}" data-reply-to="{{ reply_to }}" data-reply-subject="{{ reply_subject }}" data-reply-account="{{ mail_account_key }}" data-reply-folder="{{ folder }}" {% if not message.can_reply %}disabled aria-describedby="reply-unavailable-{{ message.id }}"{% endif %}><span class="m3e-icon" aria-hidden="true">reply</span>Reply</button>
+            <button class="m3e-button m3e-button--tonal" type="button" data-email-reply data-reply-id="{{ message.id }}" data-reply-to="{{ reply_to }}" data-reply-subject="{{ reply_subject }}" data-reply-account="{{ mail_account_key }}" data-reply-from="{{ mail_account_email }}" data-reply-folder="{{ folder }}" {% if not message.can_reply %}disabled aria-describedby="reply-unavailable-{{ message.id }}"{% endif %}><span class="m3e-icon" aria-hidden="true">reply</span>Reply</button>
         </span>
         {% if not message.can_reply %}
         {% set reply_unavailable = 'You cannot reply to this email because it uses a no-reply address.' if message.is_no_reply else 'You cannot reply because this email has no usable reply address.' %}

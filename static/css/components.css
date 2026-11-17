@@ -14,6 +14,10 @@
     --m3e-sys-elevation-level5-shadow: none;
 }
 .m3e-button { min-block-size: 44px; }
+.email-field-error { display: block; margin-block: 6px 0; color: var(--m3e-sys-color-error); font-size: .85rem; line-height: 1.5; overflow-wrap: anywhere; }
+.email-field-error[hidden] { display: none; }
+.compose-window .email-field-error { margin: 0; padding: 6px 18px 10px; }
+input[aria-invalid="true"] { border-color: var(--m3e-sys-color-error); }
 .m3e-icon-button { min-inline-size: 44px; min-block-size: 44px; }
 .m3e-icon-button > .m3e-icon, .m3e-icon-button > .material-symbols-rounded { flex-shrink: 0; }
 .m3e-button.button-danger {

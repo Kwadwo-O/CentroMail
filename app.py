@@ -15,6 +15,7 @@ import secrets
 import sqlite3
 import threading
 import time
+from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime, parseaddr, getaddresses
@@ -34,9 +35,10 @@ import bleach
 import tinycss2
 from bleach.css_sanitizer import CSSSanitizer
 from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template, request,
-                   session, url_for)
+                   send_file, session, url_for)
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
+from itsdangerous import BadSignature, URLSafeSerializer
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 from google_transport import GoogleOAuthApp, google_requests
@@ -319,7 +321,7 @@ PROTECTED_ENDPOINTS = {
     "disconnect_whatsapp_route", "connect_discord_route", "test_discord_route",
     "disconnect_discord_route", "connect_social_route", "test_social_route",
     "disconnect_social_route", "integration_messages", "connect_email", "disconnect_email", "microsoft_callback",
-    "telegram_chat_route", "telegram_photo_route",
+    "telegram_chat_route", "telegram_photo_route", "telegram_media_route",
 }
 
 
@@ -357,10 +359,10 @@ def sign_in(user, remember=False):
     session.permanent = remember
 
 
-def render_auth(active_panel="login", email="", name="", remember=False):
+def render_auth(active_panel="login", email="", name="", remember=False, email_error=""):
     return render_template(
         "register.html" if active_panel == "signup" else "login.html",
-        email=email, name=name, remember=remember,
+        email=email, name=name, remember=remember, email_error=email_error,
     )
 
 
@@ -382,13 +384,18 @@ def email_accounts(user):
 def active_email_account(user):
     accounts = email_accounts(user)
     requested = request.args.get("account") or request.form.get("account")
+    if requested == "all":
+        if request.endpoint not in {"inbox", "mail", "mailbox_messages", "mailbox_counts"}:
+            abort(400)
+        requested = None
     key = requested or session.get("mail_account")
     if requested and requested != "gmail" and not any(account["key"] == requested for account in accounts):
         abort(404)
     selected = next((account for account in accounts if account["key"] == key), None)
     if selected is None:
         selected = next((account for account in accounts if account["key"] == "gmail"), accounts[0] if accounts else {"key":"gmail","kind":"gmail","email":user["email"]})
-    session["mail_account"] = selected["key"]
+    if request.endpoint in {'inbox', 'mail'} and request.args.get('account') != 'all':
+        session["mail_account"] = selected["key"]
     return selected
 
 
@@ -434,8 +441,8 @@ def get_google_token(user):
     return token if isinstance(token, dict) else None
 
 
-def get_gmail_access_token(user):
-    account = active_email_account(user)
+def get_gmail_access_token(user, account=None):
+    account = account or active_email_account(user)
     if account["kind"] != "gmail":
         return None
     token = account["config"]["token"] if account["key"] != "gmail" else get_google_token(user)
@@ -1047,7 +1054,7 @@ def telegram_verify(user, value, mode):
     return config
 
 
-def _telegram_run(config, user_id, operation):
+def _telegram_run(config, user_id, operation, *, timeout=20):
     async def run():
         client = _telegram_client(config)
         try:
@@ -1062,7 +1069,7 @@ def _telegram_run(config, user_id, operation):
     if not lock.acquire(timeout=5):
         raise RuntimeError("Telegram is busy. Try loading messages again.")
     try:
-        return asyncio.run(asyncio.wait_for(run(), timeout=20))
+        return asyncio.run(asyncio.wait_for(run(), timeout=timeout))
     finally:
         lock.release()
 
@@ -1074,10 +1081,12 @@ def telegram_snapshot(config, user_id, limit=8):
         messages = []
         for dialog in dialogs:
             message = dialog.message
+            media = telegram_message_media(message, str(dialog.id)) if message else None
             forum = bool(getattr(dialog.entity, 'forum', False))
             messages.append({
                 'id':message.id if message else None, 'chat_id':str(dialog.id),
-                'sender':dialog.name or 'Telegram', 'text':(message.message or '(Media or service message)') if message else 'No messages yet.',
+                'sender':dialog.name or 'Telegram', 'text':(message.message or ('' if media else '(Media or service message)')) if message else 'No messages yet.',
+                'media':media,
                 'time':message.date.astimezone().strftime('%b %d, %H:%M') if message else '',
                 'kind':'forum' if forum else 'group' if dialog.is_group else 'channel' if dialog.is_channel else 'private',
                 'unread':dialog.unread_count,
@@ -1106,6 +1115,29 @@ def _telegram_can_send(dialog):
         if rights and (getattr(rights, 'send_messages', False) or getattr(rights, 'send_plain', False)):
             return False
     return True
+
+
+TELEGRAM_MEDIA_LIMIT = 64 * 1024 * 1024
+TELEGRAM_MEDIA_TYPES = {'image/jpeg': 'photo', 'image/png': 'photo', 'image/webp': 'photo',
+    'image/gif': 'photo', 'video/mp4': 'video', 'video/webm': 'video', 'video/ogg': 'video'}
+
+
+def telegram_message_media(message, chat_id):
+    media = getattr(message, 'media', None)
+    if isinstance(media, telegram_types.MessageMediaPhoto) and isinstance(media.photo, telegram_types.Photo):
+        sizes = media.photo.sizes
+        if not sizes: return None
+        photo = sizes[-1]
+        size = getattr(photo, 'size', None) or max(getattr(photo, 'sizes', []) or [len(getattr(photo, 'bytes', b''))])
+        mime = 'image/jpeg'
+    elif isinstance(media, telegram_types.MessageMediaDocument) and isinstance(media.document, telegram_types.Document):
+        size, mime = media.document.size, media.document.mime_type
+    else:
+        return None
+    if mime not in TELEGRAM_MEDIA_TYPES: return None
+    return {'kind': TELEGRAM_MEDIA_TYPES[mime], 'mime_type': mime, 'size': size,
+        'url': url_for('telegram_media_route', chat_id=chat_id, message_id=message.id),
+        'available': size <= TELEGRAM_MEDIA_LIMIT}
 
 
 def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', before=0, after=0, text=None, request_id=None):
@@ -1153,7 +1185,8 @@ def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', be
                 sender = getattr(message, 'sender', None)
                 name = _telegram_account(sender)['name'] if sender else 'Telegram'
                 if sender and getattr(sender, 'title', None): name = sender.title
-                messages.append({'id':str(message.id), 'sender':'You' if message.out else name, 'outgoing':bool(message.out), 'text':message.message or '(Media or service message)', 'time':message.date.astimezone().strftime('%b %d, %H:%M')})
+                media = telegram_message_media(message, chat_id)
+                messages.append({'id':str(message.id), 'sender':'You' if message.out else name, 'outgoing':bool(message.out), 'text':message.message or ('' if media else '(Media or service message)'), 'media':media, 'time':message.date.astimezone().strftime('%b %d, %H:%M')})
         return {'chat_id':chat_id, 'name':dialog.name, 'forum':forum, 'topics':topics, 'topic_id':topic_id, 'can_send':can_send and (not forum or topic is not None), 'messages':messages, 'next_before':str(raw[-1].id) if len(raw) == 50 and not after else None, 'latest_seen':str(raw[-1 if after else 0].id) if raw else None, 'has_more_new':bool(after and len(raw) == 50)}
     return _telegram_run(config, user_id, conversation)
 
@@ -1163,6 +1196,23 @@ def telegram_photo(config, user_id, chat_id):
         entity = 'me' if chat_id == 'me' else (await _telegram_dialog(client, chat_id)).entity
         return await client.download_profile_photo(entity, file=bytes, download_big=False)
     return _telegram_run(config, user_id, photo)
+
+
+def telegram_message_download(config, user_id, chat_id, message_id):
+    async def download(client):
+        dialog = await _telegram_dialog(client, chat_id)
+        message = await client.get_messages(dialog.input_entity, ids=message_id)
+        if not message or message.id != message_id or str(getattr(message, 'chat_id', '')) != chat_id:
+            raise ValueError('This media is no longer available in this conversation.')
+        media = telegram_message_media(message, chat_id)
+        if not media: raise ValueError('This message does not contain a supported photo or video.')
+        if not media['available']: raise ValueError('Open Telegram for media larger than 64 MB.')
+        kwargs = {'thumb': message.media.photo.sizes[-1]} if isinstance(message.media, telegram_types.MessageMediaPhoto) else {}
+        content = await client.download_media(message, file=bytes, **kwargs)
+        if not isinstance(content, bytes) or not content or len(content) > TELEGRAM_MEDIA_LIMIT:
+            raise ValueError('This media could not be loaded.')
+        return content, media['mime_type']
+    return _telegram_run(config, user_id, download, timeout=60)
 
 
 def telegram_send_test(config, user_id):
@@ -1434,7 +1484,6 @@ def discord_send_message(config, text):
     )
 
 
-SOCIAL_API_VERSION = "v22.0"
 SOCIAL_TIMEOUT = (5, 20)
 
 
@@ -1460,43 +1509,6 @@ SOCIAL_PROVIDERS = [
         "test_label": "Post test tweet",
         "test_placeholder": "Hello from CentroMail",
         "max_length": 280,
-    },
-    {
-        "key": "facebook",
-        "name": "Facebook",
-        "mark": "f",
-        "subtitle": "Pages, posts and feed",
-        "help": "Open developers.facebook.com, create an app, and paste a Page access token with pages_manage_posts and pages_read_engagement.",
-        "fields": [social_field("access_token", "Page access token", "password", "Paste your Page access token")],
-        "test": True,
-        "test_label": "Post to Page",
-        "test_placeholder": "Hello from CentroMail",
-        "max_length": 5000,
-    },
-    {
-        "key": "instagram",
-        "name": "Instagram",
-        "mark": "Ig",
-        "subtitle": "Business profile and feed",
-        "help": "Use a Meta app with an Instagram Business account. Enter the Instagram user ID and an access token with instagram_basic.",
-        "fields": [
-            social_field("ig_user_id", "Instagram user ID", "text", "17841400000000000"),
-            social_field("access_token", "Access token", "password", "Paste your access token"),
-        ],
-        "test": False,
-        "note": "Instagram publishing requires an image or video URL, so CentroMail validates the connection here.",
-    },
-    {
-        "key": "threads",
-        "name": "Threads",
-        "mark": "Th",
-        "subtitle": "Text posts and profile",
-        "help": "Create a Meta Threads app and paste a long-lived Threads access token with threads_basic and threads_content_publish.",
-        "fields": [social_field("access_token", "Threads access token", "password", "Paste your Threads token")],
-        "test": True,
-        "test_label": "Post test thread",
-        "test_placeholder": "Hello from CentroMail",
-        "max_length": 500,
     },
     {
         "key": "linkedin",
@@ -1707,27 +1719,6 @@ def social_profile(provider, config):
         user = data.get("data") or {}
         config["account"] = user.get("name") or "X account"
         config["detail"] = f"@{user['username']}" if user.get("username") else ""
-    elif provider == "facebook":
-        data = social_request(
-            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/me",
-            params={"fields": "id,name", "access_token": token},
-        )
-        config["account"] = data.get("name") or "Facebook Page"
-        config["detail"] = f"Page {data['id']}" if data.get("id") else ""
-    elif provider == "instagram":
-        data = social_request(
-            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/{config['ig_user_id']}",
-            params={"fields": "id,username,account_type", "access_token": token},
-        )
-        config["account"] = "@" + data.get("username", "instagram")
-        config["detail"] = data.get("account_type", "")
-    elif provider == "threads":
-        data = social_request(
-            "https://graph.threads.net/v1.0/me",
-            params={"fields": "id,username", "access_token": token},
-        )
-        config["account"] = "@" + data.get("username", "threads")
-        config["detail"] = f"User {data['id']}" if data.get("id") else ""
     elif provider == "linkedin":
         data = social_request("https://api.linkedin.com/v2/userinfo", token)
         config["account"] = data.get("name") or data.get("email") or "LinkedIn member"
@@ -1819,31 +1810,6 @@ def social_publish(provider, config, text):
             token,
             method="POST",
             payload={"text": text[:280]},
-        )
-    elif provider == "facebook":
-        social_request(
-            f"https://graph.facebook.com/{SOCIAL_API_VERSION}/me/feed",
-            method="POST",
-            params={"access_token": token},
-            payload={"message": text[:5000]},
-        )
-    elif provider == "threads":
-        container = social_request(
-            "https://graph.threads.net/v1.0/me/threads",
-            method="POST",
-            params={
-                "media_type": "TEXT",
-                "text": text[:500],
-                "access_token": token,
-            },
-        )
-        creation_id = container.get("id")
-        if not creation_id:
-            raise RuntimeError("Threads did not return a post container.")
-        social_request(
-            "https://graph.threads.net/v1.0/me/threads_publish",
-            method="POST",
-            params={"creation_id": creation_id, "access_token": token},
         )
     elif provider == "linkedin":
         social_request(
@@ -1956,13 +1922,14 @@ def login():
     if g.user is not None:
         return redirect(url_for('dashboard'))
     email = session.get('pending_email', '')
+    email_error = ''
     remember = False
     if request.method == 'POST':
         email = normalize_email(request.form.get('email', ''))
         password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
         if not valid_email(email):
-            flash("Please enter a valid email address.", "error")
+            email_error = "Please enter a valid email address."
         elif not password:
             flash("Please enter your password.", "error")
         elif len(password) > 1024:
@@ -1973,7 +1940,7 @@ def login():
                 sign_in(user, remember=remember)
                 return redirect(url_for('dashboard'))
             flash("Incorrect email or password. Please try again.", "error")
-    return render_auth(email=email, remember=remember)
+    return render_auth(email=email, remember=remember, email_error=email_error)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -1981,6 +1948,7 @@ def register():
     if g.user is not None:
         return redirect(url_for('dashboard'))
     email = session.get('pending_email', '')
+    email_error = ''
     name = ''
     if request.method == 'POST':
         email = normalize_email(request.form.get('email', ''))
@@ -1990,13 +1958,13 @@ def register():
         if not name or len(name) > 100:
             flash("Enter a name between 1 and 100 characters.", "error")
         elif not valid_email(email):
-            flash("Please enter a valid email address.", "error")
+            email_error = "Please enter a valid email address."
         elif error := new_password_error(password, email, name):
             flash(error, "error")
         elif password != confirmation:
             flash("Your passwords do not match.", "error")
         elif error := email_address_error(email, check_domain=True):
-            flash(error, "error")
+            email_error = error
         else:
             db = get_db()
             try:
@@ -2011,7 +1979,7 @@ def register():
             else:
                 sign_in(find_user(email))
                 return redirect(url_for('dashboard'))
-    return render_auth(active_panel='signup', email=email, name=name)
+    return render_auth(active_panel='signup', email=email, name=name, email_error=email_error)
 
 
 @app.route('/home')
@@ -2076,6 +2044,9 @@ def requested_mail_folder():
     folder = request.args.get("folder") or request.form.get("folder") or "inbox"
     if folder not in GMAIL_FOLDERS:
         abort(404)
+    if request.args.get("account") == "all":
+        if folder != "inbox": abort(404)
+        return folder
     if account["kind"] == "imap" and folder not in {"inbox","starred",*account["config"]["folders"]}:
         abort(404)
     if account["kind"] == "microsoft" and folder not in {"all","starred",*graph_mail.FOLDERS}:
@@ -2083,9 +2054,9 @@ def requested_mail_folder():
     return folder
 
 
-def cached_mail_preview(user, folder):
+def cached_mail_preview(user, folder, account=None):
     """Render a small local preview without contacting a provider."""
-    account = active_email_account(user)
+    account = account or active_email_account(user)
     if account["kind"] != "gmail":
         prefix = ("imap-" if account["kind"] == "imap" else "ms-") + account["config"]["account_id"] + "-"
         if account["kind"] == "imap": prefix += email_providers.folder_id(account["config"],folder) + "-"
@@ -2120,9 +2091,9 @@ def cached_mail_preview(user, folder):
     return [json.loads(row["metadata"]) for row in rows]
 
 
-def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
+def fetch_mail_page(user, folder, cursor="", query="", refresh=False, account=None):
     """Fetch one Gmail page, never walk the entire mailbox."""
-    account = active_email_account(user)
+    account = account or active_email_account(user)
     if account["kind"] != "gmail":
         if "\r" in query or "\n" in query:
             raise ValueError("Mail searches cannot contain new lines.")
@@ -2134,7 +2105,7 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
         for message in messages: message['mail_folder']='inbox' if folder=='starred' and account['kind']=='imap' else folder
         for message in messages: gmail_cache_put(user["id"],message["id"],metadata=message)
         return messages,next_cursor,total
-    token = get_gmail_access_token(user)
+    token = get_gmail_access_token(user, account)
     if not token:
         raise RuntimeError("Connect Google to load your email.")
     headers = {"Authorization": "Bearer " + token}
@@ -2200,18 +2171,57 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False):
     return [messages[item] for item in ids if item in messages], next_cursor, total
 
 
+def fetch_all_inboxes_page(user, cursor="", query="", refresh=False):
+    accounts = email_accounts(user)
+    signer = URLSafeSerializer(app.config['SECRET_KEY'], salt='all-inboxes')
+    state = {account['key']: {'cursor': '', 'total': 0} for account in accounts}
+    if cursor:
+        try:
+            saved = signer.loads(cursor)
+        except BadSignature as error:
+            raise ValueError('Invalid inbox page.') from error
+        if saved.get('user') != user['id'] or saved.get('query') != query:
+            raise ValueError('Invalid inbox page.')
+        state = {account['key']: saved['accounts'].get(account['key'], {'cursor':'', 'total':0}) for account in accounts}
+    messages, failures = [], []
+    for account in accounts:
+        page = state[account['key']]
+        if page.get('failed'):
+            failures.append(account['email'])
+        if page['cursor'] is None: continue
+        try:
+            batch, next_cursor, total = fetch_mail_page(user, 'inbox', page['cursor'], query, refresh, account=account)
+        except (RuntimeError, requests.RequestException, ValueError, KeyError, OSError, imaplib.IMAP4.error):
+            failures.append(account['email'])
+            page['cursor'] = None
+            page['failed'] = True
+            continue
+        messages.extend({**message, 'mail_account_key':account['key'], 'mail_account_email':account['email'], 'mail_folder':'inbox'} for message in batch)
+        page.update(cursor=next_cursor or None, total=total)
+    messages.sort(key=lambda message: int(message.get('internal_date') or 0), reverse=True)
+    next_cursor = signer.dumps({'user':user['id'], 'query':query, 'accounts':state}) if any(page['cursor'] is not None for page in state.values()) else None
+    warning = 'Could not load ' + ', '.join(failures) + '. Refresh to try these accounts again.' if failures else ''
+    total = None if failures or any(page['total'] is None for page in state.values()) else sum(page['total'] for page in state.values())
+    return messages, next_cursor, total, warning
+
+
 @app.get('/api/mail/messages')
 def mailbox_messages():
     folder = requested_mail_folder()
     query = request.args.get("search", "").strip()[:500]
     category = request.args.get("category", "")
-    if active_email_account(g.user)["kind"] == "gmail" and folder == "inbox" and category in {"primary", "updates", "social"}:
+    aggregate = request.args.get('account') == 'all'
+    if not aggregate and active_email_account(g.user)["kind"] == "gmail" and folder == "inbox" and category in {"primary", "updates", "social"}:
         query = " ".join(filter(None, (query, "category:" + category)))
     try:
-        messages, next_cursor, total = fetch_mail_page(
-            g.user, folder, request.args.get("cursor", ""), query,
-            refresh=request.args.get("refresh") == "1",
-        )
+        warning = ''
+        if aggregate:
+            messages, next_cursor, total, warning = fetch_all_inboxes_page(g.user, request.args.get('cursor', ''), query, request.args.get('refresh') == '1')
+        else:
+            messages, next_cursor, total = fetch_mail_page(
+                g.user, folder, request.args.get("cursor", ""), query,
+                refresh=request.args.get("refresh") == "1",
+            )
     except RuntimeError as error:
         return jsonify(error=str(error), reconnect=True), 409
     except requests.HTTPError as error:
@@ -2220,8 +2230,8 @@ def mailbox_messages():
         app.logger.warning("Could not load mail page for user id=%s", g.user["id"])
         return jsonify(error="Could not load messages. Please try again."), 502
     return jsonify(
-        html=render_template('mail_rows.html', messages=[{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in messages], folder=folder, mail_account_key=active_email_account(g.user)["key"]),
-        next_cursor=next_cursor, total=total, count=len(messages),
+        html=render_template('mail_rows.html', messages=[{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in messages], folder=folder, mail_account_key='all' if aggregate else active_email_account(g.user)["key"]),
+        next_cursor=next_cursor, total=total, count=len(messages), warning=warning,
     )
 
 
@@ -2287,8 +2297,10 @@ def gmail_message_states():
 
 
 @app.get('/api/mail/counts')
-def mailbox_counts():
-    account = active_email_account(g.user)
+def mailbox_counts(account=None):
+    if account is None and request.args.get('account') == 'all':
+        return jsonify(all_inboxes=sum(mailbox_counts(account).get_json().get('inbox', 0) for account in email_accounts(g.user)))
+    account = account or active_email_account(g.user)
     if account["kind"] != "gmail":
         try:
             if account["kind"] == "microsoft":
@@ -2309,7 +2321,7 @@ def mailbox_counts():
     if cached and time.time() - cached["updated_at"] < 60 and request.args.get("refresh") != "1":
         return jsonify(json.loads(cached["counts"]))
     try:
-        token = get_gmail_access_token(g.user)
+        token = get_gmail_access_token(g.user, account)
         if not token:
             return jsonify({})
         counts = {}
@@ -2417,13 +2429,18 @@ def paginate_messages(messages, page):
 def inbox(compose_draft=None):
     folder = requested_mail_folder()
     account = active_email_account(g.user)
-    messages = [{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in cached_mail_preview(g.user, folder)]
+    aggregate = request.args.get('account') == 'all'
+    accounts = email_accounts(g.user)
+    preview = [{**message, 'mail_account_key':source['key'], 'mail_account_email':source['email'], 'mail_folder':'inbox'}
+               for source in accounts for message in cached_mail_preview(g.user, 'inbox', account=source)] if aggregate else cached_mail_preview(g.user, folder)
+    preview.sort(key=lambda message: int(message.get('internal_date') or 0), reverse=True)
+    messages = [{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in preview]
     available = GMAIL_FOLDERS
     if account["kind"] == "imap": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"inbox","starred",*account["config"]["folders"]}}
     elif account["kind"] == "microsoft": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"all","starred",*graph_mail.FOLDERS}}
     return render_template(
-        'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=email_accounts(g.user), mail_account_key=account['key'], mail_kind=account['kind'],
-        folder_title=GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages),
+        'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=accounts, mail_account_key='all' if aggregate else account['key'], mail_kind='aggregate' if aggregate else account['kind'],
+        folder_title='All inboxes' if aggregate else GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages), compose_account_key=account['key'],
         compose_draft=compose_draft, mail_account_email=account['email'], app_connections=workspace_connections(g.user),
     )
 
@@ -2563,16 +2580,17 @@ def compose():
     folder = requested_mail_folder()
     reply_id = request.form.get('reply_id', '')
     error_message = ''
+    email_error = ''
     if not valid_email(recipient):
-        error_message = "Enter a valid recipient email address."
+        error_message = email_error = "Enter a valid recipient email address."
     elif '\r' in subject or '\n' in subject:
         error_message = "The email subject must be a single line."
     elif not body.strip():
         error_message = "Write a message before sending."
     else:
         try:
-            if error := email_address_error(recipient, check_domain=True):
-                raise RuntimeError(error)
+            if email_error := email_address_error(recipient, check_domain=True):
+                raise RuntimeError(email_error)
             sent_warning=None
             original = fetch_email_message(g.user, account, reply_id, folder) if reply_id else None
             if reply_id and original is None:
@@ -2596,8 +2614,9 @@ def compose():
         else:
             flash(sent_warning or f"Message sent to {recipient} successfully.", "info" if sent_warning else "success")
             return redirect(url_for('inbox', account=account['key'], folder=folder))
-    flash(error_message,'error')
-    return inbox(compose_draft={'to': recipient, 'subject': subject, 'body': body, 'reply_id': reply_id, 'error':error_message})
+    if not email_error:
+        flash(error_message,'error')
+    return inbox(compose_draft={'to': recipient, 'subject': subject, 'body': body, 'reply_id': reply_id, 'error':error_message, 'email_error':email_error})
 
 
 @app.route('/settings')
@@ -2606,7 +2625,7 @@ def settings():
 
 
 @app.get('/integrations')
-def integrations():
+def integrations(email_error='', email_value=''):
     telegram = get_integration(g.user["id"], "telegram")
     telegram_stage = telegram.get("stage") if telegram else None
     telegram_account = telegram.get("account") if telegram else None
@@ -2630,6 +2649,7 @@ def integrations():
     ]
     return render_template(
         'integrations.html',
+        email_error=email_error, email_value=email_value,
         telegram=telegram,
         telegram_stage=telegram_stage,
         telegram_account=telegram_account,
@@ -2654,8 +2674,10 @@ def connect_email():
     preset=email_providers.PROVIDERS_BY_KEY.get(request.form.get("provider",""))
     if preset is None: abort(400)
     email=normalize_email(request.form.get("email","")); password=request.form.get("password","")
+    if error := email_address_error(email):
+        return integrations(email_error=error, email_value=email)
     try:
-        if not valid_email(email) or not password or len(password)>1024 or "\r" in password or "\n" in password:
+        if not password or len(password)>1024 or "\r" in password or "\n" in password:
             raise ValueError("Enter an email address and a valid password or app password.")
         config={"kind":"imap","name":preset["name"],"email":email,"password":password,"account_id":hashlib.sha256(email.encode()).hexdigest()[:12]}
         config['save_sent']=request.form.get('save_sent','true' if preset.get('save_sent',True) else 'false')=='true'
@@ -2773,6 +2795,23 @@ def telegram_photo_route(chat_id):
     if not isinstance(photo, bytes) or not photo.startswith(b'\xff\xd8\xff') or len(photo) > 2 * 1024 * 1024:
         return Response(status=404)
     return Response(photo, mimetype='image/jpeg', headers={'X-Content-Type-Options':'nosniff'})
+
+
+@app.get('/api/integrations/telegram/chats/<chat_id>/messages/<int:message_id>/media')
+def telegram_media_route(chat_id, message_id):
+    if not re.fullmatch(r'-?[1-9][0-9]{0,15}', chat_id) or not 1 <= message_id <= 2147483647: abort(404)
+    config = get_integration(g.user['id'], 'telegram')
+    if not config or config.get('stage') != 'connected': abort(404)
+    try:
+        content, mime = telegram_message_download(config, g.user['id'], chat_id, message_id)
+    except ValueError as error:
+        return jsonify(error=str(error)), 404
+    except Exception:
+        app.logger.warning('Telegram media request failed for user id=%s', g.user['id'])
+        return jsonify(error='This media could not be loaded. Try again.'), 502
+    response = send_file(BytesIO(content), mimetype=mime, conditional=True, etag=False)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @app.post('/integrations/telegram/start')

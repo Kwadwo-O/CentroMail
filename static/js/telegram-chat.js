@@ -93,7 +93,39 @@
             row.classList.toggle('is-outgoing', message.outgoing);
             row.dataset.telegramMessage = message.id;
             for (const [tag, value] of [['strong', message.sender], ['time', message.time], ['p', message.text]]) {
+                if (tag === 'p' && !value) continue;
                 const element = document.createElement(tag); element.textContent = value || ''; row.append(element);
+            }
+            if (message.media) {
+                const media = message.media;
+                const container = document.createElement('div'); container.className = 'telegram-message-media';
+                if (media.available === false) {
+                    container.textContent = 'Open Telegram for media larger than 64 MB.';
+                } else {
+                    const asset = document.createElement(media.kind === 'video' ? 'video' : 'img');
+                    if (media.kind === 'video') {
+                        asset.controls = true; asset.preload = 'none'; asset.playsInline = true;
+                        asset.setAttribute('aria-label', `Video from ${message.sender}`);
+                    } else {
+                        asset.alt = `Photo from ${message.sender}`; asset.loading = 'lazy'; asset.decoding = 'async';
+                    }
+                    asset.src = media.url;
+                    const failure = document.createElement('p'); failure.className = 'telegram-media-error'; failure.hidden = true;
+                    failure.append('Media could not be loaded. ');
+                    const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'm3e-button m3e-button--text'; retry.textContent = 'Retry';
+                    retry.addEventListener('click', () => {
+                        failure.hidden = true; asset.hidden = false;
+                        asset.src = media.url;
+                        if (media.kind === 'video') asset.load();
+                    });
+                    failure.append(retry);
+                    asset.addEventListener('error', () => { asset.hidden = true; failure.hidden = false; });
+                    asset.addEventListener(media.kind === 'video' ? 'loadedmetadata' : 'load', () => {
+                        if (atBottom && !prepend) thread.scrollTop = thread.scrollHeight;
+                    });
+                    container.append(asset, failure);
+                }
+                row.append(container);
             }
             fragment.append(row);
         }
@@ -211,7 +243,7 @@
                 const button = document.createElement('button'); button.type = 'button'; button.className = 'm3e-button m3e-button--text telegram-conversation';
                 button.dataset.chatId = chat.chat_id; button.setAttribute('aria-pressed','false'); button.setAttribute('aria-controls','telegram-thread');
                 const copy = document.createElement('span'), name = document.createElement('strong'), preview = document.createElement('small');
-                name.textContent = chat.sender; preview.textContent = (chat.unread ? `${chat.unread} unread · ` : '') + chat.text;
+                name.textContent = chat.sender; preview.textContent = (chat.unread ? `${chat.unread} unread · ` : '') + (chat.text || (chat.media?.kind === 'video' ? 'Video' : chat.media ? 'Photo' : ''));
                 copy.append(name,preview); button.append(avatar(chat.sender,chat.chat_id),copy);
                 button.addEventListener('click', () => chooseChat(chat.chat_id)); conversations.append(button);
                 const option = document.createElement('option'); option.value = chat.chat_id; option.textContent = chat.sender; chatSelect.append(option);

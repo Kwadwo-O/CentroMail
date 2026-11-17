@@ -1,13 +1,16 @@
 {% from '_sender_avatar.html' import sender_avatar %}
 {% from '_email_tags.html' import spam_tag %}
 {% for message in messages %}
-<article class="message{% if message.unread %} unread{% endif %}" data-message-id="{{ message.id }}" data-can-reply="{{ 'true' if message.can_reply else 'false' }}" data-no-reply="{{ 'true' if message.is_no_reply else 'false' }}" data-message-time="{{ message.internal_date|default(0) }}" data-category="{{ message.category }}" data-message-url="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
+{% set message_account = message.get('mail_account_key') or mail_account_key %}
+{% set message_folder = message.get('mail_folder') or folder %}
+<article class="message{% if message.unread %} unread{% endif %}" data-message-id="{{ message.id }}" data-mail-account="{{ message_account }}" data-mail-folder="{{ message_folder }}" data-can-reply="{{ 'true' if message.can_reply else 'false' }}" data-no-reply="{{ 'true' if message.is_no_reply else 'false' }}" data-message-time="{{ message.internal_date|default(0) }}" data-category="{{ message.category }}" data-message-url="{{ url_for('message_detail', message_id=message.id, folder=message_folder, account=message_account) }}">
     <label class="checkbox-wrap"><input class="message-check" type="checkbox" aria-label="Select message from {{ message.sender }}: {{ message.subject }}"><span class="checkmark"></span></label>
     <button class="star-button{% if message.starred %} starred{% endif %} m3e-icon-button m3e-icon-button--standard" type="button" aria-label="{{ 'Unstar' if message.starred else 'Star' }} message: {{ message.subject }}" aria-pressed="{{ 'true' if message.starred else 'false' }}"><span class="material-symbols-rounded" aria-hidden="true">star</span></button>
     {{ sender_avatar(message, 'sender-avatar') }}
-    <a class="message-details" href="{{ url_for('message_detail', message_id=message.id, folder=folder, account=mail_account_key) }}">
+    <a class="message-details" href="{{ url_for('message_detail', message_id=message.id, folder=message_folder, account=message_account) }}">
         <span class="message-read-state sr-only">{{ 'Unread: ' if message.unread else '' }}</span>
         <strong class="message-sender">{{ message.sender }}</strong>
+        {% if mail_account_key == 'all' %}<span class="message-account m3e-badge m3e-badge--large" title="{{ message.mail_account_email }}">{{ message.mail_account_email }}</span>{% endif %}
         {{ spam_tag(message, folder) }}
         {% if message.is_no_reply %}<span class="message-no-reply m3e-badge m3e-badge--large">No reply</span>{% endif %}
         <span class="message-summary"><b class="message-subject">{{ message.subject }}</b><span class="message-preview"> — {{ message.preview }}</span></span>

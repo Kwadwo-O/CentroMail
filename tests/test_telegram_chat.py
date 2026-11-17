@@ -23,8 +23,14 @@ class TelegramChatTests(IntegrationFixture):
         self.client_patch=patch.object(a,'_telegram_client',return_value=self.telegram)
         self.client_patch.start();self.addCleanup(self.client_patch.stop)
 
-    def message(self,identifier,text,*,root=None,out=False):
-        return Item(id=identifier,message=text,out=out,date=datetime.now(timezone.utc),sender=Item(first_name='Friend',last_name='',username='friend'),reply_to=Item(reply_to_top_id=root,reply_to_msg_id=root,forum_topic=bool(root)))
+    def message(self,identifier,text,*,root=None,out=False,media=None):
+        return Item(id=identifier,chat_id=-100123,message=text,media=media,out=out,date=datetime.now(timezone.utc),sender=Item(first_name='Friend',last_name='',username='friend'),reply_to=Item(reply_to_top_id=root,reply_to_msg_id=root,forum_topic=bool(root)))
+
+    def photo(self):
+        return a.telegram_types.MessageMediaPhoto(photo=a.telegram_types.Photo(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),sizes=[a.telegram_types.PhotoSize(type='x',w=640,h=480,size=1024)],dc_id=1))
+
+    def video(self,*,size=1024,mime='video/mp4'):
+        return a.telegram_types.MessageMediaDocument(document=a.telegram_types.Document(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),mime_type=mime,size=size,dc_id=1,attributes=[]))
 
     def topic(self,identifier,title,closed=False):
         return a.telegram_types.ForumTopic(id=identifier,date=datetime.now(timezone.utc),peer=a.telegram_types.PeerChannel(123),title=title,icon_color=0,top_message=identifier,read_inbox_max_id=0,read_outbox_max_id=0,unread_count=0,unread_mentions_count=0,unread_reactions_count=0,unread_poll_votes_count=0,from_id=a.telegram_types.PeerUser(1),notify_settings=a.telegram_types.PeerNotifySettings(),closed=closed,hidden=False)
@@ -162,3 +168,72 @@ class TelegramChatTests(IntegrationFixture):
         self.assertEqual(response.json['messages'][0]['unread'],2)
         self.assertNotIn('private-session',response.text)
         self.telegram.get_dialogs.assert_awaited_once_with(limit=50)
+
+    def test_photos_videos_and_media_only_posts_keep_captions_and_private_urls(self):
+        self.telegram.get_messages.return_value=[self.message(3,'',media=self.video()),self.message(2,'Photo caption <text>',media=self.photo()),self.message(1,'Text only')]
+        response=self.client.get('/api/integrations/telegram/chats/-100123')
+        messages=response.json['messages']
+        self.assertIsNone(messages[0]['media'])
+        self.assertEqual(messages[1]['text'],'Photo caption <text>')
+        self.assertEqual(messages[1]['media']['kind'],'photo')
+        self.assertEqual(messages[2]['text'],'')
+        self.assertEqual(messages[2]['media']['kind'],'video')
+        self.assertEqual(messages[2]['media']['url'],'/api/integrations/telegram/chats/-100123/messages/3/media')
+        self.assertNotIn('private-reference',response.text)
+        self.telegram.download_media.assert_not_awaited()
+        self.dialog.message=self.message(3,'',media=self.video())
+        self.telegram.get_me.return_value=Item(first_name='Tester')
+        preview=self.client.get('/api/integrations/telegram/messages').json['messages'][0]
+        self.assertEqual(preview['media']['kind'],'video')
+        self.assertEqual(preview['text'],'')
+
+    def test_photo_proxy_uses_still_thumbnail_and_video_supports_byte_ranges(self):
+        message=self.message(7,'Photo',media=self.photo())
+        self.telegram.get_messages.return_value=message
+        self.telegram.download_media.return_value=b'\xff\xd8\xffphoto'
+        response=self.client.get('/api/integrations/telegram/chats/-100123/messages/7/media')
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.mimetype,'image/jpeg')
+        self.assertEqual(response.headers['Cache-Control'],'no-store')
+        self.assertEqual(response.headers['X-Content-Type-Options'],'nosniff')
+        self.telegram.get_messages.assert_awaited_with(self.dialog.input_entity,ids=7)
+        self.telegram.download_media.assert_awaited_once_with(message,file=bytes,thumb=message.media.photo.sizes[-1])
+        video=self.message(8,'Video',media=self.video())
+        self.telegram.get_messages.return_value=video
+        self.telegram.download_media.return_value=b'0123456789'
+        response=self.client.get('/api/integrations/telegram/chats/-100123/messages/8/media',headers={'Range':'bytes=2-5'})
+        self.assertEqual(response.status_code,206)
+        self.assertEqual(response.data,b'2345')
+        self.assertEqual(response.headers['Content-Range'],'bytes 2-5/10')
+        self.assertEqual(response.mimetype,'video/mp4')
+        self.telegram.download_media.assert_awaited_with(video,file=bytes)
+
+    def test_media_proxy_rejects_other_users_chats_files_and_oversized_videos(self):
+        route='/api/integrations/telegram/chats/-100123/messages/7/media'
+        anonymous=a.app.test_client()
+        self.assertEqual(anonymous.get(route).status_code,302)
+        self.assertEqual(self.client.get(route.replace('-100123','-999')).status_code,404)
+        for message in (self.message(7,'File',media=self.video(mime='text/html')),
+                self.message(7,'Large',media=self.video(size=a.TELEGRAM_MEDIA_LIMIT+1)),
+                self.message(8,'Wrong ID',media=self.photo())):
+            self.telegram.get_messages.return_value=message
+            self.assertEqual(self.client.get(route).status_code,404)
+        foreign=self.message(7,'Foreign',media=self.photo());foreign.chat_id=-999
+        self.telegram.get_messages.return_value=foreign
+        self.assertEqual(self.client.get(route).status_code,404)
+        self.telegram.download_media.assert_not_awaited()
+        with a.app.app_context():a.delete_integration(self.user_id,'telegram')
+        self.assertEqual(self.client.get(route).status_code,404)
+
+    def test_oversized_media_has_a_clear_fallback_and_failed_downloads_can_retry(self):
+        message=self.message(7,'Large video caption',media=self.video(size=a.TELEGRAM_MEDIA_LIMIT+1))
+        self.telegram.get_messages.return_value=[message]
+        response=self.client.get('/api/integrations/telegram/chats/-100123')
+        self.assertFalse(response.json['messages'][0]['media']['available'])
+        message=self.message(7,'Video',media=self.video())
+        self.telegram.get_messages.return_value=message
+        self.telegram.download_media.side_effect=TimeoutError()
+        response=self.client.get('/api/integrations/telegram/chats/-100123/messages/7/media')
+        self.assertEqual(response.status_code,502)
+        self.assertIn('Try again',response.json['error'])
+        self.telegram.disconnect.assert_awaited()
