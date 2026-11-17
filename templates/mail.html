@@ -88,12 +88,6 @@
                     </div>
                 </details>
             </nav>
-            <div class="sidebar-section">
-                <div class="section-title"><strong>Labels</strong><button class="icon-button m3e-icon-button m3e-icon-button--standard" aria-label="Add label"><span class="material-symbols-rounded ui-icon" aria-hidden="true">add</span></button></div>
-                <a class="label-link m3e-button m3e-button--text" id="work" href="#work"><i class="label-colour work"></i>Work</a>
-                <a class="label-link m3e-button m3e-button--text" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
-                <a class="label-link m3e-button m3e-button--text" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
-            </div>
         </aside>
         <button class="sidebar-scrim m3e-state-layer" id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close mailbox menu"></button>
 
@@ -103,14 +97,27 @@
                     <h1 id="inbox-title">{{ folder_title }}</h1>
                     <span class="page-count" id="mail-page-count">{{ messages|length }} loaded</span>
                 </div>
-                <label class="mail-sort-control" for="mail-sort">Sort loaded emails
+                <div class="mail-sort-control">
+                    <label for="mail-sort">Sort loaded emails</label>
                     <select id="mail-sort">
-                        <option value="replyable">Replyable first</option>
-                        <option value="newest">Newest first</option>
-                        <option value="noreply">No-reply first</option>
+                        <option value="newest">Date</option>
+                        <option value="sender">Sender</option>
+                        <option value="subject">Subject</option>
                     </select>
-                </label>
+                    <button id="mail-sort-direction" class="m3e-button m3e-button--tonal" type="button" aria-label="Newest first. Switch to oldest first"><span class="m3e-icon" aria-hidden="true">arrow_downward</span><span data-sort-direction-label>Newest first</span></button>
+                </div>
             </div>
+            <details id="mail-filters" class="mail-filters">
+                <summary class="m3e-button m3e-button--text"><span class="m3e-icon" aria-hidden="true">filter_list</span>Filters<span id="mail-filter-count" class="m3e-badge m3e-badge--large" hidden></span></summary>
+                <div class="mail-filter-fields">
+                    <label for="mail-filter-read">Read status<select id="mail-filter-read"><option value="all">All messages</option><option value="unread">Unread</option><option value="read">Read</option></select></label>
+                    <label for="mail-filter-star">Stars<select id="mail-filter-star"><option value="all">All messages</option><option value="starred">Starred</option><option value="unstarred">Not starred</option></select></label>
+                    <label for="mail-filter-reply">Replies<select id="mail-filter-reply"><option value="all">All messages</option><option value="replyable">Can reply</option><option value="noreply">No reply</option></select></label>
+                    <label for="mail-filter-date">Date<select id="mail-filter-date"><option value="all">Any time</option><option value="today">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
+                    <button id="clear-mail-filters" class="m3e-button m3e-button--text" type="button">Clear filters</button>
+                </div>
+                <p id="mail-filter-status" role="status">Filters apply to loaded emails. Load more to include older messages.</p>
+            </details>
             <div class="inbox-toolbar">
                 <label class="checkbox-wrap"><input id="select-all" type="checkbox" aria-label="Select all messages"><span class="checkmark"></span></label>
                 <form class="inbox-refresh-form" id="refresh-mail-form" method="get" action="{{ url_for('inbox') }}">

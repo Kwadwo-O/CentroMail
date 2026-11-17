@@ -26,35 +26,84 @@
     const readerContent = document.querySelector('#reader-content');
     const readerStatus = document.querySelector('#reader-status');
     const desktop = window.matchMedia('(min-width: 1200px)');
-    let cursor = null, hasMore = true, loading = false, failed = false;
+    let cursor = null, hasMore = true, loading = false, failed = false, loadedTotal = null;
     let generation = 0, controller, searchTimer, readerController;
     let actionPending = false, readerMessageKey;
     let statusController, statusOffset = 0, changeGeneration = 0;
     let focusedIndex = -1;
     const rows = () => [...list.querySelectorAll('.message')];
+    const visibleRows = () => rows().filter(row => !row.hidden);
     const messageKey = row => JSON.stringify([row.dataset.mailAccount || app.dataset.account, row.dataset.messageId]);
     const clearFocusedRow = () => {
         focusedIndex = -1;
         list.querySelectorAll('.message.is-focused').forEach(row => row.classList.remove('is-focused'));
     };
     const sort = document.querySelector('#mail-sort');
+    const direction = document.querySelector('#mail-sort-direction');
+    const filters = [...document.querySelectorAll('.mail-filter-fields select')];
+    // shortcut: Sorting and filters cover loaded rows; add provider queries if full-mailbox filtering is needed.
     const sortMessages = () => {
         const active = document.activeElement;
-        const order = row => sort.value === 'replyable' ? Number(row.dataset.canReply !== 'true') :
-            sort.value === 'noreply' ? Number(row.dataset.noReply !== 'true') : 0;
-        const sorted = rows().sort((a, b) => order(a) - order(b) || Number(b.dataset.messageTime) - Number(a.dataset.messageTime));
+        const ascending = window.CentroMailAppearance.get('mail-sort-direction') === 'asc';
+        const text = row => row.querySelector(sort.value === 'sender' ? '.message-sender' : '.message-subject').textContent;
+        const sorted = rows().sort((a, b) => {
+            const date = (Number(a.dataset.messageTime) || 0) - (Number(b.dataset.messageTime) || 0);
+            if (sort.value === 'newest') return ascending ? date : -date;
+            const name = text(a).localeCompare(text(b), undefined, {sensitivity:'base', numeric:true});
+            return (ascending ? name : -name) || -date;
+        });
         sorted.forEach((row, index) => {
             if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
         });
         if (list.contains(active) && document.activeElement !== active) active.focus({preventScroll: true});
     };
+    const applyFilters = () => {
+        const values = Object.fromEntries(filters.map(field => [field.id, field.value]));
+        const count = filters.filter(field => field.value !== 'all').length;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const date = values['mail-filter-date'];
+        if (date !== 'all' && date !== 'today') today.setDate(today.getDate() - Number(date) + 1);
+        for (const row of rows()) {
+            const read = values['mail-filter-read'], star = values['mail-filter-star'], reply = values['mail-filter-reply'];
+            const unread = row.classList.contains('unread'), starred = row.querySelector('.star-button').classList.contains('starred');
+            const timestamp = Number(row.dataset.messageTime) || 0;
+            row.hidden = (read !== 'all' && unread !== (read === 'unread')) ||
+                (star !== 'all' && starred !== (star === 'starred')) ||
+                (reply === 'replyable' && row.dataset.canReply !== 'true') || (reply === 'noreply' && row.dataset.noReply !== 'true') ||
+                (date !== 'all' && (timestamp < today.getTime() || timestamp > Date.now()));
+            if (row.hidden) {
+                row.querySelector('.message-check').checked = false;
+                if (row.contains(document.activeElement)) list.focus({preventScroll:true});
+                row.classList.remove('is-focused');
+            }
+        }
+        focusedIndex = visibleRows().indexOf(list.querySelector('.message.is-focused'));
+        const shown = visibleRows().length, loaded = rows().length;
+        const badge = document.querySelector('#mail-filter-count'); badge.hidden = count === 0; badge.textContent = String(count);
+        document.querySelector('#mail-filter-status').textContent = count ? `${shown} of ${loaded} loaded messages match. Load more to include older emails.` : 'Filters apply to loaded emails. Load more to include older messages.';
+        document.querySelector('#mail-page-count').textContent = count ? `${shown} of ${loaded} loaded` : hasMore ? `${loaded} loaded${loadedTotal == null ? '' : ` · about ${loadedTotal} total`}` : `${loaded} messages`;
+        const empty = document.querySelector('#empty-state'); empty.hidden = shown > 0;
+        empty.textContent = count && loaded ? 'No loaded messages match these filters. Load more or clear filters.' : search.value.trim() ? 'No messages match your search.' : 'No messages in this folder.';
+        updateSelection();
+    };
     const syncSort = () => {
         sort.value = window.CentroMailAppearance.get('mail-sort');
+        const ascending = window.CentroMailAppearance.get('mail-sort-direction') === 'asc';
+        const date = sort.value === 'newest';
+        const label = date ? (ascending ? 'Oldest first' : 'Newest first') : (ascending ? 'A to Z' : 'Z to A');
+        const next = date ? (ascending ? 'newest first' : 'oldest first') : (ascending ? 'Z to A' : 'A to Z');
+        direction.querySelector('[data-sort-direction-label]').textContent = label;
+        direction.querySelector('.m3e-icon').textContent = ascending ? 'arrow_upward' : 'arrow_downward';
+        direction.setAttribute('aria-label', `${label}. Switch to ${next}`);
+        direction.title = `Switch to ${next}`;
         sortMessages();
     };
     sort.addEventListener('change', () => window.CentroMailAppearance.set('mail-sort', sort.value));
+    direction.addEventListener('click', () => window.CentroMailAppearance.set('mail-sort-direction', window.CentroMailAppearance.get('mail-sort-direction') === 'asc' ? 'desc' : 'asc'));
+    filters.forEach(field => field.addEventListener('change', applyFilters));
+    document.querySelector('#clear-mail-filters').addEventListener('click', () => { filters.forEach(field => { field.value = 'all'; }); applyFilters(); });
     document.addEventListener('centromail-appearance-change', syncSort);
-    const selected = () => rows().filter(row => row.querySelector('.message-check').checked);
+    const selected = () => visibleRows().filter(row => row.querySelector('.message-check').checked);
     const showFeedback = (message, reconnect = false) => {
         feedback.textContent = message;
         feedback.hidden = !message;
@@ -80,9 +129,9 @@
     const updateSelection = () => {
         const count = selected().length;
         document.querySelector('.mail-selection-actions').hidden = count === 0;
-        selectAll.checked = rows().length > 0 && count === rows().length;
-        selectAll.indeterminate = count > 0 && count < rows().length;
-        selectAll.disabled = rows().length === 0 || actionPending;
+        selectAll.checked = visibleRows().length > 0 && count === visibleRows().length;
+        selectAll.indeterminate = count > 0 && count < visibleRows().length;
+        selectAll.disabled = visibleRows().length === 0 || actionPending;
         document.querySelector('#mail-selection-count').textContent = count > 1000 ? 'Select up to 1,000 messages' : (count ? `${count} selected` : '');
         document.querySelectorAll('[data-mail-action]').forEach(button => {
             button.disabled = count === 0 || count > 1000 || actionPending;
@@ -131,6 +180,7 @@
                 row.classList.toggle('unread', message.unread);
                 row.querySelector('.message-read-state').textContent = message.unread ? 'Unread: ' : '';
             }
+            applyFilters();
             document.querySelectorAll('[data-folder-count]').forEach(element => {
                 const count = data.counts[element.dataset.folderCount];
                 if (count !== undefined) { element.textContent = count; element.hidden = !count; }
@@ -188,11 +238,9 @@
             failed = false;
             showFeedback(data.warning || '');
             const count = rows().length;
-            document.querySelector('#mail-page-count').textContent = hasMore ? `${count} loaded${data.total == null ? '' : ` · about ${data.total} total`}` : `${count} messages`;
-            document.querySelector('#empty-state').hidden = count > 0;
-            document.querySelector('#empty-state').textContent = search.value.trim() ? 'No messages match your search.' : 'No messages in this folder.';
+            loadedTotal = data.total;
+            applyFilters();
             status.textContent = hasMore ? 'Scroll to load more messages.' : (count ? 'All messages loaded.' : '');
-            updateSelection();
             if (force) loadCounts(true);
             if (force && !data.warning) {
                 const message = hasMore ? 'Recent emails synced. Scroll to load older messages.' : 'Emails synced.';
@@ -311,7 +359,7 @@
         setReaderOpen(false);
         readerContent.removeAttribute('aria-busy');
         rows().forEach(row => row.classList.remove('is-open'));
-        const link = rows().find(row => messageKey(row) === readerMessageKey)?.querySelector('.message-details');
+        const link = visibleRows().find(row => messageKey(row) === readerMessageKey)?.querySelector('.message-details');
         (link || list).focus();
         readerMessageKey = null;
     };
@@ -412,7 +460,7 @@
             const success = updated ? `${updated} message${updated === 1 ? '' : 's'} updated.` : '';
             const failure = failed ? `${failed} message${failed === 1 ? '' : 's'} could not be updated. ${firstError.message}` : '';
             showFeedback([success, failure].filter(Boolean).join(' '), reconnect);
-            document.querySelector('#empty-state').hidden = rows().length > 0;
+            applyFilters();
             if (updated) loadCounts(true);
         } finally {
             actionPending = false;
@@ -434,7 +482,7 @@
     });
     list.addEventListener('change', updateSelection);
     selectAll.addEventListener('change', () => {
-        rows().forEach(row => row.querySelector('.message-check').checked = selectAll.checked);
+        visibleRows().forEach(row => row.querySelector('.message-check').checked = selectAll.checked);
         updateSelection();
     });
     document.querySelectorAll('[data-mail-action]').forEach(button => {
@@ -509,7 +557,7 @@
     document.querySelector('#workspace-tab-email').addEventListener('click', syncGmailStatus);
     scheduleRefresh();
     syncSort();
-    updateSelection();
+    applyFilters();
     loadMessages({reset: true, force: new URLSearchParams(location.search).get('refresh') === '1'});
     loadCounts();
 
@@ -519,7 +567,7 @@
         const composeButton = document.querySelector('#open-compose');
         const focusedRow = () => list.querySelector('.message.is-focused');
         const focusRow = delta => {
-            const all = rows();
+            const all = visibleRows();
             if (!all.length) return;
             const next = focusedIndex < 0 ? (delta > 0 ? 0 : all.length - 1) :
                 Math.min(all.length - 1, Math.max(0, focusedIndex + delta));
@@ -542,7 +590,7 @@
             if (!row) return;
             list.querySelectorAll('.message.is-focused').forEach(item => item.classList.remove('is-focused'));
             row.classList.add('is-focused');
-            focusedIndex = rows().indexOf(row);
+            focusedIndex = visibleRows().indexOf(row);
         });
         list.addEventListener('keydown', event => {
             if (event.key === 'ArrowDown') { event.preventDefault(); focusRow(1); }

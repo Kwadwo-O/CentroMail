@@ -887,22 +887,34 @@
         "key": "mail-sort",
         "label": "Email order",
         "description": "Sort loaded emails as more messages arrive.",
-        "default": "replyable",
+        "default": "newest",
         "type": "select",
         "id": "mail-sort-preference",
         "choices": [
           {
-            "value": "replyable",
-            "label": "Replyable first"
-          },
-          {
             "value": "newest",
-            "label": "Newest first"
+            "label": "Date"
           },
           {
-            "value": "noreply",
-            "label": "No-reply first"
+            "value": "sender",
+            "label": "Sender"
+          },
+          {
+            "value": "subject",
+            "label": "Subject"
           }
+        ]
+      },
+      {
+        "key": "mail-sort-direction",
+        "label": "Email order direction",
+        "description": "Reverse the selected order for loaded messages.",
+        "default": "desc",
+        "type": "select",
+        "id": "mail-sort-direction-preference",
+        "choices": [
+          { "value": "desc", "label": "Newest first / Z to A" },
+          { "value": "asc", "label": "Oldest first / A to Z" }
         ]
       },
       {

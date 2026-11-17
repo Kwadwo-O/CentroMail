@@ -39,6 +39,17 @@ class GoogleChatTests(IntegrationFixture):
     def post(self, path, **data):
         return self.client.post(path, data={'csrf_token':'test-token', **data})
 
+    def test_connection_check_reads_one_page_and_requires_chat_permissions(self):
+        result = self.post('/api/integrations/google-chat/check')
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(self.provider.call_args.args[0], 'GET')
+        self.assertTrue(self.provider.call_args.args[1].endswith('/spaces'))
+        self.assertEqual(self.provider.call_args.kwargs['params'], {'pageSize':1})
+        with a.app.app_context(): a.store_google_token(self.user_id, {**self.token, 'scope':'gmail.readonly'})
+        self.provider.reset_mock()
+        self.assertEqual(self.post('/api/integrations/google-chat/check').status_code, 409)
+        self.provider.assert_not_called()
+
     def test_cards_and_workspace_use_owned_gmail_account_and_disconnect_keeps_mail(self):
         body = self.client.get('/integrations').data
         self.assertIn(b'Google Chat', body)

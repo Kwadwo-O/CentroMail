@@ -33,7 +33,7 @@ function inbox(messages, failures = {}) {
         window: {CentroMailAppearance: {get: () => 'false'}, location: {assign() {}}},
         document: {activeElement: {closest: () => null}, body: {}, querySelector: () => empty,
             addEventListener: (type, listener) => { listeners[type] = listener; }},
-        list: {focus() {}}, selectAll: {}, updateSelection() {}, closeReader() {},
+        list: {focus() {}}, selectAll: {}, updateSelection() {}, applyFilters() {}, closeReader() {},
         selected: () => messages.filter(message => !message.row.removed && message.checkbox.checked),
         showFeedback: (text, reconnect) => feedback.push({text, reconnect}),
         loadCounts: () => { context.countRefreshes++; }, countRefreshes: 0,

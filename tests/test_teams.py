@@ -22,6 +22,13 @@ class TeamsTests(IntegrationFixture):
     def path(self, conversation=None):
         return '/api/integrations/teams/conversations/' + (conversation or self.chat) + '/messages'
 
+    def test_connection_check_uses_saved_teams_token_without_sending(self):
+        with patch.object(application.graph_mail, 'request', return_value={'value':[]}) as graph:
+            result = self.client.post('/api/integrations/teams/check', data={'csrf_token':'test-token'})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(graph.call_args.args, ('private-token', 'GET', '/me/chats'))
+        self.assertEqual(graph.call_args.kwargs['params'], {'$top':1})
+
     def test_pages_render_locally_without_exposing_tokens(self):
         with patch.object(application.graph_mail, 'request', side_effect=AssertionError('Rendering must stay local')):
             page = self.client.get('/integrations')

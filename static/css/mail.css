@@ -374,54 +374,6 @@ body:has(.gmail-app) .site-footer {
     font-weight: 700;
 }
 
-.sidebar-section {
-    border-top: 1px solid var(--m3e-sys-color-outline-variant);
-    margin-top: 18px;
-    padding: 16px 12px 0;
-}
-
-.section-title {
-    align-items: center;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.section-title strong {
-    font-size: 0.78rem;
-    letter-spacing: 0.02em;
-}
-
-.section-title .icon-button {
-    height: 28px;
-    width: 28px;
-}
-
-.label-link {
-    align-items: center;
-    color: var(--m3e-sys-color-on-surface-variant);
-    display: flex;
-    font-size: 0.8rem;
-    gap: 10px;
-    justify-content: flex-start;
-    padding: 6px 4px;
-    text-decoration: none;
-}
-
-.label-link:hover {
-    color: var(--m3e-sys-color-on-surface);
-}
-
-.label-colour {
-    border-radius: 50%;
-    height: 9px;
-    width: 9px;
-}
-
-.label-colour.work { background: var(--m3e-sys-color-primary); }
-.label-colour.personal { background: var(--m3e-sys-color-secondary); }
-.label-colour.updates { background: var(--m3e-sys-color-tertiary); }
-
 /* Inbox ---------------------------------------------------------------- */
 
 .inbox {
@@ -492,6 +444,16 @@ body:has(.gmail-app) .site-footer {
     max-width: 100%;
     padding: 8px 12px;
 }
+
+.mail-sort-control .m3e-button { min-width:0; gap:8px; }
+.mail-filters { padding:0 16px 12px; }
+.mail-filters > summary { width:max-content; }
+.mail-filter-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:12px; }
+.mail-filter-fields label { display:grid; gap:6px; min-width:0; font-size:.8125rem; }
+.mail-filter-fields select { width:100%; min-width:0; min-height:44px; padding:8px 12px; border:1px solid var(--m3e-sys-color-outline); border-radius:var(--m3e-sys-shape-corner-small); background:var(--m3e-sys-color-surface); color:inherit; font:inherit; }
+#clear-mail-filters { align-self:end; }
+#mail-filter-status { font-size:.75rem; color:var(--m3e-sys-color-on-surface-variant); margin:12px 0 0; }
+#mail-filter-count[hidden] { display:none; }
 
 .message-no-reply {
     background: var(--m3e-sys-color-secondary-container);
@@ -1258,10 +1220,13 @@ body:has(.gmail-app) .site-footer {
     }
 
     .mail-sort-control {
-        display: grid;
+        display: flex;
+        flex-wrap: wrap;
         gap: 6px;
         font-size: 0.7rem;
     }
+
+    .mail-sort-control > label { flex-basis:100%; }
 
     .inbox-toolbar {
         padding-inline: 8px;

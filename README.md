@@ -229,7 +229,7 @@ Successfully opening an unread email saves its read status to the connected prov
 
 Open an email and choose **Reply** to fill in its recipient and subject. Replies use the account that received the message and follow its Reply-To address when present. Gmail and IMAP/SMTP replies include conversation headers; Outlook uses Microsoft Graph's reply action. The editor fills the screen on phones, preserves a draft when closed, and keeps it available after a failed send.
 
-Explicit no-reply addresses are labelled **No reply** and their Reply button is disabled. A usable Reply-To address allows replies even when the sender is no-reply. **Sort loaded emails** puts replyable messages first by default; newest-first and no-reply-first are also available and saved in your preferences. Sorting covers the messages loaded so far, including new batches as you scroll.
+Explicit no-reply addresses are labelled **No reply** and their Reply button is disabled. A usable Reply-To address allows replies even when the sender is no-reply. **Sort loaded emails** defaults to newest first, with date, sender and subject ordering and a button to reverse the direction. Sorting preferences are saved. **Filters** combines read status, stars, replyability and date ranges; Clear filters restores the full loaded list. Sorting and filtering include new batches as you scroll. The placeholder Work, Personal and Updates sidebar labels have been removed.
 
 Emails with one clearly identified verification or sign-in code show a **Copy code** button in the list and reader. Detection runs locally on the subject, preview, and opened message. It preserves leading zeroes and avoids offering ambiguous codes; it does not validate whether a code is still usable.
 
@@ -241,7 +241,7 @@ Microsoft Outlook mail now connects to an existing CentroMail account through OA
 
 **Settings → Animations and loading** has individual switches for 18 animation groups, M3E expressive or subtle motion, speed, and intensity. The side preview replays each effect. Device reduced-motion preferences also apply. Loading uses M3E progress bars; a successful manual email refresh displays an M3E sync snackbar without claiming that unloaded older pages have synced.
 
-Open Integrations after signing in.
+Open Integrations after signing in. Search or filter the app catalog, then choose **Connect**, **Set up**, or **Manage**. Guided dialogs explain the app’s features, required credentials, and OAuth setup. **Check connection** checks access without sending messages or publishing posts. See the [complete integration setup guide](docs/integration-setup.md).
 
 Microsoft Teams supports work and school chats, team channels, thread replies and sending from **Apps**. It connects separately from Outlook through Microsoft OAuth. See [Teams setup](docs/teams-setup.md) for the app registration, callback and delegated permissions; channel history may require administrator consent.
 
@@ -251,7 +251,7 @@ Telegram message menus support editing text/captions, replies, forwarding, react
 
 Connected services appear in **Inbox → Apps** with their logo, account or channel details, and connection status. Opening a service loads its recent messages; **Refresh** checks again. Telegram supports private chats, regular groups, and forum groups with a topic picker, profile pictures, text sending, and automatic incoming-message checks while the chat is visible. Discord shows its configured bot channel, and WhatsApp Business shows locally received webhook messages. Other connected integrations appear with a management link; message feeds depend on the provider capabilities supported by CentroMail. See [Telegram setup and chat support](docs/telegram-setup.md).
 
-Connections are stored in `centro.db` on this machine, and non-secret UI state is mirrored to browser `localStorage`.
+Connections are stored in the database on the server running CentroMail. Integration credentials and account details are not mirrored into browser storage.
 
 | Service  | What is needed                                                                                                                                                                                                             |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -301,47 +301,24 @@ Features are planned and under development. Availability will depend on the prog
 
 CentroMail is being designed around an extensible integration system.
 
-### Categorised integration groups
+The searchable catalog has Email, Messaging, and Social filters, plus a Connected filter.
+Gmail, Outlook, and IMAP/SMTP are in Email; Telegram, Google Chat, Teams, Discord,
+WhatsApp Business, and Slack are in Messaging. Each app has a logo, connection
+method, status, and a guided dialog. Forms stay out of the catalog until needed.
+M3e provides press feedback, ripple, spring tokens, and accessible controls;
+dialog, disclosure, and entrance animations respect the app and device motion settings.
 
-Integrations are organised into three logical groups for easier navigation:
+Google and Microsoft have integrated browser OAuth sign-in. X (Twitter), Reddit,
+LinkedIn, TikTok, Pinterest, Tumblr, and Twitch show **Coming soon** until the hosted
+domain and provider app setup are ready. Their token forms and connection/posting
+actions are disabled. Bot, instance-token, and app-password services keep their
+existing setup flows.
+See [Integration setup](docs/integration-setup.md) for requirements and official links.
 
-| Group                          | Services                                                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Email accounts                 | Gmail                                                                                                                    |
-| Chats and communities          | Google Chat, Teams, Telegram, WhatsApp, Discord                                                                          |
-| Social networks and workspaces | X (Twitter), LinkedIn, Reddit, Mastodon, Bluesky, TikTok, Pinterest, Tumblr, Twitch, Slack |
-
-Each group has a collapsible "How to connect" guide accessible via the disclosure marker next to the service name. The guides walk through the required setup steps for each provider.
-
-### Adding new integration categories
-
-The integration system is extensible. New categories can be added by:
-
-* Defining a new group heading in `templates/integrations.html`
-
-* Adding service cards with provider logo SVGs from `static/images/integrations/`
-
-* Including connection guide markup using native `<details>` elements
-
-* Updating `static/css/integrations.css` for any new layout needs
-
-Provider logo SVGs should be named consistently (e.g., `<service-name>.svg`) and placed in `static/images/integrations/`.
-
-### Integration connection guides
-
-Each unconnected integration shows a native accessible dropdown with setup instructions:
-
-* Gmail – Google OAuth with Gmail API enabled
-
-* Telegram – API ID/API hash from `my.telegram.org/apps`, optional two-step verification
-
-* WhatsApp – Meta WhatsApp Cloud API phone number ID and access token
-
-* Discord – Application bot token, channel ID, and required permissions
-
-* All social integrations – Platform-specific app creation and setup links
-
-These guides use `<details>`/`<summary>` for accessibility and respect `prefers-reduced-motion`.
+App catalog text and setup links live in `integration_catalog.py`; provider form
+fields and connection handlers live in `app.py`. Provider logo SVGs use the app key
+in `static/images/integrations/`. New providers also need a dialog form, protected
+connection routes, and tests.
 
 Third-party integrations are subject to provider APIs, permissions and restrictions. Not every platform allows external applications to access or send messages.
 

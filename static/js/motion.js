@@ -13,7 +13,7 @@
         const rows = '.message, .cm-connected-item, .cm-teams-message, .cm-teams-conversation, .apps-feed-message, .telegram-message, .telegram-conversation';
         const panels = '.account-menu, .quick-menu, .profile-menu, .compose-window, dialog';
         const views = '.workspace-view, .settings-section, #telegram-workspace, #teams-chat-pane';
-        const notices = '.flash, #settings-feedback, #mail-feedback, #mail-load-status, #apps-feed-status, #telegram-chat-status, #telegram-send-status, .telegram-media-error';
+        const notices = '.flash, .integration-check-status, .integration-notice, #settings-feedback, #mail-feedback, #mail-load-status, #apps-feed-status, #telegram-chat-status, #telegram-send-status, .telegram-media-error';
         const media = '.telegram-message-media img, .telegram-message-media video, img.sender-logo, img.telegram-avatar';
         const visible = element => element?.isConnected && !element.closest('[hidden], template') && element.getClientRects().length > 0;
         const speed = () => Number(root.dataset.cmMotionSpeed || 1);

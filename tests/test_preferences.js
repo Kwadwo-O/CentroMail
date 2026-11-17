@@ -41,6 +41,16 @@ test('group resets preserve other preferences and unrelated browser data', () =>
     assert.equal(storage.get('other-app'), 'retained');
 });
 
+test('old reply-first preferences default to chronological sorting and direction is saved', () => {
+    for (const old of ['replyable','noreply']) {
+        const {appearance,storage} = preferences({'centromail-mail-sort':old});
+        assert.equal(appearance.get('mail-sort'),'newest');
+        assert.equal(appearance.get('mail-sort-direction'),'desc');
+        appearance.set('mail-sort-direction','asc');
+        assert.equal(storage.get('centromail-mail-sort-direction'),'asc');
+    }
+});
+
 test('confirmation preference controls shared destructive form submission', () => {
     const {appearance, listeners} = preferences();
     let cancelled = false;

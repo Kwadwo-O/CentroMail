@@ -221,6 +221,11 @@ class MailFeatureTests(IntegrationFixture):
         self.assertIn(b'data-no-reply="true"',response.data)
         self.assertIn(b'data-copy-code="012345"',response.data)
         self.assertIn(b'id="mail-sort"',response.data)
+        self.assertIn(b'id="mail-sort-direction"',response.data)
+        for field in ('read','star','reply','date'):
+            self.assertIn(('id="mail-filter-'+field+'"').encode(),response.data)
+        self.assertNotIn(b'aria-label="Add label"',response.data)
+        self.assertNotIn(b'class="label-link',response.data)
 
     def test_google_connect_preserves_centromail_identity_and_reuses_accounts(self):
         previous={key:a.app.config[key] for key in ('GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REDIRECT_URI')}

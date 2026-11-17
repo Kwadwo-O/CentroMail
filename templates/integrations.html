@@ -1,569 +1,190 @@
 {% extends "base.html" %}
 {% block title %}Integrations | CentroMail{% endblock %}
-
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/integrations.css') }}">
 {% endblock %}
 
+{% macro logo(key) %}<span class="integration-mark"><img src="{{ url_for('static', filename='images/integrations/' ~ key ~ '.svg') }}" alt="" width="32" height="32" draggable="false"></span>{% endmacro %}
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+{% macro disconnect(action, name) %}
+<form method="post" action="{{ action }}" data-confirm="Disconnect {{ name }} from CentroMail?">
+    {{ csrf() }}<button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
+</form>
+{% endmacro %}
+{% macro accounts(kind) %}
+{% set matching = email_connections|selectattr('kind', 'equalto', kind)|list %}
+{% if matching %}
+<h3>Your accounts</h3>
+<ul class="integration-accounts">
+    {% for account in matching %}
+    <li>
+        <div><strong>{{ account.email }}</strong><span>{{ account.name }}</span></div>
+        <div class="integration-actions">
+            <a class="m3e-button m3e-button--tonal" href="{{ url_for('inbox', account=account.key) }}">Open inbox</a>
+            {% if account.key != 'gmail' %}
+            <form method="post" action="{{ url_for('disconnect_email') }}" data-confirm="Disconnect {{ account.email }} and remove its local email cache?">
+                {{ csrf() }}<input type="hidden" name="account" value="{{ account.key }}">
+                <button class="m3e-button m3e-button--text" type="submit">Disconnect</button>
+            </form>
+            {% else %}<span class="integration-note">Your primary Google sign-in account</span>{% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endmacro %}
+
 {% block content %}
-<section class="integrations-page">
-    <div class="integration-skeleton" id="integration-skeleton" aria-hidden="true">
-        <div class="skeleton-line skeleton-kicker"></div>
-        <div class="skeleton-line skeleton-title"></div>
-        <div class="skeleton-line skeleton-intro"></div>
-        <div class="skeleton-section-heading"></div>
-        <div class="skeleton-grid">
-            {% for _ in range(4) %}
-            <div class="skeleton-card"><div class="skeleton-avatar"></div><div class="skeleton-copy"><div></div><div></div></div><div class="skeleton-block"></div><div class="skeleton-block short"></div></div>
-            {% endfor %}
+<section class="integrations-page" data-open-integration="{{ open_app }}">
+    <header class="integrations-heading integration-heading">
+        <div>
+            <p class="eyebrow">Your apps, together</p>
+            <h1>Connect your world.</h1>
+            <p>Bring your email and conversations into CentroMail. Choose an app below; we’ll guide you through the connection.</p>
         </div>
-    </div>
-    <header class="integrations-heading">
-        <p class="eyebrow">Connected services</p>
-        <h1>Integrations</h1>
-        <p class="integrations-intro">Connect the services CentroMail should bring into one place. Connections are stored locally on this device.</p>
+        <a class="m3e-button m3e-button--filled m3e-button--size-m" href="{{ url_for('inbox') }}"><span class="m3e-icon" aria-hidden="true">inbox</span>Open inbox</a>
     </header>
+    <aside class="integration-welcome" aria-label="Getting started">
+        <div class="integration-welcome-icons" aria-hidden="true">{{ logo('gmail') }}{{ logo('telegram') }}{{ logo('google-chat') }}</div>
+        <div><strong>{{ connected_count }} {{ 'app connected' if connected_count == 1 else 'apps connected' }}</strong><p>{% if connected_count %}Manage a connection below, or open Inbox → Apps for your conversations.{% else %}Start with Gmail, Telegram, or Google Chat. You can connect more apps whenever you need them.{% endif %}</p></div>
+    </aside>
 
-    {% set telegram_connected = telegram_stage == 'connected' %}
-    {% set telegram_pending = telegram_stage in ('code', 'password') %}
-
-    <section class="integration-group" aria-labelledby="email-integrations-heading">
-        <div class="integration-group-heading">
-            <div>
-                <p class="eyebrow">Email</p>
-                <h2 id="email-integrations-heading">Email accounts</h2>
+    <div class="integration-toolbar">
+        <label class="integration-search"><span class="m3e-icon" aria-hidden="true">search</span><span class="visually-hidden">Search apps</span><input type="search" id="integration-search" placeholder="Find an app…" autocomplete="off"></label>
+        <button class="m3e-button m3e-button--outlined" type="button" id="integration-connected-filter" aria-pressed="false"><span class="m3e-icon" aria-hidden="true">check_circle</span>Connected</button>
+    </div>
+    <div class="integration-categories" role="group" aria-label="Filter apps by category">
+        {% for key, label in [('all', 'All apps'), ('email', 'Email'), ('messages', 'Messaging'), ('social', 'Social')] %}
+        <button class="m3e-button {{ 'm3e-button--tonal' if key == 'all' else 'm3e-button--text' }}" type="button" data-integration-category="{{ key }}" aria-pressed="{{ 'true' if key == 'all' else 'false' }}">{{ label }}</button>
+        {% endfor %}
+        <span id="integration-results" role="status" aria-live="polite">{{ integration_apps|length }} apps</span>
+    </div>
+    <div class="integration-grid" id="integration-catalog">
+        {% for item in integration_apps %}
+        <article class="integration-card{% if item.connected %} is-connected{% endif %}" data-integration-app="{{ item.key }}" data-category="{{ item.category }}" data-connected="{{ 'true' if item.connected else 'false' }}" data-search="{{ (item.name ~ ' ' ~ item.summary ~ ' ' ~ item.method ~ (' twitter' if item.key == 'x' else ''))|lower }}">
+            <div class="integration-card-top">{{ logo(item.key) }}<span class="integration-status{% if item.connected %} is-connected{% elif item.pending %} is-pending{% endif %}">{% if item.placeholder %}Coming soon{% elif item.connected %}<span class="m3e-icon" aria-hidden="true">check</span>Connected{% elif item.pending %}Sign-in in progress{% elif not item.ready %}Setup required{% elif 'sign-in' in item.method %}Ready to connect{% else %}Setup needed{% endif %}</span></div>
+            <h2>{{ item.name }}</h2>
+            <p class="integration-summary">{{ item.summary }}</p>
+            <div class="integration-card-bottom">
+                <span class="integration-method">{{ 'OAuth sign-in' if item.placeholder else item.method }}</span>
+                {% if item.placeholder %}
+                <button class="m3e-button m3e-button--outlined" type="button" disabled aria-label="{{ item.name }} — coming soon"><span class="m3e-icon" aria-hidden="true">schedule</span>Coming soon</button>
+                {% else %}
+                <a class="m3e-button {{ 'm3e-button--tonal' if item.connected else 'm3e-button--outlined' }}" href="{{ url_for('integrations', app=item.key) }}" data-integration-open="{{ item.key }}" aria-haspopup="dialog" aria-controls="integration-dialog-{{ item.key }}" aria-label="{{ 'Manage' if item.connected else 'Continue' if item.pending else 'Connect' if item.ready and 'sign-in' in item.method else 'Set up' }} {{ item.name }}">{{ 'Manage' if item.connected else 'Continue' if item.pending else 'Connect' if item.ready and 'sign-in' in item.method else 'Set up' }}<span class="m3e-icon" aria-hidden="true">arrow_forward</span></a>
+                {% endif %}
             </div>
-            <span>Gmail, Outlook, and IMAP/SMTP</span>
-        </div>
-        <div class="integration-grid">
-        <article class="integration-card">
-            <div class="integration-card-top">
-                <div class="integration-mark integration-mark-google"><img src="{{ url_for('static', filename='images/integrations/gmail.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
-                <div>
-                    <h2>Gmail</h2>
-                    <p class="integration-subtitle">Email inbox, reading and sending</p>
-                </div>
-                <span class="m3e-badge m3e-badge--large status-pill {% if google_connected %}is-connected{% endif %}">
-                    {{ 'Connected' if google_connected else 'Not connected' }}
-                </span>
-            </div>
-            {% if google_connected %}
-            <dl class="integration-facts">
-                <div><dt>Account</dt><dd>{{ google_email or g.user.email }}</dd></div>
-                <div><dt>Access</dt><dd>Read inbox and send mail through the Gmail API</dd></div>
-            </dl>
-            <div class="integration-actions">
-                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) }}">Add Gmail account</a>
-                <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', account=google_account_key) }}">Open inbox</a>
-            </div>
-            {% else %}
-            <details class="integration-guide">
-                <summary>How to connect Gmail</summary>
-                <p class="integration-copy">Sign in with Google to let CentroMail read your inbox and send messages through Gmail.</p>
-            </details>
-            <div class="integration-actions">
-                <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) }}">Connect Google</a>
-            </div>
-            {% endif %}
         </article>
+        {% endfor %}
+    </div>
+    <div class="integration-empty" id="integration-empty" hidden><span class="m3e-icon" aria-hidden="true">search_off</span><h2>No apps found</h2><p>Try another name or reset your filters.</p><button class="m3e-button m3e-button--tonal" type="button" id="integration-reset">Show all apps</button></div>
+    <p class="integration-footnote"><span class="m3e-icon" aria-hidden="true">lock</span>Connection credentials are saved on the server running CentroMail. App features depend on the permissions you grant.</p>
 
-            <article class="integration-card"><div class="integration-card-top"><span class="m3e-icon" aria-hidden="true">mail</span><div><h3>Microsoft Outlook</h3><p>Outlook.com, Hotmail, Live, and Microsoft 365</p></div></div><p>Connect with your Microsoft account using OAuth. Your organisation may require administrator consent.</p><a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='microsoft') }}">Connect Microsoft</a></article>
-            <article class="integration-card"><h3>IMAP and SMTP</h3>
+    {% for item in integration_apps if not item.placeholder %}
+    <dialog class="integration-dialog" id="integration-dialog-{{ item.key }}" aria-labelledby="integration-title-{{ item.key }}" {% if open_app == item.key %}open{% endif %}>
+        <header class="integration-dialog-heading">{{ logo(item.key) }}<div><p>{{ item.method }}</p><h2 id="integration-title-{{ item.key }}" tabindex="-1">{{ item.name }}</h2></div><button class="m3e-icon-button" type="button" data-integration-close aria-label="Close {{ item.name }}"><span class="m3e-icon" aria-hidden="true">close</span></button></header>
+        <div class="integration-dialog-body">
+            {% if open_app == item.key %}{% for category, message in get_flashed_messages(with_categories=true) %}<p class="integration-notice {{ 'integration-alert' if category == 'error' else '' }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>{% endfor %}{% endif %}
+            <p class="integration-dialog-intro">{{ item.summary }}</p>
+            <details class="integration-guide" {% if not item.connected and not item.pending %}open{% endif %}>
+                <summary>{{ 'Connection & setup' if item.connected else 'Before you connect' }}</summary>
+                <ol>{% for step in item.setup %}<li>{{ step }}</li>{% endfor %}</ol>
+                <a class="m3e-button m3e-button--text" href="{{ item.docs }}" target="_blank" rel="noopener noreferrer">Setup guide<span class="m3e-icon" aria-hidden="true">open_in_new</span></a>
+            </details>
+            {% if item.key in ['gmail', 'google-chat', 'outlook', 'teams'] %}
+            {% if not item.ready %}<div class="integration-alert" role="status"><strong>Sign-in needs server setup</strong><p>The app owner needs to set {{ 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET' if item.key in ['gmail', 'google-chat'] else 'MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET' }}, then restart CentroMail.</p></div>{% endif %}
+            <details class="integration-guide"><summary>OAuth details for the app owner</summary><p>Register this exact callback URL as a web application redirect URI:</p><code class="integration-code">{{ oauth_callbacks['google' if item.key in ['gmail', 'google-chat'] else 'outlook' if item.key == 'outlook' else 'teams'] }}</code><p>Gmail and Google Chat share one Google client. Outlook and Teams share one Microsoft client, with separate callbacks. Credentials being configured does not confirm API permissions or administrator approval.</p></details>
+            {% endif %}
+
+            {% if item.key in ['gmail', 'outlook'] %}
+                {{ accounts('gmail' if item.key == 'gmail' else 'microsoft') }}
+                <div class="integration-actions">{% if item.ready %}<a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) if item.key == 'gmail' else url_for('authenticate', provider='microsoft') }}">{{ ('Add Gmail account' if item.key == 'gmail' else 'Add Outlook account') if item.connected else ('Connect Google' if item.key == 'gmail' else 'Connect Microsoft') }}</a>{% else %}<button class="m3e-button m3e-button--filled" disabled>Sign-in unavailable</button>{% endif %}{% if item.connected and item.key == 'gmail' %}<a class="m3e-button m3e-button--text" href="{{ url_for('authenticate', provider='google', connect=1) }}">Reconnect Gmail</a>{% endif %}</div>
+            {% elif item.key == 'imap' %}
+                {{ accounts('imap') }}
+                <h3>{{ 'Add another email account' if item.connected else 'Your email account' }}</h3>
                 <form method="post" action="{{ url_for('connect_email') }}" class="integration-form" id="email-connect-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {{ csrf() }}
                     <label>Provider<select name="provider" id="email-provider">{% for provider in email_presets %}<option value="{{ provider.key }}">{{ provider.name }}</option>{% endfor %}</select></label>
                     <label>Email address<input id="email-connect-address" name="email" type="email" autocomplete="email" maxlength="254" value="{{ email_value|default('', true) }}" aria-describedby="email-connect-address-error" {% if email_error %}aria-invalid="true"{% endif %} required></label>
                     <span id="email-connect-address-error" class="email-field-error" aria-live="polite" {% if not email_error %}hidden{% endif %}>{{ email_error|default('', true) }}</span>
                     <label>App password or account password<input name="password" type="password" autocomplete="off" maxlength="1024" required></label>
                     <details class="integration-guide" id="email-server-details"><summary>Server settings</summary>
-                        <label>IMAP server<input name="imap_host" id="imap-host" required></label><label>IMAP port<input name="imap_port" id="imap-port" type="number" min="1" max="65535" required></label><label>IMAP security<select name="imap_security" id="imap-security"><option value="ssl">TLS</option><option value="starttls">STARTTLS</option></select></label>
-                        <label>SMTP server<input name="smtp_host" id="smtp-host" required></label><label>SMTP port<input name="smtp_port" id="smtp-port" type="number" min="1" max="65535" required></label><label>SMTP security<select name="smtp_security" id="smtp-security"><option value="starttls">STARTTLS</option><option value="ssl">TLS</option></select></label>
+                        <div class="integration-form-row"><label>IMAP server<input name="imap_host" id="imap-host" required></label><label>IMAP port<input name="imap_port" id="imap-port" type="number" min="1" max="65535" required></label></div>
+                        <label>IMAP security<select name="imap_security" id="imap-security"><option value="ssl">TLS</option><option value="starttls">STARTTLS</option></select></label>
+                        <div class="integration-form-row"><label>SMTP server<input name="smtp_host" id="smtp-host" required></label><label>SMTP port<input name="smtp_port" id="smtp-port" type="number" min="1" max="65535" required></label></div>
+                        <label>SMTP security<select name="smtp_security" id="smtp-security"><option value="starttls">STARTTLS</option><option value="ssl">TLS</option></select></label>
                         <label>IMAP login (optional)<input name="imap_username" autocomplete="off" maxlength="1024" placeholder="Uses your email address if blank"></label>
                         <label>SMTP login (optional)<input name="smtp_username" autocomplete="off" maxlength="1024" placeholder="Uses your email address if blank"></label>
                         <label>SMTP password (optional)<input name="smtp_password" type="password" autocomplete="off" maxlength="1024" placeholder="Uses the account password if blank"></label>
                         <label>Sent messages<select name="save_sent" id="email-save-sent"><option value="true">Save a copy to Sent</option><option value="false">Server saves Sent automatically</option></select></label>
                     </details>
-                    <p class="integration-note">Most providers require an app password or enabled IMAP access. Proton Mail needs Bridge and its certificate. These credentials stay in the local application database.</p>
                     <button class="m3e-button m3e-button--filled" type="submit">Connect email</button>
                 </form>
-            </article>
-            {% for account in email_connections %}
-            <article class="integration-card"><h3>{{ account.name }}</h3><p>{{ account.email }}</p><div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('inbox',account=account.key) }}">Open inbox</a>{% if account.kind == 'gmail' %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('authenticate',provider='google',connect=1) }}">Reconnect</a>{% endif %}<form method="post" action="{{ url_for('disconnect_email') }}" data-confirm="Disconnect {{ account.email }} and remove its local email cache?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="account" value="{{ account.key }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form></div></article>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="integration-group" aria-labelledby="messaging-integrations-heading">
-        <div class="integration-group-heading">
-            <div>
-                <p class="eyebrow">Messaging</p>
-                <h2 id="messaging-integrations-heading">Chats and communities</h2>
-            </div>
-            <span>5 services</span>
-        </div>
-        <div class="integration-grid">
-        <article class="integration-card">
-            <div class="integration-card-top"><div class="integration-mark"><img src="{{ url_for('static',filename='images/integrations/google-chat.svg') }}" alt="" aria-hidden="true"></div><div><h2>Google Chat</h2><p class="integration-subtitle">Messages, group chats and spaces</p></div><span class="m3e-badge m3e-badge--large status-pill {% if google_chat %}is-connected{% endif %}">{{ 'Connected' if google_chat else 'Not connected' }}</span></div>
-            {% if google_chat %}<dl class="integration-facts"><div><dt>Account</dt><dd>{{ google_chat_email }}</dd></div></dl>{% endif %}
-            <p class="integration-copy">Read and send messages, reply, edit your messages, react, and share files in Apps. Uses your Google connection with additional Chat permissions.</p>
-            <details class="integration-guide"><summary>How to connect Google Chat</summary><p>Enable the Google Chat API and configure its app in the same Google Cloud project as Gmail. Then connect below and allow Chat access. See the <a href="https://github.com/Kwadwo-O/CentroMail/blob/main/docs/google-chat-setup.md" target="_blank" rel="noreferrer">Google Chat setup guide</a>. Your Workspace administrator may need to allow the app.</p></details>
-            <div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('google_chat_connect') }}">{{ 'Reconnect Google Chat' if google_chat else 'Connect Google Chat' }}</a>{% if google_chat %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox') }}#apps">Open Apps</a><form method="post" action="{{ url_for('google_chat_disconnect') }}" data-confirm="Disconnect Google Chat?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form>{% endif %}</div>
-        </article>
-        <article class="integration-card">
-            <div class="integration-card-top"><div class="integration-mark"><img src="{{ url_for('static',filename='images/integrations/teams.svg') }}" alt="" aria-hidden="true"></div><div><h2>Microsoft Teams</h2><p class="integration-subtitle">Work and school chats and team channels</p></div><span class="m3e-badge m3e-badge--large status-pill {% if teams %}is-connected{% endif %}">{{ 'Connected' if teams else 'Not connected' }}</span></div>
-            {% if teams %}<dl class="integration-facts"><div><dt>Account</dt><dd>{{ teams.account.name }}</dd></div><div><dt>Email</dt><dd>{{ teams.account.email }}</dd></div></dl>{% endif %}
-            <p class="integration-copy">Browse your chats, channel posts, and replies in Apps. Sign in with your Microsoft work or school account; channel access may need administrator consent.</p>
-            <details class="integration-guide"><summary>How to connect Microsoft Teams</summary><p>Use the same Microsoft app registration as Outlook and add the Teams callback and delegated permissions from the <a href="https://github.com/Kwadwo-O/CentroMail/blob/main/docs/teams-setup.md" target="_blank" rel="noreferrer">Teams setup guide</a>. Teams connects separately from your email account.</p></details>
-            <div class="integration-actions"><a class="m3e-button m3e-button--filled" href="{{ url_for('teams_connect') }}">{{ 'Reconnect Teams' if teams else 'Connect Microsoft Teams' }}</a>{% if teams %}<a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox') }}#apps">Open Apps</a><form method="post" action="{{ url_for('teams_disconnect') }}" data-confirm="Disconnect Microsoft Teams?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button></form>{% endif %}</div>
-        </article>
-        <article class="integration-card">
-            <div class="integration-card-top">
-                <div class="integration-mark integration-mark-telegram"><img src="{{ url_for('static', filename='images/integrations/telegram.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
-                <div>
-                    <h2>Telegram</h2>
-                    <p class="integration-subtitle">Your own account, chats and messages</p>
-                </div>
-                <span class="m3e-badge m3e-badge--large status-pill {% if telegram_connected %}is-connected{% elif telegram_pending %}is-pending{% endif %}">
-                    {% if telegram_connected %}Connected{% elif telegram_pending %}Signing in{% else %}Not connected{% endif %}
-                </span>
-            </div>
-
-            {% if telegram_connected %}
-            <dl class="integration-facts">
-                <div><dt>Account</dt><dd>{{ telegram_account.name if telegram_account else 'Telegram account' }}</dd></div>
-                {% if telegram_account and telegram_account.username %}
-                <div><dt>Username</dt><dd>@{{ telegram_account.username }}</dd></div>
-                {% endif %}
-                {% if telegram_account and telegram_account.phone %}
-                <div><dt>Phone</dt><dd>{{ telegram_account.phone }}</dd></div>
-                {% endif %}
-                <div><dt>Session</dt><dd>Saved in the local CentroMail database</dd></div>
-            </dl>
-            <div class="integration-actions">
-                <form method="post" action="{{ url_for('test_telegram_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
-                </form>
-                <form method="post" action="{{ url_for('disconnect_telegram_route') }}" data-confirm="Disconnect your Telegram account from CentroMail? This also revokes the local session in Telegram.">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
-                </form>
-            </div>
-
-            <div class="telegram-feed">
-                <div class="telegram-feed-heading">
-                    <strong>Recent chats</strong>
-                    <span>Latest account activity</span>
-                </div>
-                <div data-integration-feed="{{ url_for('integration_messages', provider='telegram') }}" aria-busy="true">
-                    <p class="integration-empty">Loading recent messages…</p>
-                </div>
-            </div>
-
-            {% elif telegram_pending %}
-            <div class="telegram-step">
-                <span class="telegram-step-label">Step 2 of 2</span>
-                {% if telegram_stage == 'password' %}
-                <h3>Enter your two-step verification password</h3>
-                <p class="integration-copy">This account has two-step verification enabled. CentroMail never stores this password.</p>
-                <form class="telegram-form" method="post" action="{{ url_for('telegram_password_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label>Telegram password
-                        <input name="password" type="password" autocomplete="current-password" required>
-                    </label>
-                    <div class="integration-actions">
-                        <button class="m3e-button m3e-button--filled" type="submit">Finish sign-in</button>
-                    </div>
-                </form>
+            {% elif item.key in ['google-chat', 'teams'] %}
+                {% if item.connected %}<p class="integration-account">{{ google_chat_email if item.key == 'google-chat' else teams.account.email }}</p>{% endif %}
+                <div class="integration-actions">{% if item.ready %}<a class="m3e-button m3e-button--filled" href="{{ url_for('google_chat_connect') if item.key == 'google-chat' else url_for('teams_connect') }}">{{ ('Reconnect Google Chat' if item.key == 'google-chat' else 'Reconnect Teams') if item.connected else ('Connect Google Chat' if item.key == 'google-chat' else 'Connect Microsoft Teams') }}</a>{% else %}<button class="m3e-button m3e-button--filled" disabled>Sign-in unavailable</button>{% endif %}</div>
+            {% elif item.key == 'telegram' %}
+                {% if item.connected %}<p class="integration-account">{{ telegram_account.name if telegram_account else 'Telegram account' }}{% if telegram_account and telegram_account.username %} · @{{ telegram_account.username }}{% endif %}</p>
+                {% elif item.pending %}
+                    <div class="integration-steps" aria-label="Sign-in progress"><span>1 · App details</span><strong>2 · {{ 'Password' if telegram_stage == 'password' else 'Login code' }}</strong></div>
+                    <h3>{{ 'Enter your two-step verification password' if telegram_stage == 'password' else 'Check Telegram for your login code' }}</h3>
+                    <p>{{ 'CentroMail never stores this password.' if telegram_stage == 'password' else 'A code was sent to ' ~ telegram.phone ~ ' inside Telegram. Enter that code below.' }}</p>
+                    <form class="integration-form" method="post" action="{{ url_for('telegram_password_route') if telegram_stage == 'password' else url_for('telegram_verify_route') }}">
+                        {{ csrf() }}
+                        {% if telegram_stage == 'password' %}<label>Telegram password<input name="password" type="password" autocomplete="current-password" required></label>{% else %}<label>Login code<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" maxlength="16" required></label>{% endif %}
+                        <button class="m3e-button m3e-button--filled" type="submit">{{ 'Finish sign-in' if telegram_stage == 'password' else 'Verify code' }}</button>
+                    </form>
+                    <form method="post" action="{{ url_for('telegram_restart_route') }}">{{ csrf() }}<button class="m3e-button m3e-button--text" type="submit">Start over</button></form>
                 {% else %}
-                <h3>Enter the login code from Telegram</h3>
-                <p class="integration-copy">A code was sent to <strong>{{ telegram.phone }}</strong> inside Telegram. Open the chat from Telegram and enter the code below.</p>
-                <form class="telegram-form" method="post" action="{{ url_for('telegram_verify_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label>Login code
-                        <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" placeholder="12345" required>
-                    </label>
-                    <div class="integration-actions">
-                        <button class="m3e-button m3e-button--filled" type="submit">Verify code</button>
-                    </div>
-                </form>
-                {% endif %}
-                <form method="post" action="{{ url_for('telegram_restart_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--outlined" type="submit">Start over</button>
-                </form>
-            </div>
-
-            {% else %}
-            {% if not telegram_available %}
-            <p class="integration-alert">Telegram account support is not installed. Run <code>pip install telethon</code>, then restart CentroMail.</p>
-            {% endif %}
-            <div class="telegram-step">
-                <span class="telegram-step-label">Step 1 of 2</span>
-                <h3>Connect your Telegram account</h3>
-                <details class="integration-guide">
-                    <summary>How to connect Telegram</summary>
-                    <p class="integration-copy">Create an app at <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">my.telegram.org/apps</a> to get an API ID and API hash. CentroMail then signs in as your account, not as a bot.</p>
-                </details>
-                <form class="telegram-form" method="post" action="{{ url_for('telegram_start_route') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="telegram-form-row">
-                        <label>API ID
-                            <input id="telegram-api-id" name="api_id" type="text" inputmode="numeric" autocomplete="off" placeholder="12345678" required>
-                        </label>
-                        <label>API hash
-                            <input id="telegram-api-hash" name="api_hash" type="password" autocomplete="off" spellcheck="false" placeholder="32-character hash" required>
-                        </label>
-                    </div>
-                    <label>Phone number
-                        <input id="telegram-phone" name="phone" type="tel" autocomplete="tel" placeholder="+233201234567" required>
-                    </label>
-                    <p class="integration-note">Your API hash, phone number and Telegram session stay in the local CentroMail database. They are never placed in browser storage or sent anywhere except Telegram.</p>
-                    <div class="integration-actions">
+                    {% if not telegram_available %}<p class="integration-alert">Telegram support needs Telethon installed on the server. The app owner must install the requirements and restart CentroMail.</p>{% endif %}
+                    <div class="integration-steps" aria-label="Sign-in progress"><strong>1 · App details</strong><span>2 · Login code</span></div>
+                    <form class="integration-form" method="post" action="{{ url_for('telegram_start_route') }}">
+                        {{ csrf() }}
+                        <div class="integration-form-row"><label>API ID<input id="telegram-api-id" name="api_id" type="text" inputmode="numeric" autocomplete="off" required></label><label>API hash<input id="telegram-api-hash" name="api_hash" type="password" autocomplete="off" spellcheck="false" minlength="32" maxlength="32" required></label></div>
+                        <label>Phone number<input id="telegram-phone" name="phone" type="tel" autocomplete="tel" placeholder="+44 7700 900123" required></label>
                         <button class="m3e-button m3e-button--filled" type="submit" {% if not telegram_available %}disabled{% endif %}>Send login code</button>
-                    </div>
-                </form>
-            </div>
-            {% endif %}
-        </article>
-
-        <article class="integration-card">
-            <div class="integration-card-top">
-                <div class="integration-mark integration-mark-whatsapp"><img src="{{ url_for('static', filename='images/integrations/whatsapp.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
-                <div>
-                    <h2>WhatsApp</h2>
-                    <p class="integration-subtitle">Cloud API messaging and replies</p>
-                </div>
-                <span class="m3e-badge m3e-badge--large status-pill {% if whatsapp %}is-connected{% endif %}">
-                    {{ 'Connected' if whatsapp else 'Not connected' }}
-                </span>
-            </div>
-
-            {% if whatsapp %}
-            <dl class="integration-facts">
-                <div><dt>Business</dt><dd>{{ whatsapp.verified_name or 'WhatsApp business' }}</dd></div>
-                <div><dt>Number</dt><dd>{{ whatsapp.display_phone_number or 'Not reported' }}</dd></div>
-                <div><dt>Number ID</dt><dd><code>{{ whatsapp.phone_number_id }}</code></dd></div>
-                {% if whatsapp.quality_rating %}
-                <div><dt>Quality</dt><dd>{{ whatsapp.quality_rating|replace('_', ' ')|title }}</dd></div>
+                    </form>
                 {% endif %}
-            </dl>
-
-            <div class="telegram-feed">
-                <div class="telegram-feed-heading">
-                    <strong>Recent incoming messages</strong>
-                    <span>Delivered by webhook</span>
-                </div>
-                {% if whatsapp_messages %}
-                <ul class="telegram-list">
-                    {% for item in whatsapp_messages %}
-                    <li>
-                        <div class="telegram-avatar">{{ item.sender[:2]|upper }}</div>
-                        <div>
-                            <strong>{{ item.sender }}</strong>
-                            <p>{{ item.text }}</p>
-                        </div>
-                        <time>{{ item.time }}</time>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="integration-empty">No inbound messages yet. Point the Meta webhook at the callback URL below, then send a message to your WhatsApp number.</p>
+            {% elif item.key == 'discord' %}
+                {% if item.connected %}<p class="integration-account">{{ discord.bot_name or discord.bot_username or 'Discord bot' }} · #{{ discord.channel_name or discord.channel_id }}</p>{% endif %}
+                <details class="integration-credentials" {% if not item.connected %}open{% endif %}><summary>{{ 'Replace connection details' if item.connected else 'Enter your bot details' }}</summary>
+                    <form class="integration-form" method="post" action="{{ url_for('connect_discord_route') }}">{{ csrf() }}<label>Bot token<input name="bot_token" type="password" autocomplete="off" maxlength="4096" spellcheck="false" required></label><label>Channel ID<input name="channel_id" type="text" inputmode="numeric" autocomplete="off" maxlength="25" required></label><button class="m3e-button m3e-button--filled" type="submit">Connect Discord</button></form>
+                </details>
+            {% elif item.key == 'whatsapp' %}
+                {% if item.connected %}
+                    <p class="integration-account">{{ whatsapp.verified_name or 'WhatsApp Business' }} · {{ whatsapp.display_phone_number }}</p>
+                    <details class="integration-guide" open><summary>Receive incoming messages</summary><p>Register this callback in Meta and subscribe to messages:</p><code class="integration-code">{{ whatsapp_webhook_url }}</code><p>Webhook verify token</p><code class="integration-code">{{ whatsapp.verify_token }}</code><p>{{ 'Webhook signature verification is configured. Meta still needs a public HTTPS callback.' if whatsapp_webhook_ready else 'Server setup needed: set WHATSAPP_APP_SECRET so incoming webhook signatures can be verified.' }}</p></details>
+                    <details class="integration-guide"><summary>Send a message</summary><p>This sends a real WhatsApp message. Free-form messages require an active customer service window.</p><form class="integration-form" method="post" action="{{ url_for('test_whatsapp_route') }}">{{ csrf() }}<label>Recipient phone<input name="recipient" type="tel" required></label><label>Message<textarea name="message" maxlength="4096" rows="3" required></textarea></label><button class="m3e-button m3e-button--filled" type="submit">Send message</button></form></details>
                 {% endif %}
-            </div>
-
-            <div class="webhook-box">
-                <div>
-                    <span>Webhook callback URL</span>
-                    <code>{{ whatsapp_webhook_url }}</code>
-                </div>
-                <div>
-                    <span>Verify token</span>
-                    <code>{{ whatsapp.verify_token }}</code>
-                </div>
-                <p class="integration-note">Meta must be able to reach this URL from the internet. For a local server, expose it with a tunnel such as ngrok or Cloudflare Tunnel.</p>
-            </div>
-
-            <form class="integration-form" method="post" action="{{ url_for('test_whatsapp_route') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="telegram-form-row">
-                    <label>Recipient phone
-                        <input name="recipient" type="tel" autocomplete="off" placeholder="+233201234567" required>
-                    </label>
-                    <label>Message
-                        <input name="message" type="text" maxlength="4096" autocomplete="off" placeholder="CentroMail test message">
-                    </label>
-                </div>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
-                </div>
-            </form>
-
-            <div class="integration-actions">
-                <form method="post" action="{{ url_for('disconnect_whatsapp_route') }}" data-confirm="Disconnect WhatsApp from CentroMail?">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
-                </form>
-            </div>
-
+                <details class="integration-credentials" {% if not item.connected %}open{% endif %}><summary>{{ 'Replace connection details' if item.connected else 'Enter your business API details' }}</summary><form class="integration-form" method="post" action="{{ url_for('connect_whatsapp_route') }}">{{ csrf() }}<label>Phone number ID<input name="phone_number_id" type="text" inputmode="numeric" autocomplete="off" maxlength="32" required></label><label>Access token<input name="access_token" type="password" autocomplete="off" maxlength="4096" spellcheck="false" required></label><label>Webhook verify token (optional)<input name="verify_token" type="text" autocomplete="off" maxlength="64" placeholder="Auto-generated if blank"></label><button class="m3e-button m3e-button--filled" type="submit">Connect WhatsApp</button></form></details>
             {% else %}
-            <details class="integration-guide">
-                <summary>How to connect WhatsApp</summary>
-                <p class="integration-copy">Personal WhatsApp accounts do not have an official API. CentroMail connects through <strong>Meta's WhatsApp Cloud API</strong> instead. Create an app at <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>, add WhatsApp, then copy the phone number ID and access token from API Setup.</p>
-            </details>
-            <form class="integration-form" method="post" action="{{ url_for('connect_whatsapp_route') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="telegram-form-row">
-                    <label>Phone number ID
-                        <input name="phone_number_id" type="text" inputmode="numeric" autocomplete="off" placeholder="123456789012345" required>
-                    </label>
-                    <label>Webhook verify token (optional)
-                        <input name="verify_token" type="text" autocomplete="off" placeholder="Auto-generated if blank">
-                    </label>
-                </div>
-                <label>Access token
-                    <input name="access_token" type="password" autocomplete="off" spellcheck="false" placeholder="EAAB..." required>
-                </label>
-                <p class="integration-note">The access token and verify token stay in the local CentroMail database. They are never placed in browser storage.</p>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">Connect WhatsApp</button>
-                </div>
-            </form>
-            {% endif %}
-        </article>
-
-        <article class="integration-card">
-            <div class="integration-card-top">
-                <div class="integration-mark integration-mark-discord"><img src="{{ url_for('static', filename='images/integrations/discord.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
-                <div>
-                    <h2>Discord</h2>
-                    <p class="integration-subtitle">Server channels, messages and replies</p>
-                </div>
-                <span class="m3e-badge m3e-badge--large status-pill {% if discord %}is-connected{% endif %}">
-                    {{ 'Connected' if discord else 'Not connected' }}
-                </span>
-            </div>
-
-            {% if discord %}
-            <dl class="integration-facts">
-                <div><dt>Bot</dt><dd>{{ discord.bot_name or discord.bot_username or 'Discord bot' }}</dd></div>
-                <div><dt>Channel</dt><dd>#{{ discord.channel_name or discord.channel_id }}</dd></div>
-                {% if discord.guild_name %}<div><dt>Server</dt><dd>{{ discord.guild_name }}</dd></div>{% endif %}
-            </dl>
-
-            <div class="telegram-feed">
-                <div class="telegram-feed-heading">
-                    <strong>Recent messages</strong>
-                    <span>Latest channel activity</span>
-                </div>
-                <div data-integration-feed="{{ url_for('integration_messages', provider='discord') }}" aria-busy="true">
-                    <p class="integration-empty">Loading recent messages…</p>
-                </div>
-            </div>
-
-            <form class="integration-form" method="post" action="{{ url_for('test_discord_route') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Test message
-                    <input name="message" type="text" maxlength="2000" autocomplete="off" placeholder="CentroMail test message">
-                </label>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">Send test message</button>
-                </div>
-            </form>
-
-            <div class="integration-actions">
-                <form method="post" action="{{ url_for('disconnect_discord_route') }}" data-confirm="Disconnect Discord from CentroMail?">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
-                </form>
-            </div>
-
-            {% else %}
-            <details class="integration-guide">
-                <summary>How to connect Discord</summary>
-                <p class="integration-copy">Create an application at <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">discord.com/developers/applications</a>, add a bot, reset its token, and invite it to your server with <strong>View Channels</strong>, <strong>Read Message History</strong> and <strong>Send Messages</strong>. Then enable Developer Mode in Discord to copy the channel ID.</p>
-            </details>
-            <form class="integration-form" method="post" action="{{ url_for('connect_discord_route') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Bot token
-                    <input name="bot_token" type="password" autocomplete="off" spellcheck="false" placeholder="MTA..." required>
-                </label>
-                <label>Channel ID
-                    <input name="channel_id" type="text" inputmode="numeric" autocomplete="off" placeholder="123456789012345678" required>
-                </label>
-                <p class="integration-note">The bot token stays in the local CentroMail database. Discord does not allow automating personal user accounts, so CentroMail uses a bot you control.</p>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">Connect Discord</button>
-                </div>
-            </form>
-            {% endif %}
-        </article>
-
-        </div>
-    </section>
-
-    <section class="integration-group" aria-labelledby="social-integrations-heading">
-        <div class="integration-group-heading">
-            <div>
-                <p class="eyebrow">Social</p>
-                <h2 id="social-integrations-heading">Social networks and workspaces</h2>
-            </div>
-            <span>{{ social_cards|length }} services</span>
-        </div>
-        <div class="integration-grid">
-        {% set social_logos = {
-            'x': 'x',
-            'linkedin': 'linkedin', 'reddit': 'reddit', 'mastodon': 'mastodon',
-            'bluesky': 'bluesky', 'tiktok': 'tiktok', 'pinterest': 'pinterest',
-            'tumblr': 'tumblr', 'twitch': 'twitch', 'slack': 'slack'
-        } %}
-        {% for item in social_cards %}
-        <article class="integration-card">
-            <div class="integration-card-top">
-                <div class="integration-mark integration-mark-social integration-mark-{{ item.spec.key }}"><img src="{{ url_for('static', filename='images/integrations/' ~ social_logos.get(item.spec.key, item.spec.key) ~ '.svg') }}" alt="" aria-hidden="true" draggable="false"></div>
-                <div>
-                    <h2>{{ item.spec.name }}</h2>
-                    <p class="integration-subtitle">{{ item.spec.subtitle }}</p>
-                </div>
-                <span class="m3e-badge m3e-badge--large status-pill {% if item.config %}is-connected{% endif %}">
-                    {{ 'Connected' if item.config else 'Not connected' }}
-                </span>
-            </div>
-
-            {% if item.config %}
-            <dl class="integration-facts">
-                <div><dt>Account</dt><dd>{{ item.config.account or 'Connected account' }}</dd></div>
-                {% if item.config.detail %}<div><dt>Details</dt><dd>{{ item.config.detail }}</dd></div>{% endif %}
-            </dl>
-
-            {% if item.spec.test %}
-            <form class="integration-form" method="post" action="{{ url_for('test_social_route', provider=item.spec.key) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Test message
-                    <input name="message" type="text" maxlength="{{ item.spec.max_length }}" autocomplete="off" placeholder="{{ item.spec.test_placeholder }}">
-                </label>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">{{ item.spec.test_label }}</button>
-                </div>
-            </form>
-            {% else %}
-            <p class="integration-note">{{ item.spec.note }}</p>
+                {% set social = (social_cards|selectattr('spec.key', 'equalto', item.key)|list)[0] %}
+                {% if social.config %}
+                    <p class="integration-account">{{ social.config.account or 'Connected account' }}{% if social.config.detail %} · {{ social.config.detail }}{% endif %}</p>
+                    {% if social.spec.test %}<details class="integration-guide"><summary>{{ 'Send a channel message' if item.key == 'slack' else 'Write a post' }}</summary><p>This {{ 'sends a real message to your Slack channel' if item.key == 'slack' else 'publishes a real post on ' ~ item.name }}.</p><form class="integration-form" method="post" action="{{ url_for('test_social_route', provider=item.key) }}">{{ csrf() }}<label>{{ 'Message' if item.key == 'slack' else 'Post text' }}<textarea name="message" maxlength="{{ social.spec.max_length }}" rows="3" required></textarea></label><button class="m3e-button m3e-button--filled" type="submit">{{ 'Send message' if item.key == 'slack' else 'Publish post' }}</button></form></details>{% endif %}
+                {% endif %}
+                <details class="integration-credentials" {% if not item.connected %}open{% endif %}><summary>{{ 'Replace connection details' if item.connected else 'Enter your connection details' }}</summary>
+                    <form class="integration-form" method="post" action="{{ url_for('connect_social_route', provider=item.key) }}">
+                        {{ csrf() }}{% for field in social.spec.fields %}<label>{{ field.label }}<input name="{{ field.name }}" type="{{ field.type }}" autocomplete="off" spellcheck="false" maxlength="4096" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}></label>{% endfor %}
+                        <button class="m3e-button m3e-button--filled" type="submit">Connect {{ item.name }}</button>
+                    </form>
+                </details>
             {% endif %}
 
-            <div class="integration-actions">
-                <form method="post" action="{{ url_for('disconnect_social_route', provider=item.spec.key) }}" data-confirm="Disconnect {{ item.spec.name }} from CentroMail?">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="m3e-button m3e-button--outlined" type="submit">Disconnect</button>
-                </form>
-            </div>
-
-            {% else %}
-            <details class="integration-guide">
-                <summary>How to connect {{ item.spec.name }}</summary>
-                <p class="integration-copy">{{ item.spec.help }}</p>
-            </details>
-            <form class="integration-form" method="post" action="{{ url_for('connect_social_route', provider=item.spec.key) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                {% for field in item.spec.fields %}
-                <label>{{ field.label }}
-                    <input name="{{ field.name }}" type="{{ field.type }}" autocomplete="off" spellcheck="false" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
-                </label>
-                {% endfor %}
-                <p class="integration-note">{{ item.spec.note or 'Tokens are stored only in the local CentroMail database.' }}</p>
-                <div class="integration-actions">
-                    <button class="m3e-button m3e-button--filled" type="submit">Connect {{ item.spec.name }}</button>
+            {% if item.connected and item.key not in ['gmail', 'outlook', 'imap'] %}
+                <div class="integration-manage-actions">
+                    <div class="integration-actions"><button class="m3e-button m3e-button--tonal" type="button" data-integration-check="{{ url_for('check_integration', provider=item.key) }}" data-csrf="{{ csrf_token() }}"><span class="m3e-icon" aria-hidden="true">sync</span>Check connection</button><m3e-loading-indicator class="integration-check-loading" aria-label="Checking connection" hidden></m3e-loading-indicator>{% if item.category == 'messages' and item.key != 'slack' %}<a class="m3e-button m3e-button--filled" href="{{ url_for('inbox') }}#apps">Open Apps</a>{% endif %}</div>
+                    <p class="integration-check-status" role="status" aria-live="polite"></p>
+                    {{ disconnect(url_for('google_chat_disconnect') if item.key == 'google-chat' else url_for('teams_disconnect') if item.key == 'teams' else url_for('disconnect_telegram_route') if item.key == 'telegram' else url_for('disconnect_discord_route') if item.key == 'discord' else url_for('disconnect_whatsapp_route') if item.key == 'whatsapp' else url_for('disconnect_social_route', provider=item.key), item.name) }}
                 </div>
-            </form>
             {% endif %}
-        </article>
-        {% endfor %}
         </div>
-    </section>
-
-    <article class="browser-storage-card" aria-labelledby="browser-storage-heading">
-        <div>
-            <h2 id="browser-storage-heading">Saved in this browser</h2>
-            <p>CentroMail mirrors non-secret integration preferences in browser storage so the page opens the way you left it. Telegram sessions, API hashes, WhatsApp access tokens, webhook verify tokens, Discord bot tokens and every social access token are never placed in browser storage.</p>
-            <p class="browser-storage-status" id="browser-storage-status">No integration preferences saved yet.</p>
-        </div>
-        <button class="m3e-button m3e-button--outlined" id="clear-browser-storage" type="button">Clear browser data</button>
-    </article>
+    </dialog>
+    {% endfor %}
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>window.CentroMailEmailPresets = {{ email_presets|tojson }};</script>
 <script src="{{ url_for('static', filename='js/email-accounts.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/integration-feeds.js') }}" defer></script>
-<script>
-    window.addEventListener('load', () => {
-        const skeleton = document.querySelector('#integration-skeleton');
-        skeleton?.classList.add('is-hidden');
-        window.setTimeout(() => skeleton?.remove(), 260);
-    }, { once: true });
-
-    const storageKey = "centromail-integrations";
-    const telegramAccount = {{ (telegram_account or {})|tojson }};
-    const browserState = {
-        gmail: {
-            connected: {{ 'true' if google_connected else 'false' }},
-            email: {{ (google_email or g.user.email)|tojson }}
-        },
-        telegram: {
-            connected: {{ 'true' if telegram_connected else 'false' }},
-            name: telegramAccount.name || "",
-            username: telegramAccount.username || ""
-        },
-        whatsapp: {
-            connected: {{ 'true' if whatsapp else 'false' }},
-            business: {{ (whatsapp.verified_name if whatsapp else '')|tojson }},
-            number: {{ (whatsapp.display_phone_number if whatsapp else '')|tojson }}
-        },
-        discord: {
-            connected: {{ 'true' if discord else 'false' }},
-            bot: {{ (discord.get('bot_name', '') if discord else '')|tojson }},
-            channel: {{ (discord.get('channel_name', '') if discord else '')|tojson }}
-        },
-        social: {{ social_state|tojson }},
-        savedAt: new Date().toISOString()
-    };
-
-    try {
-        localStorage.setItem(storageKey, JSON.stringify(browserState));
-    } catch (error) {
-        console.warn("Could not write CentroMail integration preferences.", error);
-    }
-
-    let saved = {};
-    try {
-        saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-    } catch (error) {
-        saved = {};
-    }
-
-    const status = document.querySelector("#browser-storage-status");
-    if (status) {
-        status.textContent = saved.savedAt
-            ? `Last saved ${new Date(saved.savedAt).toLocaleString()}.`
-            : "No integration preferences saved yet.";
-    }
-
-    const phone = document.querySelector("#telegram-phone");
-    const drafts = saved.drafts || {};
-    if (phone && !phone.value && drafts.phone) phone.value = drafts.phone;
-
-    const saveDrafts = () => {
-        const current = { ...saved, drafts: { phone: phone?.value || "" } };
-        saved = current;
-        localStorage.setItem(storageKey, JSON.stringify(current));
-        if (status) status.textContent = `Last saved ${new Date().toLocaleString()}.`;
-    };
-    phone?.addEventListener("input", saveDrafts);
-
-    document.querySelector("#clear-browser-storage")?.addEventListener("click", () => {
-        localStorage.removeItem(storageKey);
-        if (status) status.textContent = "Browser integration data cleared.";
-    });
-
-</script>
+<script src="{{ url_for('static', filename='js/integrations.js') }}" defer></script>
 {% endblock %}

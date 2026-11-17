@@ -4,7 +4,7 @@ import json
 import hashlib
 import hmac
 import ssl
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import tempfile
 import unittest
 from pathlib import Path
@@ -93,6 +93,134 @@ class IntegrationFixture(unittest.TestCase):
 
 
 class IntegrationTests(IntegrationFixture):
+    def test_catalog_guides_setup_without_exposing_credentials(self):
+        self.login()
+        with patch.dict(application.app.config, {'GOOGLE_CLIENT_ID': 'private-client',
+                'GOOGLE_CLIENT_SECRET': 'private-secret', 'MICROSOFT_CLIENT_ID': None,
+                'MICROSOFT_CLIENT_SECRET': None}):
+            body = self.client.get('/integrations').text
+        self.assertIn('Search apps', body)
+        self.assertIn('Coming soon', body)
+        self.assertNotIn('Manual OAuth token', body)
+        self.assertIn('Setup required', body)
+        self.assertIn('/static/images/integrations/outlook.svg', body)
+        self.assertNotIn('private-secret', body)
+        self.assertNotIn('private-client', body)
+        self.assertNotIn('browser-storage-card', body)
+        for item in application.integration_catalog.APPS:
+            if item['key'] in application.integration_catalog.PLACEHOLDER_PROVIDERS:
+                self.assertNotIn('id="integration-dialog-' + item['key'] + '"', body)
+            else:
+                self.assertIn('id="integration-dialog-' + item['key'] + '"', body)
+            self.assertTrue((Path(application.app.root_path) / 'static/images/integrations' / (item['key'] + '.svg')).is_file())
+
+    def test_deferred_oauth_apps_are_placeholders_and_cannot_contact_providers(self):
+        from test_accessibility import PageMarkup
+        self.login()
+        deferred = {'x', 'linkedin', 'reddit', 'tiktok', 'pinterest', 'tumblr', 'twitch'}
+        self.assertEqual(application.integration_catalog.PLACEHOLDER_PROVIDERS, deferred)
+        with application.app.app_context():
+            for provider in deferred:
+                application.save_integration(self.user_id, 'social:' + provider,
+                    {'access_token':'private-saved-token', 'account':'Previously connected'})
+        with patch.object(application, 'social_profile') as profile, patch.object(application, 'social_publish') as publish:
+            body = self.client.get('/integrations?app=x').text
+            elements = PageMarkup(body).elements
+            cards = {attrs['data-integration-app']: attrs for tag, attrs, _ in elements if 'data-integration-app' in attrs}
+            buttons = {attrs.get('aria-label'): attrs for tag, attrs, _ in elements if tag == 'button'}
+            self.assertIn('0 apps connected', body)
+            self.assertIn('data-open-integration=""', body)
+            self.assertNotIn('private-saved-token', body)
+            self.assertNotIn('Previously connected', body)
+            for provider in deferred:
+                name = application.integration_catalog.APPS_BY_KEY[provider]['name']
+                self.assertEqual(cards[provider]['data-connected'], 'false')
+                self.assertIn('disabled', buttons[name + ' — coming soon'])
+                self.assertNotIn('/integrations/social/' + provider, body)
+                for path in (f'/integrations/social/{provider}/connect', f'/integrations/social/{provider}/test',
+                             f'/api/integrations/{provider}/check'):
+                    result = self.client.post(path, data={'csrf_token':'test-token', 'access_token':'unused', 'message':'unused'})
+                    self.assertEqual(result.status_code, 409)
+                    self.assertIn('coming soon', result.text)
+            profile.assert_not_called(); publish.assert_not_called()
+        with application.app.test_request_context('/inbox'):
+            self.assertFalse({item['key'] for item in application.workspace_connections({'id':self.user_id})} & deferred)
+        with application.app.app_context():
+            for provider in deferred:
+                self.assertIsNotNone(application.get_integration(self.user_id, 'social:' + provider))
+
+    def test_telegram_pending_and_validation_reopen_the_right_dialog(self):
+        self.login()
+        with application.app.app_context():
+            application.save_integration(self.user_id, 'telegram', {'stage':'password', 'phone':'+15550100'})
+        body = self.client.get('/integrations').text
+        self.assertIn('data-open-integration="telegram"', body)
+        self.assertIn('/integrations/telegram/password', body)
+        response = self.client.post('/integrations/discord', data={'csrf_token':'test-token', 'bot_token':'bad'})
+        self.assertIn('app=discord', response.location)
+        self.assertIn('valid Discord bot token', self.client.get(response.location).text)
+
+    def test_connection_check_requires_login_csrf_and_saved_connection(self):
+        path = '/api/integrations/discord/check'
+        self.assertEqual(self.client.post(path).status_code, 302)
+        self.login()
+        self.assertEqual(self.client.post(path).status_code, 400)
+        result = self.client.post(path, data={'csrf_token':'test-token'})
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(result.headers['Cache-Control'], 'no-store')
+        self.assertEqual(self.client.post('/api/integrations/facebook/check', data={'csrf_token':'test-token'}).status_code, 404)
+
+    def test_connection_checks_do_not_send_or_publish(self):
+        self.login()
+        with application.app.app_context():
+            application.save_integration(self.user_id, 'discord', {'channel_id':'123', 'bot_token':'private-token'})
+            application.save_integration(self.user_id, 'whatsapp', {'phone_number_id':'123', 'access_token':'private-token'})
+            application.save_integration(self.user_id, 'social:mastodon', {'access_token':'private-token'})
+            application.save_integration(self.user_id, 'social:bluesky', {'access_token':'private-token'})
+        with patch.object(application, 'discord_request', return_value={}) as discord, \
+             patch.object(application, 'whatsapp_request', return_value={}) as whatsapp, \
+             patch.object(application, 'social_profile', return_value={}) as social, \
+             patch.object(application, 'social_request', return_value={}) as bluesky, \
+             patch.object(application, 'discord_send_message') as send, \
+             patch.object(application, 'social_publish') as publish:
+            for provider in ('discord', 'whatsapp', 'mastodon', 'bluesky'):
+                result = self.client.post('/api/integrations/' + provider + '/check', data={'csrf_token':'test-token'})
+                self.assertEqual(result.status_code, 200)
+                self.assertNotIn('private-token', result.text)
+            self.assertTrue(all(call.args[1] == 'GET' for call in discord.call_args_list))
+            self.assertEqual(whatsapp.call_args.args[1], 'GET')
+            self.assertEqual(social.call_args.args[0], 'mastodon')
+            self.assertIn('getSession', bluesky.call_args.args[0])
+            send.assert_not_called(); publish.assert_not_called()
+
+    def test_telegram_check_releases_client_and_never_sends(self):
+        self.login()
+        with application.app.app_context():
+            application.save_integration(self.user_id, 'telegram', {'stage':'connected'})
+        client = Mock(connect=AsyncMock(), disconnect=AsyncMock(),
+                      is_user_authorized=AsyncMock(return_value=True), get_me=AsyncMock())
+        with patch.object(application, '_telegram_client', return_value=client), patch.object(application, 'telegram_send_test') as send:
+            response = self.client.post('/api/integrations/telegram/check', data={'csrf_token':'test-token'})
+            self.assertEqual(response.status_code, 200)
+            client.disconnect.assert_awaited_once()
+            send.assert_not_called()
+            client.is_user_authorized.return_value = False
+            response = self.client.post('/api/integrations/telegram/check', data={'csrf_token':'test-token'})
+            self.assertEqual(response.status_code, 502)
+            self.assertIn('session expired', response.json['error'])
+
+    def test_tiktok_check_uses_only_basic_profile_fields(self):
+        with patch.object(application, 'social_request', return_value={'data':{'user':{'open_id':'test-id', 'display_name':'Tester'}}}) as call:
+            application.social_profile('tiktok', {'access_token':'fixture'})
+        self.assertEqual(call.call_args.kwargs['params']['fields'], 'open_id,display_name')
+        with patch.object(application, 'social_request', return_value={'error':{'code':'access_token_invalid'}}), self.assertRaises(RuntimeError):
+            application.social_profile('tiktok', {'access_token':'fixture'})
+
+    def test_manual_connection_rejects_oversize_credentials_without_network(self):
+        with patch.object(application, 'social_profile') as profile, self.assertRaises(RuntimeError):
+            application.social_connect('x', {'access_token':'x' * 4097})
+        profile.assert_not_called()
+
     def test_whatsapp_malformed_signature_is_rejected_without_server_error(self):
         response=self.client.post('/integrations/whatsapp/webhook',json={},headers={'X-Hub-Signature-256':'sha256=é'})
         self.assertEqual(response.status_code,403)
@@ -134,7 +262,7 @@ class IntegrationTests(IntegrationFixture):
             with application.app.test_request_context('/inbox'):
                 connections = application.workspace_connections({'id': self.user_id})
             self.assertFalse({item['key'] for item in connections} & set(removed))
-        self.assertIn('/integrations/social/linkedin/connect', body)
+        self.assertIn('/integrations/social/mastodon/connect', body)
         self.assertIn('/integrations/whatsapp', body)
 
     def test_whatsapp_webhook_verification(self):
@@ -183,7 +311,8 @@ class IntegrationTests(IntegrationFixture):
         with patch.object(application, "telegram_snapshot") as telegram, patch.object(application, "discord_recent_messages") as discord:
             response = self.client.get("/integrations")
             self.assertEqual(response.status_code, 200)
-            self.assertIn(b'data-integration-feed', response.data)
+            self.assertNotIn(b'data-integration-feed', response.data)
+            self.assertIn(b'Check connection', response.data)
             telegram.assert_not_called(); discord.assert_not_called()
         with patch.object(application, "discord_recent_messages", return_value=[{"sender":"Example", "text":"Hello", "time":"Now"}]):
             response = self.client.get("/api/integrations/discord/messages")

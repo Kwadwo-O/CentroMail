@@ -32,6 +32,7 @@ import email_providers
 import graph_mail
 import graph_teams
 import google_chat
+import integration_catalog
 from email_validation import email_address_error
 from sender_logos import logo_cdn_enabled, sender_logo_source
 import bleach
@@ -321,6 +322,7 @@ def csrf_token():
 
 
 PROTECTED_ENDPOINTS = {
+    'check_integration',
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
     "mailbox_messages", "mailbox_counts", "mail_action",
     "gmail_message_states", "mail_conversation",
@@ -1915,9 +1917,11 @@ def social_profile(provider, config):
         data = social_request(
             "https://open.tiktokapis.com/v2/user/info/",
             token,
-            params={"fields": "open_id,display_name,username"},
+            params={"fields": "open_id,display_name"},
         )
         user = (data.get("data") or {}).get("user") or {}
+        if not user.get('open_id'):
+            raise RuntimeError('TikTok could not confirm your profile. Check the token and user.info.basic permission.')
         config["account"] = user.get("display_name") or "TikTok account"
         config["detail"] = "@" + user["username"] if user.get("username") else ""
     elif provider == "pinterest":
@@ -2031,6 +2035,8 @@ def social_connect(provider, values):
             value = value[7:].strip()
         if field["required"] and not value:
             raise RuntimeError(f"Enter {field['label'].lower()}.")
+        if len(value) > 4096:
+            raise RuntimeError(f"{field['label']} is too long.")
         config[field["name"]] = value
     config["provider"] = provider
     config["connected_at"] = int(time.time())
@@ -2610,6 +2616,8 @@ def workspace_connections(user):
         subtitle = config.get('channel_name') or config.get('display_phone_number') or (config.get('account') or {}).get('username') or 'Recent conversations'
         connections.append({'key':provider,'name':name,'subtitle':subtitle,'messages_url':url_for('teams_conversations') if provider == 'teams' else url_for('integration_messages',provider=provider)})
     for spec in SOCIAL_PROVIDERS:
+        if spec['key'] in integration_catalog.PLACEHOLDER_PROVIDERS:
+            continue
         if get_integration(user['id'],'social:'+spec['key']):
             connections.append({'key':spec['key'],'name':spec['name'],'subtitle':'Connected integration','messages_url':''})
     return connections
@@ -2783,8 +2791,9 @@ def settings():
 
 @app.get('/integrations')
 def integrations(email_error='', email_value=''):
+    accounts = email_accounts(g.user)
     chat_config = get_integration(g.user['id'], 'google_chat')
-    chat_account = next((account for account in email_accounts(g.user) if chat_config and account['key'] == chat_config.get('account_key') and account['kind'] == 'gmail'), None)
+    chat_account = next((account for account in accounts if chat_config and account['key'] == chat_config.get('account_key') and account['kind'] == 'gmail'), None)
     telegram = get_integration(g.user["id"], "telegram")
     telegram_stage = telegram.get("stage") if telegram else None
     telegram_account = telegram.get("account") if telegram else None
@@ -2798,17 +2807,38 @@ def integrations(email_error='', email_value=''):
         }
         for spec in SOCIAL_PROVIDERS
     ]
-    social_state = [
-        {
-            "key": card["spec"]["key"],
-            "name": card["spec"]["name"],
-            "connected": bool(card["config"]),
-            "account": (card["config"] or {}).get("account", ""),
-        }
-        for card in social_cards
-    ]
+    google_ready = bool(app.config['GOOGLE_CLIENT_ID'] and app.config['GOOGLE_CLIENT_SECRET'])
+    microsoft_ready = bool(app.config['MICROSOFT_CLIENT_ID'] and app.config['MICROSOFT_CLIENT_SECRET'])
+    configs = {'telegram': telegram, 'google-chat': chat_config if chat_account else None,
+               'teams': teams, 'discord': discord, 'whatsapp': whatsapp,
+               **{card['spec']['key']: card['config'] for card in social_cards}}
+    catalog = []
+    for spec in integration_catalog.APPS:
+        key = spec['key']
+        placeholder = key in integration_catalog.PLACEHOLDER_PROVIDERS
+        connected = (any(account['kind'] == {'gmail':'gmail', 'outlook':'microsoft', 'imap':'imap'}[key]
+                         for account in accounts) if key in {'gmail', 'outlook', 'imap'} else bool(configs.get(key)))
+        pending = key == 'telegram' and telegram_stage in {'code', 'password'}
+        if key == 'telegram': connected = telegram_stage == 'connected'
+        ready = (google_ready if key in {'gmail', 'google-chat'} else
+                 microsoft_ready if key in {'outlook', 'teams'} else
+                 telegram_available() if key == 'telegram' else True)
+        catalog.append({**spec, 'placeholder': placeholder, 'connected': connected and not placeholder,
+                        'pending': pending, 'ready': ready and not placeholder})
+    open_app = request.args.get('app', '')
+    if email_error: open_app = 'imap'
+    elif telegram_stage in {'code', 'password'} and not open_app: open_app = 'telegram'
     return render_template(
         'integrations.html',
+        integration_apps=catalog,
+        connected_count=sum(item['connected'] for item in catalog),
+        open_app=open_app if open_app in integration_catalog.APPS_BY_KEY and open_app not in integration_catalog.PLACEHOLDER_PROVIDERS else '',
+        whatsapp_webhook_ready=bool(app.config.get('WHATSAPP_APP_SECRET')),
+        oauth_callbacks={
+            'google': app.config['GOOGLE_REDIRECT_URI'] or url_for('google_callback', _external=True),
+            'outlook': app.config['MICROSOFT_REDIRECT_URI'] or url_for('microsoft_callback', _external=True),
+            'teams': app.config['MICROSOFT_TEAMS_REDIRECT_URI'] or url_for('teams_callback', _external=True),
+        },
         email_error=email_error, email_value=email_value,
         telegram=telegram,
         telegram_stage=telegram_stage,
@@ -2816,7 +2846,6 @@ def integrations(email_error='', email_value=''):
 
         telegram_available=telegram_available(),
         whatsapp=whatsapp,
-        whatsapp_messages=whatsapp_recent_messages(g.user["id"]) if whatsapp else [],
         whatsapp_webhook_url=url_for('whatsapp_webhook', _external=True),
         discord=discord,
         teams=teams,
@@ -2824,12 +2853,57 @@ def integrations(email_error='', email_value=''):
         google_chat_email=chat_account['email'] if chat_account else None,
 
         social_cards=social_cards,
-        social_state=social_state,
-        google_connected=any(account['kind']=='gmail' for account in email_accounts(g.user)),
-        google_email=next((account['email'] for account in email_accounts(g.user) if account['kind']=='gmail'),None),
-        google_account_key=next((account['key'] for account in email_accounts(g.user) if account['kind']=='gmail'),'gmail'),
-        email_presets=email_providers.PROVIDERS, email_connections=[account for account in email_accounts(g.user) if account["key"] != "gmail"],
+        email_presets=email_providers.PROVIDERS, email_connections=accounts,
     )
+
+
+@app.post('/api/integrations/<provider>/check')
+def check_integration(provider):
+    if provider not in integration_catalog.APPS_BY_KEY or provider in {'gmail', 'outlook', 'imap'}:
+        abort(404)
+    if provider in integration_catalog.PLACEHOLDER_PROVIDERS:
+        return jsonify(error=integration_catalog.APPS_BY_KEY[provider]['name'] + ' is coming soon.'), 409
+    if provider == 'google-chat':
+        def check_chat(token, me, account):
+            google_chat.request(token, 'GET', 'spaces', params={'pageSize': 1})
+            return jsonify(message='Google Chat access confirmed.')
+        return _google_chat_api(check_chat)
+    key = 'social:' + provider if provider in SOCIAL_PROVIDERS_BY_KEY else provider
+    config = get_integration(g.user['id'], key)
+    if not config or (provider in {'telegram', 'teams'} and config.get('stage') != 'connected'):
+        return jsonify(error='Connect this app first.'), 409
+    try:
+        if provider == 'telegram':
+            async def check_telegram():
+                client = _telegram_client(config)
+                await client.connect()
+                try:
+                    if not await client.is_user_authorized():
+                        raise RuntimeError('Your Telegram session expired. Disconnect and sign in again.')
+                    await client.get_me()
+                finally:
+                    await client.disconnect()
+            with _telegram_lock(g.user['id']):
+                asyncio.run(check_telegram())
+        elif provider == 'discord':
+            discord_request(config, 'GET', '/users/@me')
+            discord_request(config, 'GET', '/channels/' + config['channel_id'])
+        elif provider == 'whatsapp':
+            whatsapp_request(config, 'GET', params={'fields': WHATSAPP_FIELDS})
+        elif provider == 'teams':
+            token = microsoft_access_token({'key': 'teams', 'config': config})
+            graph_mail.request(token, 'GET', '/me/chats', params={'$top': 1})
+        elif provider == 'bluesky':
+            social_request('https://bsky.social/xrpc/com.atproto.server.getSession', config['access_token'])
+        else:
+            social_profile(provider, dict(config))
+    except requests.RequestException:
+        return jsonify(error='This app could not be reached. Check your connection and try again.'), 502
+    except Exception as error:
+        app.logger.warning('Integration check failed for provider=%s user id=%s', provider, g.user['id'])
+        message = telegram_error_text(error) if provider == 'telegram' else str(error)
+        return jsonify(error=message or 'Access could not be confirmed. Reconnect this app.'), 502
+    return jsonify(message='Account access confirmed. No message was sent.')
 
 
 @app.post('/integrations/email/connect')
@@ -3232,16 +3306,16 @@ def telegram_start_route():
     phone = re.sub(r"[\s().-]", "", request.form.get("phone", ""))
     if not api_id_text.isdigit() or not 1 <= int(api_id_text) <= 2147483647:
         flash("Enter the numeric API ID from my.telegram.org.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     if not TELEGRAM_API_HASH_RE.fullmatch(api_hash):
         flash("Enter the 32-character API hash from my.telegram.org.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     if not TELEGRAM_PHONE_RE.fullmatch(phone):
         flash("Enter your phone number in international format, for example +233201234567.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     if not telegram_available():
         flash("Telegram account support is not installed. Run pip install telethon.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     try:
         telegram_send_code(g.user, int(api_id_text), api_hash, phone)
     except Exception as error:
@@ -3253,7 +3327,7 @@ def telegram_start_route():
             "Login code sent. Open Telegram, find the message from Telegram, and enter the code here.",
             "success",
         )
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='telegram'))
 
 
 @app.post('/integrations/telegram/verify')
@@ -3261,7 +3335,7 @@ def telegram_verify_route():
     code = re.sub(r"\s+", "", request.form.get("code", ""))
     if not code:
         flash("Enter the login code Telegram sent you.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     try:
         config = telegram_verify(g.user, code, "code")
     except Exception as error:
@@ -3273,7 +3347,7 @@ def telegram_verify_route():
             flash("Two-step verification is on. Enter your Telegram password.", "info")
         else:
             flash("Telegram account connected and saved on this device.", "success")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='telegram'))
 
 
 @app.post('/integrations/telegram/password')
@@ -3281,7 +3355,7 @@ def telegram_password_route():
     password = request.form.get("password", "")
     if not password:
         flash("Enter your Telegram two-step verification password.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='telegram'))
     try:
         telegram_verify(g.user, password, "password")
     except Exception as error:
@@ -3290,14 +3364,14 @@ def telegram_password_route():
         flash(f"Telegram sign-in failed: {message}", "error")
     else:
         flash("Telegram account connected and saved on this device.", "success")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='telegram'))
 
 
 @app.post('/integrations/telegram/restart')
 def telegram_restart_route():
     delete_integration(g.user["id"], "telegram")
     flash("Telegram sign-in restarted.", "info")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='telegram'))
 
 
 @app.post('/integrations/telegram/test')
@@ -3335,13 +3409,13 @@ def connect_whatsapp_route():
     verify_token = request.form.get("verify_token", "").strip()
     if not phone_number_id:
         flash("Enter the WhatsApp phone number ID from the Meta developer dashboard.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='whatsapp'))
     if not access_token or len(access_token) > 4096:
         flash("Enter a valid WhatsApp Cloud API access token.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='whatsapp'))
     if verify_token and not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", verify_token):
         flash("The webhook verify token must be 8-64 letters, numbers, underscores or dashes.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='whatsapp'))
     try:
         connect_whatsapp(g.user, phone_number_id, access_token, verify_token)
     except requests.RequestException:
@@ -3352,7 +3426,7 @@ def connect_whatsapp_route():
         flash(f"WhatsApp could not be connected: {error}", "error")
     else:
         flash("WhatsApp is connected and saved on this device.", "success")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='whatsapp'))
 
 
 @app.post('/integrations/whatsapp/test')
@@ -3438,10 +3512,10 @@ def connect_discord_route():
     channel_id = re.sub(r"\D", "", request.form.get("channel_id", ""))
     if not DISCORD_TOKEN_RE.fullmatch(bot_token):
         flash("Enter a valid Discord bot token from the Bot settings page.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='discord'))
     if not 15 <= len(channel_id) <= 25:
         flash("Enter the numeric Discord channel ID.", "error")
-        return redirect(url_for('integrations'))
+        return redirect(url_for('integrations', app='discord'))
     try:
         connect_discord(g.user, bot_token, channel_id)
     except requests.RequestException:
@@ -3452,7 +3526,7 @@ def connect_discord_route():
         flash(f"Discord could not be connected: {error}", "error")
     else:
         flash("Discord is connected and saved on this device.", "success")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app='discord'))
 
 
 @app.post('/integrations/discord/test')
@@ -3490,6 +3564,8 @@ def connect_social_route(provider):
     spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
     if spec is None:
         abort(404)
+    if provider in integration_catalog.PLACEHOLDER_PROVIDERS:
+        abort(409, description=spec['name'] + ' is coming soon.')
     values = {
         field["name"]: request.form.get(field["name"], "")
         for field in spec["fields"]
@@ -3517,7 +3593,7 @@ def connect_social_route(provider):
         )
     else:
         flash(f"{spec['name']} is connected and saved on this device.", "success")
-    return redirect(url_for('integrations'))
+    return redirect(url_for('integrations', app=provider))
 
 
 @app.post('/integrations/social/<provider>/test')
@@ -3525,6 +3601,8 @@ def test_social_route(provider):
     spec = SOCIAL_PROVIDERS_BY_KEY.get(provider)
     if spec is None:
         abort(404)
+    if provider in integration_catalog.PLACEHOLDER_PROVIDERS:
+        abort(409, description=spec['name'] + ' is coming soon.')
     config = get_integration(g.user["id"], "social:" + provider)
     if config is None:
         flash(f"Connect {spec['name']} first.", "error")
