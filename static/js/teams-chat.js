@@ -63,7 +63,7 @@
             replyButton.addEventListener('click', () => { if (current?.key !== room.key) return; keepDraft(); reply = message.id; restoreDraft(); field.focus(); });
             row.append(replyButton);
             const details = node('details', 'cm-teams-replies'), body = node('div', '');
-            details.append(node('summary', '', 'View replies'), body);
+            details.append(node('summary', 'm3e-state-layer', 'View replies'), body);
             let loaded = false, pending = false, cursor;
             const loadReplies = async () => {
                 if (pending) return; pending = true;
@@ -127,7 +127,7 @@
         for (const room of data.conversations) {
             if (rooms.some(item => item.key === room.key)) continue;
             rooms.push(room);
-            const button = node('button', 'cm-teams-conversation m3e-state-layer'); button.type = 'button'; button.dataset.key = room.key;
+            const button = node('button', 'cm-teams-conversation m3e-button m3e-button--text m3e-button--square'); button.type = 'button'; button.dataset.key = room.key;
             button.append(node('strong', '', room.name), node('small', '', room.detail));
             button.setAttribute('aria-pressed', String(current?.key === room.key)); button.addEventListener('click', () => choose(room)); list.append(button);
         }

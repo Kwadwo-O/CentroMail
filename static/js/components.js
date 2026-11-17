@@ -2,6 +2,9 @@ import '../vendor/m3e/ripple/index.js';
 
 // Give the same press feedback to navigation links styled as buttons.
 document.querySelectorAll('.nav-link, .mail-nav-link, .dashboard-nav-link').forEach(link => link.classList.add('m3e-state-layer'));
+if (document.querySelector('.gmail-app')) {
+    document.querySelectorAll('.site-header .nav-link').forEach(link => link.classList.add('m3e-button', 'm3e-button--text'));
+}
 
 const restoreSenderInitials = image => {
     const fallback = image.dataset.logoFallback;

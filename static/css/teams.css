@@ -4,7 +4,7 @@
 .cm-teams-sidebar select { width: 100%; min-height: 44px; padding: 10px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--m3e-sys-shape-corner-small); }
 #teams-team-picker { margin-top: 12px; }
 .cm-teams-conversations { display: grid; grid-auto-rows: max-content; gap: 4px; max-height: min(600px,calc(100dvh - var(--mail-nav-height,72px) - var(--mail-search-height,76px) - 240px)); overflow-y: auto; overscroll-behavior: contain; padding: 4px; }
-.cm-teams-conversation { display: grid; gap: 4px; width: 100%; min-height: 64px; height: auto; padding: 12px; border: 0; border-radius: var(--m3e-sys-shape-corner-medium); background: var(--surface-container); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.cm-teams-conversation { display: grid; justify-content: stretch; gap: 4px; width: 100%; min-height: 64px; height: auto; padding: 12px; border: 0; background: var(--surface-container); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
 .cm-teams-conversation[aria-pressed=true] { background: var(--highlight); }
 .cm-teams-conversation small { color: var(--muted); font-size: .75rem; }
 .cm-teams-reader { min-width: 0; border: 1px solid var(--border); border-radius: var(--cm-custom-radius,24px); background: var(--surface); overflow: hidden; }

@@ -7,6 +7,7 @@
     "test": "tests"
   },
   "scripts": {
+    "build:m3e": "esbuild scripts/m3e.css --bundle --outfile=static/css/m3e.css --loader:.woff2=file --asset-names=fonts/[name] --minify",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -24,6 +25,7 @@
     "@kyralabs/m3exp-web": "^1.8.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "vite": "^8.3.6"
   }
 }

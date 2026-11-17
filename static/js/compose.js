@@ -56,7 +56,8 @@
     });
     form.addEventListener('submit', () => {
         send.disabled = true;
-        send.textContent = 'Sending…';
+        send.lastChild.textContent = 'Sending…';
+        window.CentroMailMotion?.feedback(send, 'send');
         send.setAttribute('aria-busy', 'true');
         form.setAttribute('aria-busy', 'true');
     });

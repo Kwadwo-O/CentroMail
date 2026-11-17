@@ -11,16 +11,18 @@ function classes() {
         contains: value => values.has(value), toggle(value, enabled) { enabled ? values.add(value) : values.delete(value); }};
 }
 
-function readingPane({width = 640, space = 1100, viewport = 1440, stored = null} = {}) {
+function readingPane({width = 640, height = 500, space = 1100, viewport = 1440, stored = null} = {}) {
     const listeners = {}, windowListeners = {}, attributes = new Map(), capture = new Set();
+    let resizeCallback;
     const storage = new Map(stored === null ? [] : [['centromail-reader-width-custom', String(stored)]]);
-    const resizer = {hidden: true, classList: classes(),
+    const resizer = {hidden: true, classList: classes(), style: {},
         addEventListener(type, callback) { listeners[type] = callback; },
         setAttribute(name, value) { attributes.set(name, value); }, getAttribute: name => attributes.get(name),
         setPointerCapture: id => capture.add(id), hasPointerCapture: id => capture.has(id),
         releasePointerCapture(id) { capture.delete(id); listeners.lostpointercapture?.({pointerId: id}); },
     };
     const reader = {hidden: false, getBoundingClientRect: () => ({width: reader.hidden ? 0 : width,
+        height: reader.hidden ? 0 : height,
         right: context.innerWidth - 16, left: context.innerWidth - 16 - width})};
     const inbox = {getBoundingClientRect: () => ({width: reader.hidden ? space : space - width})};
     const body = {classList: classes()};
@@ -29,6 +31,10 @@ function readingPane({width = 640, space = 1100, viewport = 1440, stored = null}
         document: {body, querySelector: selector => ({'#reader-resizer': resizer, '#inbox': inbox})[selector]},
         window: {addEventListener: (type, callback) => { windowListeners[type] = callback; }},
         reader, desktop: {matches: true}, innerWidth: viewport,
+        ResizeObserver: class {
+            constructor(callback) { resizeCallback = callback; }
+            observe(element) { assert.equal(element, reader); }
+        },
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
     };
     const start = source.indexOf('// Resizable reading pane');
@@ -45,8 +51,23 @@ function readingPane({width = 640, space = 1100, viewport = 1440, stored = null}
     };
     return {context, reader, resizer, capture, body, attributes, storage, emit,
         width: () => width, saved: () => storage.get('centromail-reader-width-custom'),
+        resizeReader(nextHeight) { height = nextHeight; resizeCallback(); },
         resize(nextSpace, nextViewport = context.innerWidth) { space = nextSpace; context.innerWidth = nextViewport; windowListeners.resize(); }};
 }
+
+test('divider matches reading pane height as content changes and the pane reopens', () => {
+    const view = readingPane({height: 360});
+    assert.equal(view.resizer.style.height, '360px');
+    view.resizeReader(620);
+    assert.equal(view.resizer.style.height, '620px');
+    view.context.setReaderOpen(false);
+    view.resizeReader(0);
+    assert.equal(view.resizer.hidden, true);
+    view.resizeReader(480);
+    view.context.setReaderOpen(true);
+    assert.equal(view.resizer.hidden, false);
+    assert.equal(view.resizer.style.height, '480px');
+});
 
 test('drag starts without a jump and follows pointer distance in both directions', () => {
     const view = readingPane();

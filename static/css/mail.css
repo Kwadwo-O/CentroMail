@@ -113,11 +113,6 @@ body:has(.gmail-app) .site-footer {
     color: var(--m3e-sys-color-on-surface);
 }
 
-.icon-button:active,
-.toolbar-button:active {
-    transform: scale(0.94);
-}
-
 .ui-icon {
     color: currentColor;
     display: inline-block;
@@ -347,12 +342,12 @@ body:has(.gmail-app) .site-footer {
 
 .mail-nav-link {
     align-items: center;
-    border-radius: 999px;
     color: var(--m3e-sys-color-on-surface-variant);
     display: flex;
     font-size: 0.85rem;
     font-weight: 550;
     gap: 14px;
+    justify-content: flex-start;
     padding: 9px 16px;
     text-decoration: none;
 }
@@ -403,6 +398,7 @@ body:has(.gmail-app) .site-footer {
     display: flex;
     font-size: 0.8rem;
     gap: 10px;
+    justify-content: flex-start;
     padding: 6px 4px;
     text-decoration: none;
 }
@@ -1430,9 +1426,9 @@ body:has(.gmail-app) .site-footer {
 .message-list:focus-visible, .mail-reader:focus-visible, .workspace-view:focus-visible { outline: var(--cm-focus-width,3px) solid var(--m3e-sys-color-primary); outline-offset: -3px; }
 .mail-reader[hidden] { display: none; }
 .gmail-app.has-reader .mail-reader { flex-grow: 0; }
-.reader-resizer { align-items: center; align-self: stretch; background: transparent; border: 0; cursor: col-resize; display: flex; flex: 0 0 14px; justify-content: center; margin: 16px 0 28px; min-height: 120px; padding: 0; position: relative; touch-action: none; }
+.reader-resizer { align-items: center; align-self: flex-start; background: transparent; border: 0; cursor: col-resize; display: flex; flex: 0 0 14px; justify-content: center; margin: 16px 0 28px; padding: 0; position: sticky; top: calc(var(--mail-nav-height, 0px) + var(--mail-search-height, 88px)); touch-action: none; }
 .reader-resizer[hidden] { display: none; }
-.reader-resizer-handle { align-self: flex-start; position: sticky; top: 50dvh; transform: translateY(-50%); background: var(--m3e-sys-color-outline-variant); border-radius: 999px; height: 48px; width: 4px; transition: background 120ms ease, height 120ms ease; }
+.reader-resizer-handle { background: var(--m3e-sys-color-outline-variant); border-radius: 999px; height: 48px; width: 4px; transition: background 120ms ease, height 120ms ease; }
 .reader-resizer:hover .reader-resizer-handle, .reader-resizer:focus-visible .reader-resizer-handle, .reader-resizer.is-dragging .reader-resizer-handle { background: var(--m3e-sys-color-primary); height: 80px; }
 .reader-resizer:focus-visible { outline: var(--cm-focus-width, 3px) solid var(--m3e-sys-color-primary); outline-offset: -2px; border-radius: 8px; }
 body.is-resizing-reader, body.is-resizing-reader * { cursor: col-resize !important; user-select: none !important; }

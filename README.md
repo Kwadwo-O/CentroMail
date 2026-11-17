@@ -345,6 +345,8 @@ Third-party integrations are subject to provider APIs, permissions and restricti
 
 CentroMail takes inspiration from Google's Material 3 Expressive design language.
 
+The M3e stylesheet is bundled locally following the [plain HTML setup](https://m3e.kyralabs.dev/get-started/html/). To rebuild it after updating the library, run `npm ci`, then `npm run build:m3e`. Run `python scripts/vendor_m3e_elements.py` to refresh the local JavaScript modules.
+
 The aim is to create an interface that feels:
 
 * Clean — uncluttered layouts that keep conversations at the centre.

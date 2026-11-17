@@ -70,32 +70,32 @@
             <button class="close-mail-sidebar icon-button m3e-icon-button m3e-icon-button--standard" id="close-mail-sidebar" type="button" aria-label="Close mailbox menu"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
             <button class="m3e-button m3e-button--tonal compose-button" id="open-compose" type="button"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Compose</button>
             <nav class="mail-nav" aria-label="Mailbox folders">
-                <a class="mail-nav-link{% if mail_kind == 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', account='all') }}" {% if mail_kind == 'aggregate' %}aria-current="page"{% endif %}>
+                <a class="mail-nav-link m3e-button m3e-button--text{% if mail_kind == 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', account='all') }}" {% if mail_kind == 'aggregate' %}aria-current="page"{% endif %}>
                     <span class="material-symbols-rounded" aria-hidden="true">all_inbox</span><span>All inboxes</span><b class="m3e-badge m3e-badge--large" data-folder-count="all_inboxes" hidden></b>
                 </a>
                 {% for key in ['inbox', 'starred', 'snoozed', 'sent', 'drafts'] if key in folders %}
-                <a class="mail-nav-link{% if folder == key and mail_kind != 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key and mail_kind != 'aggregate' %}aria-current="page"{% endif %}>
+                <a class="mail-nav-link m3e-button m3e-button--text{% if folder == key and mail_kind != 'aggregate' %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key and mail_kind != 'aggregate' %}aria-current="page"{% endif %}>
                     <span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span>
                     {% if key in ['inbox', 'drafts'] %}<b class="m3e-badge m3e-badge--large" data-folder-count="{{ key }}" hidden></b>{% endif %}
                 </a>
                 {% endfor %}
                 <details class="mail-more" {% if folder in ['archive', 'all', 'important', 'spam', 'trash'] %}open{% endif %}>
-                    <summary class="mail-nav-link"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
+                    <summary class="mail-nav-link m3e-button m3e-button--text"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
                     <div class="mail-more-folders">
                         {% for key in ['archive', 'all', 'important', 'spam', 'trash'] if key in folders %}
-                        <a class="mail-nav-link{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
+                        <a class="mail-nav-link m3e-button m3e-button--text{% if folder == key %} active{% endif %}" href="{{ url_for('inbox', folder=key, account=compose_account_key) }}" {% if folder == key %}aria-current="page"{% endif %}><span class="material-symbols-rounded" aria-hidden="true">{{ folders[key].icon }}</span><span>{{ folders[key].title }}</span></a>
                         {% endfor %}
                     </div>
                 </details>
             </nav>
             <div class="sidebar-section">
                 <div class="section-title"><strong>Labels</strong><button class="icon-button m3e-icon-button m3e-icon-button--standard" aria-label="Add label"><span class="material-symbols-rounded ui-icon" aria-hidden="true">add</span></button></div>
-                <a class="label-link" id="work" href="#work"><i class="label-colour work"></i>Work</a>
-                <a class="label-link" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
-                <a class="label-link" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
+                <a class="label-link m3e-button m3e-button--text" id="work" href="#work"><i class="label-colour work"></i>Work</a>
+                <a class="label-link m3e-button m3e-button--text" id="personal" href="#personal"><i class="label-colour personal"></i>Personal</a>
+                <a class="label-link m3e-button m3e-button--text" id="updates" href="#updates"><i class="label-colour updates"></i>Updates</a>
             </div>
         </aside>
-        <button class="sidebar-scrim" id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close mailbox menu"></button>
+        <button class="sidebar-scrim m3e-state-layer" id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close mailbox menu"></button>
 
         <section class="inbox" id="inbox" aria-labelledby="inbox-title">
             <div class="inbox-heading">

@@ -22,11 +22,12 @@
 :root[data-cm-sticky-header=false] :is(.site-header,.landing-header,.gmail-header,.dashboard-topbar) { position:static; }
 :root[data-cm-footer-visible=false] :is(.site-footer,.landing-footer) { display:none; }
 :root[data-cm-dividers=false] :is(.settings-row,.settings-account-row,.message) { border-color:transparent; }
-:root[data-theme] .m3e-button { min-height:var(--cm-button-height); min-block-size:var(--cm-button-height); text-transform:var(--cm-button-case,none); }
+/* Keep M3e's shape tokens so pressed and selected buttons can morph. */
+:root[data-theme] .m3e-button { --cm-button-rest-radius:calc(max(var(--_m3e-button-height),var(--cm-button-height)) / 2); --_m3e-button-round:var(--cm-button-rest-radius); min-height:var(--cm-button-height); min-block-size:var(--cm-button-height); text-transform:var(--cm-button-case,none); border-radius:var(--_m3e-button-shape); }
+:root[data-theme] .m3e-icon-button { border-radius:var(--_m3e-icon-button-shape); }
 :root[data-cm-button-label-case=uppercase] { --cm-button-case:uppercase; }
-:root[data-cm-button-shape=rounded] .m3e-button { border-radius:12px; }
-:root[data-cm-button-shape=square] .m3e-button { border-radius:4px; }
-:root[data-cm-button-shape=pill] .m3e-button { border-radius:999px; }
+:root[data-cm-button-shape=rounded] .m3e-button { --cm-button-rest-radius:var(--_m3e-button-shape-square); }
+:root[data-cm-button-shape=square] .m3e-button { --cm-button-rest-radius:4px; }
 :root[data-theme] :is(.material-symbols-rounded,.m3e-icon) { font-size:var(--cm-icon-size); font-variation-settings:"FILL" var(--cm-icon-fill),"wght" 400,"GRAD" 0,"opsz" 24; }
 /* Keep icon boxes in step with the configured glyph size. */
 :root[data-theme] .m3e-icon { inline-size:1em; block-size:1em; }

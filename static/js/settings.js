@@ -39,7 +39,6 @@
     previewKind.addEventListener('change', previewMotion);
     motionPreview.querySelector('[data-motion-sample="copy"]').addEventListener('click', event => {
         const button = event.currentTarget;
-        button.querySelector('.m3e-icon').textContent = 'check';
         window.CentroMailMotion?.feedback(button, 'copy');
         motionStatus.textContent = 'Copy animation preview. Your clipboard is unchanged.';
     });

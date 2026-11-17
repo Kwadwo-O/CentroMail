@@ -8,6 +8,7 @@
         const active = new Map();
         const seen = new WeakSet(), observed = new WeakSet(), loadedMedia = new WeakSet();
         const feedbackTimes = new WeakMap();
+        const copyIcons = new WeakMap();
         const entrances = '[data-landing-enter], .dashboard-welcome, .dashboard-purpose, .dashboard-stat, .dashboard-panel, .dashboard-tip, .dashboard-integrations, .settings-danger, .integration-heading, .integration-card, .form-panel, .legal-page';
         const rows = '.message, .cm-connected-item, .cm-teams-message, .cm-teams-conversation, .apps-feed-message, .telegram-message, .telegram-conversation';
         const panels = '.account-menu, .quick-menu, .profile-menu, .compose-window, dialog';
@@ -48,10 +49,21 @@
                 return;
             }
             const icon = element?.querySelector('.m3e-icon, .material-symbols-rounded') || element;
+            if (family === 'copy' && icon && icon !== element) {
+                const previous = copyIcons.get(icon);
+                clearTimeout(previous?.timer);
+                const original = previous?.original ?? icon.textContent;
+                icon.textContent = 'check';
+                const timer = setTimeout(() => {
+                    if (icon.isConnected) icon.textContent = original;
+                    copyIcons.delete(icon);
+                }, 1800);
+                copyIcons.set(icon, {original, timer});
+            }
             const amount = intensity();
             const frames = family === 'send' ? [
-                {translate: '0 0', opacity: 1}, {translate: `${10 * amount}px ${-6 * amount}px`, opacity: 0, offset: .55},
-                {translate: `${-6 * amount}px ${4 * amount}px`, opacity: 0, offset: .56}, {translate: '0 0', opacity: 1},
+                {translate: '0 0', opacity: 1}, {translate: `${10 * amount}px 0`, opacity: 0, offset: .55},
+                {translate: `${-6 * amount}px 0`, opacity: 0, offset: .56}, {translate: '0 0', opacity: 1},
             ] : [
                 {scale: String(1 - .18 * amount), rotate: `${-8 * amount}deg`},
                 {scale: String(1 + .18 * amount), rotate: `${5 * amount}deg`, offset: .55},

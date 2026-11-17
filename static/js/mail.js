@@ -223,6 +223,8 @@
     // Resizable reading pane ---------------------------------------------
     const resizer = document.querySelector('#reader-resizer');
     const inbox = document.querySelector('#inbox');
+    const syncResizerHeight = () => { resizer.style.height = reader.getBoundingClientRect().height + 'px'; };
+    new ResizeObserver(syncResizerHeight).observe(reader);
     const widthKey = 'centromail-reader-width-custom';
     let customWidth = null;
     try {
@@ -246,6 +248,7 @@
         resizer.hidden = reader.hidden || !desktop.matches;
         if (resizer.hidden) return;
         if (customWidth) applyReaderWidth(customWidth);
+        syncResizerHeight();
         resizer.setAttribute('aria-valuemin', '320');
         resizer.setAttribute('aria-valuemax', String(maxReaderWidth()));
         resizer.setAttribute('aria-valuenow', String(Math.round(reader.getBoundingClientRect().width || customWidth || 640)));

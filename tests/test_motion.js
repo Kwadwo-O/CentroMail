@@ -6,12 +6,14 @@ const vm = require('node:vm');
 
 async function motion(preferences = {}) {
     const listeners = {}, observers = [], calls = [];
+    const timers = new Map();
+    let now = 0, timerId = 0;
     class Element {
         constructor(selector = '') {
             this.selectors = new Set(selector.split(',').map(s => s.trim()));
             this.children = []; this.isConnected = true; this.hidden = false; this.nodeType = 1;
             this.classes = new Set(); this.classList = {contains: key => this.classes.has(key)};
-            this.width = 600; this.attributes = {};
+            this.width = 600; this.attributes = {}; this.textContent = '';
         }
         matches(selectors) { return selectors.split(',').some(s => this.selectors.has(s.trim()) || (s.trim() === '[hidden]' && this.hidden)); }
         closest(selectors) { return this.matches(selectors) ? this : this.parent?.closest(selectors) || null; }
@@ -37,7 +39,10 @@ async function motion(preferences = {}) {
         getElementById: id => queries.get('#' + id),
         addEventListener: (name, fn) => {(listeners[name] ||= []).push(fn);}};
     const context = {Element, Node: {ELEMENT_NODE: 1}, document, window: {addEventListener() {}}, matchMedia: () => device,
-        performance: {now: () => 1000}, setTimeout() {}, getComputedStyle: () => ({marginRight: '16px', borderTopWidth: '1px', backgroundColor: 'white',
+        performance: {now: () => 1000},
+        setTimeout(fn, delay) { timers.set(++timerId, {fn, at: now + delay}); return timerId; },
+        clearTimeout(id) { timers.delete(id); },
+        getComputedStyle: () => ({marginRight: '16px', borderTopWidth: '1px', backgroundColor: 'white',
             borderRadius: '24px', boxShadow: 'none', getPropertyValue: name => name.endsWith('-duration') ? '420ms' : name.endsWith('-easing') ? 'linear(0, 1)' : ''}),
         IntersectionObserver: class {constructor(callback) {io.callback = callback;} observe(el) {io.targets.add(el);} unobserve(el) {io.targets.delete(el);}},
         MutationObserver: class {constructor(callback) {this.callback = callback; observers.push(this);} observe(target) {this.target = target;}}};
@@ -45,8 +50,38 @@ async function motion(preferences = {}) {
     await new Promise(resolve => setImmediate(resolve));
     const event = (name, detail = {}) => listeners[name]?.forEach(fn => fn(detail));
     const mutations = records => observers.find(observer => observer.target === body).callback(records);
-    return {api: context.window.CentroMailMotion, root, body, document, device, calls, Element, queries, io, event, mutations};
+    const advance = milliseconds => {
+        now += milliseconds;
+        for (const [id, timer] of timers) if (timer.at <= now) { timers.delete(id); timer.fn(); }
+    };
+    return {api: context.window.CentroMailMotion, root, body, document, device, calls, Element, queries, io, event, mutations, advance};
 }
+
+test('copy confirmations restore each original icon after the last copy, including with motion disabled', async () => {
+    const m = await motion({cmCopyMotion: 'false'});
+    const copy = new m.Element(), original = copy.append(new m.Element('.m3e-icon'));
+    const preview = new m.Element(), other = preview.append(new m.Element('.m3e-icon'));
+    original.textContent = 'content_copy'; other.textContent = 'file_copy';
+    m.api.feedback(copy, 'copy');
+    assert.equal(original.textContent, 'check');
+    m.advance(1000);
+    m.api.feedback(copy, 'copy');
+    m.api.feedback(preview, 'copy');
+    m.advance(800);
+    assert.equal(original.textContent, 'check', 'the earlier timeout is canceled');
+    m.advance(500);
+    m.api.feedback(copy, 'copy');
+    m.advance(500);
+    assert.equal(other.textContent, 'file_copy', 'each button restores its own icon');
+    assert.equal(original.textContent, 'check');
+    m.advance(1300);
+    assert.equal(original.textContent, 'content_copy', 'repeated copies preserve the original icon');
+    assert.equal(m.calls.length, 0);
+    m.root.classes.add('reduce-motion');
+    m.api.feedback(copy, 'copy');
+    m.advance(1800);
+    assert.equal(original.textContent, 'content_copy');
+});
 
 test('families switch independently and respect shared speed and intensity', async () => {
     const m = await motion({cmCopyMotion: 'false', cmSendMotion: 'true', cmMotionSpeed: '1.4', cmMotionIntensity: '1.5'});
@@ -58,10 +93,12 @@ test('families switch independently and respect shared speed and intensity', asy
     assert.equal(m.calls[0].element, icon);
     assert.equal(m.calls[0].options.duration, 588);
     assert.equal(m.calls[0].options.easing, 'linear(0, 1)', 'uses the installed M3E spring curve');
-    assert.equal(m.calls[0].frames[1].translate, '15px -9px');
+    assert.equal(m.calls[0].frames[1].translate, '15px 0');
+    assert.equal(m.calls[0].frames[2].translate, '-9px 0');
+    assert.ok(m.calls[0].frames.every(frame => frame.translate.split(' ')[1] === '0'), 'send stays horizontal throughout');
     m.root.dataset.cmMotionStyle = 'standard';
     m.api.feedback(button, 'send');
-    assert.equal(m.calls[1].frames[1].translate, '7.5px -4.5px');
+    assert.equal(m.calls[1].frames[1].translate, '7.5px 0');
     assert.equal(m.calls[0].animation.cancelled, true, 'repeated actions replace the previous animation');
 });
 
