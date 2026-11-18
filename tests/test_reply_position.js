@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {readFileSync} = require('node:fs');
 const vm = require('node:vm');
 
-function page(saved) {
+function page(saved, navigation = {}) {
     const listeners = {}, windowEvents = {}, stored = new Map(saved ? [['centromail-reply-position', saved]] : []);
     const classes = new Set(), styles = {}, timers = [];
     let observer, reset, captured;
@@ -30,7 +30,8 @@ function page(saved) {
         releasePointerCapture: () => { captured = null; }, focus() {},
     };
     const context = {innerWidth: 1000, innerHeight: 800,
-        document: {body: {append() {}}, querySelectorAll: () => [button],
+        getComputedStyle: () => ({getPropertyValue: name => navigation[name] || '0px'}),
+        document: {documentElement: {}, body: {append() {}}, querySelectorAll: () => [button],
             createElement: () => ({dataset: {}, setAttribute() {}, append() {}}),
             addEventListener(name, callback) { (listeners[name] ??= []).push(callback); }},
         localStorage: {getItem: key => stored.get(key) || null,
@@ -87,4 +88,20 @@ test('disabled replies keep their position unavailable and invalid saved coordin
     p.event('pointerdown'); p.event('pointermove', {clientX: 300}); p.event('pointerup');
     assert.equal(p.stored.has('centromail-reply-position'), true); // invalid preference is never applied
     assert.equal(p.classes.has('is-positioned'), false);
+});
+
+test('movable Reply stays clear of navigation and adapts when its location changes', () => {
+    const navigation = {'--cm-nav-right':'240px', '--cm-nav-bottom':'80px'};
+    const p = page(JSON.stringify({x:950, y:790}), navigation);
+    assert.equal(p.wrapper.style.left, '596px');
+    assert.equal(p.wrapper.style.top, '660px');
+    navigation['--cm-nav-right'] = '0px';
+    navigation['--cm-nav-left'] = '240px';
+    navigation['--cm-nav-top'] = '80px';
+    p.event('keydown', {altKey:true, shiftKey:true, key:'ArrowLeft'});
+    p.event('pointerdown');
+    p.event('pointermove', {clientX:0, clientY:0});
+    p.event('centromail-navigation-change');
+    assert.equal(p.wrapper.style.left, '248px');
+    assert.equal(p.wrapper.style.top, '390px');
 });

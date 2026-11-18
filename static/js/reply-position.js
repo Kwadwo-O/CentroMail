@@ -24,8 +24,10 @@
         wrapper.classList.add('is-positioned');
         wrapper.querySelector('[data-reply-reset]').hidden = false;
         const box = wrapper.getBoundingClientRect();
-        position = {x: Math.max(8, Math.min(x, innerWidth - box.width - 8)),
-            y: Math.max(8, Math.min(y, innerHeight - box.height - 8))};
+        const style = getComputedStyle(document.documentElement);
+        const inset = side => parseFloat(style.getPropertyValue('--cm-nav-' + side)) || 0;
+        position = {x: Math.max(8 + inset('left'), Math.min(x, innerWidth - inset('right') - box.width - 8)),
+            y: Math.max(8 + inset('top'), Math.min(y, innerHeight - inset('bottom') - box.height - 8))};
         wrapper.style.left = position.x + 'px'; wrapper.style.top = position.y + 'px';
     };
     const reset = () => { position = null; if (current) restore(current); save(); };
@@ -99,6 +101,7 @@
         save();
     });
     window.addEventListener('resize', () => { if (current && position) { place(current, position.x, position.y); save(); } });
+    document.addEventListener('centromail-navigation-change', () => { if (current && position) place(current, position.x, position.y); });
     new MutationObserver(sync).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['hidden', 'open']});
     sync();
 })();
