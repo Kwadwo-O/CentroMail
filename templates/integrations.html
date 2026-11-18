@@ -6,7 +6,7 @@
 {% block main_class %}integrations-main page-content{% endblock %}
 {% block footer %}{% endblock %}
 
-{% macro logo(key) %}<span class="integration-mark"><img src="{{ url_for('static', filename='images/integrations/' ~ key ~ '.svg') }}" alt="" width="32" height="32" draggable="false"></span>{% endmacro %}
+{% macro logo(key) %}<span class="integration-mark"><img src="{{ url_for('static', filename='images/integrations/' ~ key ~ '.svg') }}" alt="" width="32" height="32" draggable="false" loading="lazy" decoding="async"></span>{% endmacro %}
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
 {% macro disconnect(action, name) %}
 <form method="post" action="{{ action }}" data-confirm="Disconnect {{ name }} from CentroMail?">
@@ -200,6 +200,7 @@
 
 {% block scripts %}
 <script>window.CentroMailEmailPresets = {{ email_presets|tojson }};</script>
+<script src="{{ url_for('static', filename='js/email-validation.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/email-accounts.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/integrations.js') }}" defer></script>
 {% endblock %}

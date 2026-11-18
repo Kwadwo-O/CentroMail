@@ -24,7 +24,7 @@
 #settings-category-menu .m3e-menu__item[aria-checked=true] :is(.m3e-menu__item-leading,.m3e-menu__item-trailing) { color: inherit; }
 #settings-category-menu .m3e-menu__item:focus-visible { outline: var(--cm-focus-width,3px) solid var(--primary); outline-offset: -3px; }
 .settings-navigation { display: grid; gap: 6px; position: sticky; top: 96px; }
-.settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; padding: 6px; border-radius: var(--m3e-sys-shape-corner-extra-large,28px); --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
+.settings-navigation.m3e-menu { inline-size: 100%; max-block-size: none; padding: 6px; border: 1px solid var(--border); border-radius: var(--cm-panel-radius); background: var(--surface-container-low); --m3e-comp-menu-item-min-width: 0px; --m3e-comp-menu-item-max-width: 100%; }
 .settings-navigation .m3e-menu__group { display: grid; gap: 4px; padding: 6px; background: transparent; border-radius: 16px; box-shadow: none; }
 .settings-navigation-heading { display: block; margin: 0; padding: 8px 12px 4px; color: var(--muted); font-size: .6875rem; letter-spacing: .04em; }
 .settings-navigation a { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px; text-decoration: none; border-radius: 12px; color: var(--text); font-size: .8125rem; line-height: 1.4; border: 1px solid transparent; transition: background-color 160ms ease, border-color 160ms ease; }
@@ -71,7 +71,7 @@
 @media(max-width:600px) {
  .motion-preview-stage { grid-template-columns: minmax(0,1fr); }
 }
-.settings-preview { background: var(--surface-container); padding: 24px; border-radius: 20px; }
+.settings-preview { background: var(--surface-container); padding: 24px; border: 1px solid var(--border); border-radius: var(--cm-panel-radius); }
 .settings-preview-summary { display: none; }
 .settings-preview-content { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
 .settings-preview-content > div:first-child { flex: 1; min-width: 220px; }
@@ -80,7 +80,7 @@
 .settings-preview h2 { font-size: 1.375rem; margin: 8px 0; }
 .settings-preview p { margin: 0; font-size: .875rem; color: var(--muted); }
 .settings-preview-actions { display: flex; align-items: center; gap: 12px; }
-.settings-page .settings-section { margin: 0; padding: 24px; border: 1px solid var(--border); background: var(--surface); scroll-margin-top: 96px; display: block; }
+.settings-page .settings-section { margin: 0; padding: 24px; border: 1px solid var(--border); border-radius: var(--cm-panel-radius); background: var(--surface); scroll-margin-top: 96px; display: block; }
 .settings-section-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
 .settings-section-heading > div { flex: 1; min-width: 200px; }
 .settings-section-heading h2 { font-size: 1.5rem; margin: 0; }
@@ -90,7 +90,7 @@
 .settings-row strong, .settings-row small { display: block; }
 .settings-row strong { font-size: .9375rem; font-weight: 550; }
 .settings-row small { color: var(--muted); font-size: .8125rem; margin-top: 6px; max-width: 420px; }
-.settings-row select { width: 190px; min-height: 48px; border: 1px solid var(--m3e-sys-color-outline); border-radius: 8px; background: var(--surface); color: var(--text); padding: 10px 12px; font: inherit; font-size: .875rem; }
+.settings-row select { width: 190px; min-height: 48px; border: 1px solid var(--m3e-sys-color-outline); border-radius: var(--cm-control-radius); background: var(--surface-container-low); color: var(--text); padding: 10px 12px; font: inherit; font-size: .875rem; }
 .settings-switch-control { position: relative; flex: 0 0 52px; display: flex; align-items: center; min-height: 44px; cursor: pointer; }
 .settings-switch-control input { position: absolute; opacity: 0; width: 52px; height: 44px; margin: 0; cursor: pointer; }
 .settings-switch-control .switch-track { width: 52px; height: 32px; border: 1px solid var(--m3e-sys-color-outline); border-radius: 999px; background: var(--surface-container); position: relative; pointer-events: none; }

@@ -1,5 +1,26 @@
-/* Bundle the HTML setup from https://m3e.kyralabs.dev/get-started/html/. */
-@import "@kyralabs/m3exp-web/css/index.css";
+/* Bundle the styles used by CentroMail's templates and vendored elements. */
+@import "@kyralabs/m3e-tokens/fonts.css";
+@import "@kyralabs/m3e-tokens/tokens.css";
+@import "@kyralabs/m3e-tokens/theme.css";
+@import "@kyralabs/m3e-css/surface.css";
+@import "@kyralabs/m3e-css/icon.css";
+@import "@kyralabs/m3e-css/focus-ring.css";
+@import "@kyralabs/m3e-css/state-layer.css";
+@import "@kyralabs/m3e-css/button.css";
+@import "@kyralabs/m3e-css/icon-button.css";
+@import "@kyralabs/m3e-css/card.css";
+@import "@kyralabs/m3e-css/navigation-suite.css";
+@import "@kyralabs/m3e-css/menu.css";
+@import "@kyralabs/m3e-css/linear-progress.css";
+@import "@kyralabs/m3e-css/search.css";
+@import "@kyralabs/m3e-css/text-field.css";
+@import "@kyralabs/m3e-css/list.css";
+@import "@kyralabs/m3e-css/checkbox.css";
+@import "@kyralabs/m3e-css/tooltip.css";
+@import "@kyralabs/m3e-css/badge.css";
+@import "@kyralabs/m3e-css/snackbar.css";
+@import "@kyralabs/m3e-css/pull-to-refresh.css";
+@import "@kyralabs/m3e-css/loading-indicator.css";
 @import "@kyralabs/m3e-tokens/material-symbols-rounded.css";
 
 /* CentroMail's generated green theme overrides the library's baseline palette. */

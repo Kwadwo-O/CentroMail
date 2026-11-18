@@ -12,10 +12,6 @@
         <a class="dashboard-brand" href="{{ url_for('dashboard') }}">
             <img class="cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="862" height="400">
         </a>
-        <div class="dashboard-search">
-            <span class="material-symbols-rounded" aria-hidden="true">search</span>
-            <input type="search" placeholder="Search your workspace" aria-label="Search your workspace">
-        </div>
         <div class="dashboard-account">
             <button class="account-trigger m3e-button m3e-button--text" id="account-menu-button" type="button" aria-label="{{ g.user.name or g.user.email }} account menu" aria-expanded="false" aria-controls="account-menu">
                 <span class="account-name">{{ g.user.name or g.user.email }}</span>
@@ -40,9 +36,6 @@
                     <span class="material-symbols-rounded" aria-hidden="true">inbox</span>Inbox
                     <strong class="m3e-badge m3e-badge--large">{{ stats.unread }}</strong>
                 </a>
-                <a class="dashboard-nav-link" href="{{ url_for('mail') }}">
-                    <span class="material-symbols-rounded" aria-hidden="true">mail</span>All mail
-                </a>
                 <a class="dashboard-nav-link" href="{{ url_for('integrations') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">extension</span>Integrations
                 </a>
@@ -50,95 +43,69 @@
                     <span class="material-symbols-rounded" aria-hidden="true">settings</span>Settings
                 </a>
             </nav>
-            <div class="dashboard-sidebar-note">
-                <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
-                <p>CentroMail keeps your conversations close and your day moving.</p>
-            </div>
         </aside>
 
         <div class="dashboard-main">
             <section class="dashboard-welcome">
                 <div>
-                    <p class="dashboard-kicker">Communication, simplified</p>
-                    <h1>One place for every conversation.</h1>
-                    <p>Welcome back, {{ (g.user.name or 'there').split(' ')[0] }}. CentroMail brings your email and supported messaging services together.</p>
+                    <h1>Welcome back, {{ (g.user.name or 'there').split(' ')[0] }}</h1>
+                    <p>Pick up where you left off in your inbox.</p>
                 </div>
-                <a class="m3e-button m3e-button--tonal" href="{{ url_for('inbox') }}">
+                <a class="m3e-button m3e-button--filled" href="{{ url_for('inbox') }}">
                     <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
-                    View conversations
+                    Open inbox
                 </a>
             </section>
 
             <section class="dashboard-purpose">
-                <div class="purpose-copy">
-                    <p class="dashboard-kicker">Your communication centre</p>
-                    <h2>Less switching. More staying connected.</h2>
-                    <p>Keep accounts organised, find important conversations quickly, and reply from the right place as CentroMail grows.</p>
-                    <div class="purpose-actions">
-                        <a class="m3e-button m3e-button--filled" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">inbox</span>Open inbox</a>
-                        <a class="m3e-button m3e-button--outlined" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">manage_accounts</span>Manage account</a>
-                    </div>
-                </div>
-                <div class="purpose-orbit" aria-hidden="true">
-                    <span class="orbit-node node-email material-symbols-rounded">mail</span>
-                    <span class="orbit-node node-chat material-symbols-rounded">chat</span>
-                    <span class="orbit-node node-work material-symbols-rounded">workspaces</span>
-                    <span class="orbit-center material-symbols-rounded">hub</span>
+                <h2>Jump to mail</h2>
+                <div class="purpose-actions">
+                    <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', account='all') }}"><span class="material-symbols-rounded" aria-hidden="true">all_inbox</span>All inboxes</a>
+                    <a class="m3e-button m3e-button--outlined" href="{{ url_for('inbox', folder='starred') }}"><span class="material-symbols-rounded" aria-hidden="true">star</span>Starred</a>
                 </div>
             </section>
 
             <section class="dashboard-stats" aria-label="Mailbox summary">
                 <article class="m3e-card m3e-card--elevated dashboard-stat dashboard-stat-primary">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">mail</span>
-                    <div><span>Cached mail</span><strong>{{ stats.total }}</strong><small>Emails loaded on this device</small></div>
+                    <div><span>Cached mail</span><strong>{{ stats.total }}</strong></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">mark_email_unread</span>
-                    <div><span>Cached unread</span><strong>{{ stats.unread }}</strong><small>Unread in the local cache</small></div>
+                    <div><span>Cached unread</span><strong>{{ stats.unread }}</strong></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">star</span>
-                    <div><span>Cached starred</span><strong>{{ stats.starred }}</strong><small>Starred in the local cache</small></div>
+                    <div><span>Cached starred</span><strong>{{ stats.starred }}</strong></div>
                 </article>
                 <article class="m3e-card m3e-card--elevated dashboard-stat">
                     <span class="material-symbols-rounded stat-icon" aria-hidden="true">send</span>
-                    <div><span>Cached sent</span><strong>{{ stats.sent }}</strong><small>Sent emails in the local cache</small></div>
+                    <div><span>Cached sent</span><strong>{{ stats.sent }}</strong></div>
                 </article>
             </section>
 
             <section class="dashboard-lower">
-                <article class="m3e-card m3e-card--outlined dashboard-panel">
-                    <div class="dashboard-panel-heading">
-                        <div><p class="dashboard-kicker">Built for your flow</p><h2>Everything in one space</h2></div>
-                        <span class="material-symbols-rounded panel-icon" aria-hidden="true">arrow_forward</span>
-                    </div>
+                <article class="m3e-card dashboard-panel">
+                    <h2>Mailbox tools</h2>
                     <div class="dashboard-actions">
-                        <a class="dashboard-action" href="{{ url_for('inbox') }}"><span class="material-symbols-rounded" aria-hidden="true">all_inbox</span><span><strong>Unified inbox</strong><small>Keep supported conversations together</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
-                        <a class="dashboard-action" href="{{ url_for('mail') }}"><span class="material-symbols-rounded" aria-hidden="true">label</span><span><strong>Smart organisation</strong><small>Use stars and folders to find what matters</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
-                        <a class="dashboard-action" href="{{ url_for('settings') }}"><span class="material-symbols-rounded" aria-hidden="true">palette</span><span><strong>Your space, your style</strong><small>Make the experience feel personal</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('inbox') }}#apps"><span class="material-symbols-rounded" aria-hidden="true">forum</span><span><strong>App conversations</strong><small>Open chats from connected messaging apps</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
+                        <a class="dashboard-action" href="{{ url_for('cleanup') }}"><span class="material-symbols-rounded" aria-hidden="true">cleaning_services</span><span><strong>Smart Cleanup</strong><small>Review Gmail promotions before moving them to Trash</small></span><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></a>
                     </div>
                 </article>
                 <article class="m3e-card dashboard-tip">
                     <span class="material-symbols-rounded tip-icon" aria-hidden="true">shield_lock</span>
-                    <p class="dashboard-kicker">Privacy matters</p>
-                    <h2>Your conversations stay yours.</h2>
-                    <p>CentroMail is being designed with control, clear permissions, and privacy-conscious connections in mind.</p>
-                    <a class="m3e-button m3e-button--text" href="{{ url_for('settings') }}">Review account settings</a>
+                    <h2>Data and privacy</h2>
+                    <p>Export your preferences or review how CentroMail handles account data.</p>
+                    <a class="m3e-button m3e-button--text" href="{{ url_for('settings') }}#settings-data">Open privacy settings</a>
                 </article>
             </section>
 
             <section class="dashboard-integrations">
                 <div>
-                    <p class="dashboard-kicker">Growing with you</p>
-                    <h2>Connect the services you already use.</h2>
-                    <p>CentroMail is being built around an extensible integration system for email providers and supported messaging platforms.</p>
+                    <h2>Integrations</h2>
+                    <p>Connect another email or messaging account, or manage your existing connections.</p>
                 </div>
-                <div class="integration-list" aria-label="Planned integrations">
-                    <span><span class="material-symbols-rounded" aria-hidden="true">mail</span>Gmail</span>
-                    <span><span class="material-symbols-rounded" aria-hidden="true">mail</span>Outlook</span>
-                    <span><span class="material-symbols-rounded" aria-hidden="true">dns</span>IMAP / SMTP</span>
-                    <span><span class="material-symbols-rounded" aria-hidden="true">forum</span>Messaging</span>
-                </div>
+                <a class="m3e-button m3e-button--outlined" href="{{ url_for('integrations') }}">Manage connections<span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
             </section>
         </div>
     </div>

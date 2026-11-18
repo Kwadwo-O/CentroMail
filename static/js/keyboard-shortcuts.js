@@ -11,10 +11,12 @@
     let prefix = null;
     let prefixTimer = null;
 
-    const dialog = document.createElement('dialog');
-    dialog.className = 'keyboard-shortcuts-dialog';
-    dialog.setAttribute('aria-labelledby', 'keyboard-shortcuts-title');
-    dialog.innerHTML = `
+    let dialog;
+    const createDialog = () => {
+        const panel = document.createElement('dialog');
+        panel.className = 'keyboard-shortcuts-dialog';
+        panel.setAttribute('aria-labelledby', 'keyboard-shortcuts-title');
+        panel.innerHTML = `
         <div class="reader-toolbar keyboard-shortcuts-header">
             <h2 id="keyboard-shortcuts-title">Keyboard shortcuts</h2>
             <button class="icon-button m3e-icon-button m3e-icon-button--standard" type="button" data-close-shortcuts aria-label="Close shortcuts">
@@ -23,9 +25,11 @@
         </div>
         <p class="keyboard-shortcuts-hint">Press <kbd>?</kbd> anywhere to open this list again. Press <kbd>Esc</kbd> to close it.</p>
         <div class="keyboard-shortcuts-list" id="keyboard-shortcuts-list"></div>`;
-    document.body.append(dialog);
-    dialog.querySelector('[data-close-shortcuts]').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+        document.body.append(panel);
+        panel.querySelector('[data-close-shortcuts]').addEventListener('click', () => panel.close());
+        panel.addEventListener('click', event => { if (event.target === panel) panel.close(); });
+        return panel;
+    };
 
     const render = () => {
         const list = dialog.querySelector('#keyboard-shortcuts-list');
@@ -55,9 +59,14 @@
             registry.set(combo, {handler, description});
             if (!sections.has(section)) sections.set(section, []);
             sections.get(section).push({keys: combo, description});
-            render();
+            if (dialog?.open) render();
         },
-        show: () => { if (!dialog.open) dialog.showModal(); },
+        show() {
+            dialog ??= createDialog();
+            if (dialog.open) return;
+            render();
+            dialog.showModal();
+        },
     };
 
     const clearPrefix = () => { prefix = null; clearTimeout(prefixTimer); };

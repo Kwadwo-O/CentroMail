@@ -18,6 +18,7 @@ import threading
 import time
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from importlib.util import find_spec
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime, parseaddr, getaddresses
 from contextlib import closing
@@ -49,24 +50,7 @@ from werkzeug.utils import secure_filename
 from google_transport import GoogleOAuthApp, google_requests
 from smart_cleanup import scan_promotions
 
-try:
-    from telethon import TelegramClient, errors as telegram_errors, functions as telegram_functions, types as telegram_types
-    from telethon.errors import (
-        ApiIdInvalidError,
-        FloodWaitError,
-        PasswordHashInvalidError,
-        PhoneCodeExpiredError,
-        PhoneCodeInvalidError,
-        PhoneNumberInvalidError,
-        SessionPasswordNeededError,
-    )
-    from telethon.sessions import StringSession
-
-    TELETHON_AVAILABLE = True
-except ImportError:  # Keep the rest of CentroMail usable without Telethon.
-    TelegramClient = None
-    StringSession = None
-    TELETHON_AVAILABLE = False
+TELETHON_AVAILABLE = find_spec('telethon') is not None
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -298,11 +282,16 @@ def find_user(email):
 
 
 PREFERENCE_GROUPS = json.loads((Path(app.root_path) / "static/preferences.json").read_text())
+APPEARANCE_GROUPS = [{"settings": [
+    {"key": item["key"], "type": item["type"], "default": item["default"],
+     "choices": [{"value": choice["value"]} for choice in item.get("choices", [])]}
+    for item in group["settings"]
+]} for group in PREFERENCE_GROUPS]
 
 
 @app.context_processor
 def appearance_context():
-    return {"preference_groups": PREFERENCE_GROUPS,
+    return {"preference_groups": PREFERENCE_GROUPS, "appearance_groups": APPEARANCE_GROUPS,
             "logo_provider_enabled": logo_cdn_enabled(app.config.get('CDN_PUBLIC_KEY'))}
 
 
@@ -346,6 +335,8 @@ PROTECTED_ENDPOINTS = {
 
 @app.before_request
 def load_user_and_check_forms():
+    if request.endpoint == 'static':
+        return
     if request.endpoint == 'google_chat_upload': request.max_content_length = google_chat.FILE_LIMIT + 64 * 1024
     user_id = session.get("user_id")
     g.user = (
@@ -401,8 +392,9 @@ def email_accounts(user):
     return accounts
 
 
-def active_email_account(user):
-    accounts = email_accounts(user)
+def active_email_account(user, accounts=None):
+    if accounts is None:
+        accounts = email_accounts(user)
     requested = request.args.get("account") or request.form.get("account")
     if requested == "all":
         if request.endpoint not in {"inbox", "mail", "mailbox_messages", "mailbox_counts"}:
@@ -414,7 +406,8 @@ def active_email_account(user):
     selected = next((account for account in accounts if account["key"] == key), None)
     if selected is None:
         selected = next((account for account in accounts if account["key"] == "gmail"), accounts[0] if accounts else {"key":"gmail","kind":"gmail","email":user["email"]})
-    if request.endpoint in {'inbox', 'mail'} and request.args.get('account') != 'all':
+    if (request.endpoint in {'inbox', 'mail'} and request.args.get('account') != 'all'
+            and session.get('mail_account') != selected['key']):
         session["mail_account"] = selected["key"]
     return selected
 
@@ -432,15 +425,6 @@ def microsoft_access_token(account):
     token.update(refreshed); token["expires_at"]=time.time()+refreshed.get("expires_in",3600)
     save_integration(g.user["id"],account["key"],config)
     return token["access_token"]
-
-
-def make_stats(messages):
-    return {
-        'total': len(messages),
-        'unread': sum(1 for message in messages if message['unread']),
-        'starred': sum(1 for message in messages if message['starred']),
-        'sent': sum(1 for message in messages if 'SENT' in message.get('label_ids', [])),
-    }
 
 
 def store_google_token(user_id, token):
@@ -525,8 +509,9 @@ EMAIL_HTML_VERSION = 2
 
 
 def gmail_cache_get(user_id, message_id, *, body=False):
+    columns = "body, body_at" if body else "metadata, metadata_at"
     row = get_db().execute(
-        "SELECT metadata, metadata_at, body, body_at FROM gmail_cache "
+        f"SELECT {columns} FROM gmail_cache "
         "WHERE user_id = ? AND message_id = ?",
         (user_id, message_id),
     ).fetchone()
@@ -543,34 +528,66 @@ def gmail_cache_get(user_id, message_id, *, body=False):
         if isinstance(decoded, dict) and decoded.get('html') and decoded.get('html_version') != EMAIL_HTML_VERSION:
             return None
         return decoded if isinstance(decoded, dict) else {"text": row["body"], "html": ""}
+    return gmail_cached_metadata(row, now)
+
+
+def gmail_cached_metadata(row, now):
     if row["metadata"] is None or now - (row["metadata_at"] or 0) > GMAIL_METADATA_TTL:
         return None
     try:
-        return json.loads(row["metadata"])
+        metadata = json.loads(row["metadata"])
     except (TypeError, json.JSONDecodeError):
         return None
+    return metadata if isinstance(metadata, dict) else None
 
 
-def gmail_cache_put(user_id, message_id, metadata=None, body=None):
-    get_db().execute(
-        """INSERT INTO gmail_cache
+def gmail_cache_metadata_rows(user_id, message_ids):
+    if not message_ids:
+        return {}
+    return {row['message_id']: row for row in get_db().execute(
+        """SELECT message_id, metadata, metadata_at FROM gmail_cache
+           WHERE user_id = ? AND message_id IN (SELECT value FROM json_each(?))""",
+        (user_id, json.dumps(list(message_ids))),
+    )}
+
+
+def gmail_cached_messages(user_id, message_ids):
+    now = time.time()
+    return {message_id: metadata for message_id, row in gmail_cache_metadata_rows(user_id, message_ids).items()
+            if (metadata := gmail_cached_metadata(row, now)) is not None}
+
+
+GMAIL_CACHE_UPSERT = """INSERT INTO gmail_cache
                (user_id, message_id, metadata, metadata_at, body, body_at)
            VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(user_id, message_id) DO UPDATE SET
                metadata = COALESCE(excluded.metadata, gmail_cache.metadata),
                metadata_at = COALESCE(excluded.metadata_at, gmail_cache.metadata_at),
                body = COALESCE(excluded.body, gmail_cache.body),
-               body_at = COALESCE(excluded.body_at, gmail_cache.body_at)""",
+               body_at = COALESCE(excluded.body_at, gmail_cache.body_at)"""
+
+
+def gmail_cache_put(user_id, message_id, metadata=None, body=None):
+    now = time.time()
+    get_db().execute(
+        GMAIL_CACHE_UPSERT,
         (
             user_id,
             message_id,
             json.dumps(metadata) if metadata is not None else None,
-            time.time() if metadata is not None else None,
+            now if metadata is not None else None,
             json.dumps(body) if isinstance(body, dict) else body,
-            time.time() if body is not None else None,
+            now if body is not None else None,
         ),
     )
     get_db().commit()
+
+
+def gmail_cache_write_metadata(db, user_id, messages):
+    now = time.time()
+    db.executemany(GMAIL_CACHE_UPSERT, (
+        (user_id, message['id'], json.dumps(message), now, None, None) for message in messages
+    ))
 
 
 def gmail_error_status(error):
@@ -855,25 +872,32 @@ def gmail_metadata_from_payload(payload, fallback_id):
             "updates" if "CATEGORY_UPDATES" in label_ids else "primary"
         ),
     }
-    return {**metadata, **email_reply_info(metadata), "otp_code": extract_otp_code(metadata['subject'], metadata['preview'])}
+    return mail_row_metadata(metadata)
 
 
-def load_cached_gmail_messages(user):
-    """Return the last known inbox when Gmail cannot be reached."""
-    rows = get_db().execute(
-        "SELECT metadata FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL",
+def mail_row_metadata(message):
+    if all(key in message for key in ('can_reply', 'is_no_reply', 'otp_code')):
+        return message
+    return {**message, **email_reply_info(message),
+            'otp_code': extract_otp_code(message.get('subject', ''), message.get('preview', ''))}
+
+
+def cached_mail_stats(user):
+    row = get_db().execute(
+        """WITH messages AS (
+               SELECT CASE WHEN json_valid(metadata) THEN metadata END AS data
+               FROM gmail_cache WHERE user_id = ? AND metadata IS NOT NULL
+           )
+           SELECT COUNT(*) AS total,
+                  COUNT(CASE WHEN json_extract(data, '$.unread') THEN 1 END) AS unread,
+                  COUNT(CASE WHEN json_extract(data, '$.starred') THEN 1 END) AS starred,
+                  COUNT(CASE WHEN EXISTS (
+                      SELECT 1 FROM json_each(data, '$.label_ids') WHERE value = 'SENT'
+                  ) THEN 1 END) AS sent
+           FROM messages WHERE json_type(data) = 'object'""",
         (user["id"],),
-    ).fetchall()
-    messages = []
-    for row in rows:
-        try:
-            metadata = json.loads(row["metadata"])
-        except (TypeError, json.JSONDecodeError):
-            continue
-        if isinstance(metadata, dict):
-            messages.append(metadata)
-    messages.sort(key=lambda message: message.get("internal_date", 0), reverse=True)
-    return messages
+    ).fetchone()
+    return dict(row)
 
 
 GMAIL_LIST_TTL = 5 * 60
@@ -988,13 +1012,22 @@ def get_integration(user_id, provider):
         "SELECT config FROM integrations WHERE user_id = ? AND provider = ?",
         (user_id, provider),
     ).fetchone()
-    if row is None:
-        return None
+    return integration_config(row['config']) if row else None
+
+
+def integration_config(value):
     try:
-        config = json.loads(row["config"])
+        config = json.loads(value)
     except (TypeError, json.JSONDecodeError):
         return None
     return config if isinstance(config, dict) else None
+
+
+def connected_app_configs(user_id):
+    return {row['provider']: integration_config(row['config']) for row in get_db().execute(
+        "SELECT provider, config FROM integrations WHERE user_id = ? AND provider NOT LIKE 'email:%'",
+        (user_id,),
+    )}
 
 
 def save_integration(user_id, provider, config):
@@ -1023,14 +1056,15 @@ def _telegram_lock(user_id):
 
 
 def telegram_available():
-    return TELETHON_AVAILABLE and TelegramClient is not None
+    return TELETHON_AVAILABLE
 
 
 def _telegram_client(config, session=None):
-    if not telegram_available():
-        raise RuntimeError(
-            "Telegram account support is not installed. Run pip install telethon."
-        )
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+    except ImportError as error:
+        raise RuntimeError('Telegram account support is not installed. Run pip install telethon.') from error
     session_text = config.get("session", "") if session is None else session
     return TelegramClient(
         StringSession(session_text),
@@ -1052,22 +1086,29 @@ def _telegram_account(me):
     }
 
 
-def telegram_error_text(error):
-    if TELETHON_AVAILABLE:
-        if isinstance(error, FloodWaitError):
-            return f"Telegram asked to wait {error.seconds} seconds before trying again."
-        if isinstance(error, PhoneCodeInvalidError):
-            return "That login code is not correct. Check Telegram and try again."
-        if isinstance(error, PhoneCodeExpiredError):
-            return "That login code has expired. Start over to request a new code."
-        if isinstance(error, PasswordHashInvalidError):
-            return "That two-step verification password is not correct."
-        if isinstance(error, SessionPasswordNeededError):
-            return "This account uses two-step verification. Enter your password to finish signing in."
-        if isinstance(error, ApiIdInvalidError):
-            return "The API ID or API hash is not valid. Copy both from my.telegram.org."
-        if isinstance(error, PhoneNumberInvalidError):
-            return "Enter the phone number in international format, for example +233201234567."
+def telegram_error_text(error, fallback=None):
+    if isinstance(error, RuntimeError):
+        return str(error) or type(error).__name__
+    try:
+        from telethon import errors
+    except ImportError:
+        return fallback or str(error) or type(error).__name__
+    if isinstance(error, errors.FloodWaitError):
+        return f"Telegram asked to wait {error.seconds} seconds before trying again."
+    if fallback:
+        return fallback
+    if isinstance(error, errors.PhoneCodeInvalidError):
+        return "That login code is not correct. Check Telegram and try again."
+    if isinstance(error, errors.PhoneCodeExpiredError):
+        return "That login code has expired. Start over to request a new code."
+    if isinstance(error, errors.PasswordHashInvalidError):
+        return "That two-step verification password is not correct."
+    if isinstance(error, errors.SessionPasswordNeededError):
+        return "This account uses two-step verification. Enter your password to finish signing in."
+    if isinstance(error, errors.ApiIdInvalidError):
+        return "The API ID or API hash is not valid. Copy both from my.telegram.org."
+    if isinstance(error, errors.PhoneNumberInvalidError):
+        return "Enter the phone number in international format, for example +233201234567."
     return str(error) or type(error).__name__
 
 
@@ -1100,6 +1141,8 @@ def telegram_verify(user, value, mode):
 
     async def run():
         client = _telegram_client(config)
+        from telethon.errors import SessionPasswordNeededError
+
         await client.connect()
         try:
             if mode == "password":
@@ -1198,6 +1241,8 @@ TELEGRAM_MEDIA_TYPES = {'image/jpeg': 'photo', 'image/png': 'photo', 'image/webp
 
 
 def telegram_photo_size(photo):
+    from telethon import types as telegram_types
+
     return max((size for size in photo.sizes if isinstance(size, (telegram_types.PhotoSize,
         telegram_types.PhotoSizeProgressive, telegram_types.PhotoCachedSize, telegram_types.PhotoStrippedSize))),
         key=lambda size: getattr(size, 'size', None) or max(getattr(size, 'sizes', []) or [len(getattr(size, 'bytes', b''))]),
@@ -1205,6 +1250,8 @@ def telegram_photo_size(photo):
 
 
 def telegram_message_media(message, chat_id):
+    from telethon import types as telegram_types
+
     media = getattr(message, 'media', None)
     filename = 'telegram-' + str(message.id)
     if isinstance(media, telegram_types.MessageMediaPhoto) and isinstance(media.photo, telegram_types.Photo):
@@ -1227,6 +1274,8 @@ def telegram_message_media(message, chat_id):
 
 def _telegram_in_topic(message, topic_id):
     if not topic_id: return True
+    from telethon import types as telegram_types
+
     if isinstance(getattr(message, 'action', None), telegram_types.MessageActionTopicCreate):
         return message.id == int(topic_id)
     reply = getattr(message, 'reply_to', None)
@@ -1244,6 +1293,8 @@ def _telegram_can_pin(dialog):
 
 
 def _telegram_message_data(message, dialog):
+    from telethon import types as telegram_types
+
     sender = getattr(message, 'sender', None)
     name = getattr(sender, 'title', None) or (_telegram_account(sender)['name'] if sender else 'Telegram')
     media = telegram_message_media(message, str(dialog.id))
@@ -1274,6 +1325,8 @@ async def _telegram_message(client, dialog, message_id, topic_id=None):
 def telegram_message_action(config, user_id, chat_id, message_id, action, *, text='', topic_id=None,
                             original=None, destination=None, destination_topic=None, request_id='', emoji='', revoke=True):
     async def change(client):
+        from telethon import errors as telegram_errors, functions as telegram_functions, types as telegram_types
+
         dialog = await _telegram_dialog(client, chat_id)
         message = await _telegram_message(client, dialog, message_id, topic_id)
         data = _telegram_message_data(message, dialog)
@@ -1330,6 +1383,8 @@ def telegram_message_action(config, user_id, chat_id, message_id, action, *, tex
 
 def telegram_chat(config, user_id, chat_id, *, topic_id=None, topic_query='', before=0, after=0, text=None, request_id=None, reply_id=None, known_ids=()):
     async def conversation(client):
+        from telethon import functions as telegram_functions, types as telegram_types
+
         dialog = await _telegram_dialog(client, chat_id)
         forum = bool(getattr(dialog.entity, 'forum', False))
         topics = []
@@ -1391,6 +1446,8 @@ def telegram_photo(config, user_id, chat_id):
 
 def telegram_message_download(config, user_id, chat_id, message_id):
     async def download(client):
+        from telethon import types as telegram_types
+
         dialog = await _telegram_dialog(client, chat_id)
         message = await client.get_messages(dialog.input_entity, ids=message_id)
         if not message or message.id != message_id or str(getattr(message, 'chat_id', '')) != chat_id:
@@ -2187,7 +2244,7 @@ def home():
 def dashboard():
     return render_template(
         'dashboard.html',
-        stats=make_stats(load_cached_gmail_messages(g.user)),
+        stats=cached_mail_stats(g.user),
         user_email=session.get('user_email'),
     )
 
@@ -2235,14 +2292,14 @@ GMAIL_FOLDERS = {
 }
 
 
-def requested_mail_folder():
-    account = active_email_account(g.user)
+def requested_mail_folder(account=None):
     folder = request.args.get("folder") or request.form.get("folder") or "inbox"
     if folder not in GMAIL_FOLDERS:
         abort(404)
     if request.args.get("account") == "all":
         if folder != "inbox": abort(404)
         return folder
+    account = account or active_email_account(g.user)
     if account["kind"] == "imap" and folder not in {"inbox","starred",*account["config"]["folders"]}:
         abort(404)
     if account["kind"] == "microsoft" and folder not in {"all","starred",*graph_mail.FOLDERS}:
@@ -2268,8 +2325,8 @@ def cached_mail_preview(user, folder, account=None):
     ).fetchone()
     if page:
         ids = json.loads(page["message_ids"])[:MAIL_BATCH_SIZE]
-        return [message for message_id in ids
-                if (message := gmail_cache_get(user["id"], message_id)) is not None]
+        messages = gmail_cached_messages(user['id'], ids)
+        return [messages[message_id] for message_id in ids if message_id in messages]
     # Old inbox caches have no label_ids. Only treat those as inbox messages.
     label = GMAIL_FOLDERS[folder].get("label")
     if folder == "snoozed":
@@ -2298,8 +2355,11 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False, account=No
         else:
             payloads, next_cursor, total = graph_mail.list_messages(microsoft_access_token(account),account["config"],folder,query,cursor)
         messages = [gmail_metadata_from_payload(payload,payload["id"]) for payload in payloads]
-        for message in messages: message['mail_folder']='inbox' if folder=='starred' and account['kind']=='imap' else folder
-        for message in messages: gmail_cache_put(user["id"],message["id"],metadata=message)
+        for message in messages:
+            message['mail_folder'] = 'inbox' if folder == 'starred' and account['kind'] == 'imap' else folder
+        if messages:
+            with get_db() as db:
+                gmail_cache_write_metadata(db, user['id'], messages)
         return messages,next_cursor,total
     token = get_gmail_access_token(user, account)
     if not token:
@@ -2341,29 +2401,29 @@ def fetch_mail_page(user, folder, cursor="", query="", refresh=False, account=No
             (user["id"], folder_key, query, cursor, json.dumps(ids), next_cursor, total, time.time()),
         )
         db.commit()
-    messages, missing = {}, []
-    for message_id in ids:
-        metadata = None if refresh else gmail_cache_get(user["id"], message_id)
-        if metadata is not None and "reply_to" not in metadata:
-            metadata = None
-        if metadata is not None:
-            messages[message_id] = metadata
-        else:
-            missing.append(message_id)
-    # At most 25 metadata requests per page; other pages wait for scrolling.
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {executor.submit(_fetch_gmail_detail, headers, gmail_raw_message_id(account, item)): item for item in missing}
-        for future in as_completed(futures):
-            message_id = futures[future]
-            try:
-                metadata = future.result()
-            except requests.HTTPError as error:
-                if gmail_error_status(error) in {404, 410}:
-                    continue
-                raise
-            metadata['id'] = message_id
-            gmail_cache_put(user["id"], message_id, metadata=metadata)
-            messages[message_id] = metadata
+    messages = {} if refresh else {
+        message_id: metadata for message_id, metadata in gmail_cached_messages(user['id'], ids).items()
+        if 'reply_to' in metadata
+    }
+    missing = [message_id for message_id in ids if message_id not in messages]
+    if missing:
+        fetched = []
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(_fetch_gmail_detail, headers, gmail_raw_message_id(account, item)): item for item in missing}
+            for future in as_completed(futures):
+                message_id = futures[future]
+                try:
+                    metadata = future.result()
+                except requests.HTTPError as error:
+                    if gmail_error_status(error) in {404, 410}:
+                        continue
+                    raise
+                metadata['id'] = message_id
+                fetched.append(metadata)
+                messages[message_id] = metadata
+        if fetched:
+            with db:
+                gmail_cache_write_metadata(db, user['id'], fetched)
     return [messages[item] for item in ids if item in messages], next_cursor, total
 
 
@@ -2403,11 +2463,12 @@ def fetch_all_inboxes_page(user, cursor="", query="", refresh=False):
 
 @app.get('/api/mail/messages')
 def mailbox_messages():
-    folder = requested_mail_folder()
+    aggregate = request.args.get('account') == 'all'
+    account = None if aggregate else active_email_account(g.user)
+    folder = requested_mail_folder(account)
     query = request.args.get("search", "").strip()[:500]
     category = request.args.get("category", "")
-    aggregate = request.args.get('account') == 'all'
-    if not aggregate and active_email_account(g.user)["kind"] == "gmail" and folder == "inbox" and category in {"primary", "updates", "social"}:
+    if account and account['kind'] == 'gmail' and folder == 'inbox' and category in {'primary', 'updates', 'social'}:
         query = " ".join(filter(None, (query, "category:" + category)))
     try:
         warning = ''
@@ -2416,7 +2477,7 @@ def mailbox_messages():
         else:
             messages, next_cursor, total = fetch_mail_page(
                 g.user, folder, request.args.get("cursor", ""), query,
-                refresh=request.args.get("refresh") == "1",
+                refresh=request.args.get("refresh") == "1", account=account,
             )
     except RuntimeError as error:
         return jsonify(error=str(error), reconnect=True), 409
@@ -2426,7 +2487,8 @@ def mailbox_messages():
         app.logger.warning("Could not load mail page for user id=%s", g.user["id"])
         return jsonify(error="Could not load messages. Please try again."), 502
     return jsonify(
-        html=render_template('mail_rows.html', messages=[{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in messages], folder=folder, mail_account_key='all' if aggregate else active_email_account(g.user)["key"]),
+        html=render_template('mail_rows.html', messages=[mail_row_metadata(message) for message in messages],
+                             folder=folder, mail_account_key='all' if aggregate else account['key']),
         next_cursor=next_cursor, total=total, count=len(messages), warning=warning,
     )
 
@@ -2446,7 +2508,7 @@ def gmail_message_states():
         token = get_gmail_access_token(g.user)
         if not token: return jsonify(error='Reconnect Gmail to update read status.', reconnect=True), 409
         db = get_db()
-        cached = {identifier:db.execute('SELECT metadata, metadata_at FROM gmail_cache WHERE user_id=? AND message_id=?', (g.user['id'],identifier)).fetchone() for identifier in identifiers}
+        cached = gmail_cache_metadata_rows(g.user['id'], identifiers)
         def fetch_labels(raw_id):
             response = google_requests.get(f'https://gmail.googleapis.com/gmail/v1/users/me/messages/{raw_id}',
                 headers={'Authorization':'Bearer '+token}, params={'format':'minimal','fields':'id,labelIds'}, timeout=(5,10))
@@ -2467,7 +2529,7 @@ def gmail_message_states():
                     raise
                 remote[futures[future]] = unread
         for identifier, unread in remote.items():
-            previous = cached[identifier]
+            previous = cached.get(identifier)
             if previous and previous['metadata']:
                 metadata = json.loads(previous['metadata'])
                 labels = set(metadata.get('label_ids', []))
@@ -2630,34 +2692,39 @@ def paginate_messages(messages, page):
 
 @app.route('/inbox')
 def inbox(compose_draft=None):
-    folder = requested_mail_folder()
-    account = active_email_account(g.user)
-    aggregate = request.args.get('account') == 'all'
     accounts = email_accounts(g.user)
+    account = active_email_account(g.user, accounts)
+    folder = requested_mail_folder(account)
+    aggregate = request.args.get('account') == 'all'
     preview = [{**message, 'mail_account_key':source['key'], 'mail_account_email':source['email'], 'mail_folder':'inbox'}
-               for source in accounts for message in cached_mail_preview(g.user, 'inbox', account=source)] if aggregate else cached_mail_preview(g.user, folder)
+               for source in accounts for message in cached_mail_preview(g.user, 'inbox', account=source)] if aggregate else cached_mail_preview(g.user, folder, account)
     preview.sort(key=lambda message: int(message.get('internal_date') or 0), reverse=True)
-    messages = [{**message, **email_reply_info(message), 'otp_code':extract_otp_code(message.get('subject',''),message.get('preview',''))} for message in preview]
+    messages = [mail_row_metadata(message) for message in preview]
     available = GMAIL_FOLDERS
     if account["kind"] == "imap": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"inbox","starred",*account["config"]["folders"]}}
     elif account["kind"] == "microsoft": available = {key:value for key,value in GMAIL_FOLDERS.items() if key in {"all","starred",*graph_mail.FOLDERS}}
     return render_template(
         'mail.html', messages=messages, folder=folder, folders=available, mail_accounts=accounts, mail_account_key='all' if aggregate else account['key'], mail_kind='aggregate' if aggregate else account['kind'],
-        folder_title='All inboxes' if aggregate else GMAIL_FOLDERS[folder]["title"], stats=make_stats(messages), compose_account_key=account['key'],
-        compose_draft=compose_draft, mail_account_email=account['email'], app_connections=workspace_connections(g.user),
+        folder_title='All inboxes' if aggregate else GMAIL_FOLDERS[folder]["title"], compose_account_key=account['key'],
+        compose_draft=compose_draft, mail_account_email=account['email'], app_connections=workspace_connections(g.user, accounts),
     )
 
 
-def workspace_connections(user):
+def workspace_connections(user, accounts=None):
     connections = []
-    chat = get_integration(user['id'], 'google_chat')
-    account = next((account for account in email_accounts(user) if account['key'] == chat.get('account_key') and account['kind'] == 'gmail'), None) if chat else None
+    configs = connected_app_configs(user['id'])
+    chat = configs.get('google_chat')
+    account = None
+    if chat:
+        if accounts is None:
+            accounts = email_accounts(user)
+        account = next((account for account in accounts if account['key'] == chat.get('account_key') and account['kind'] == 'gmail'), None)
     stored = (get_google_token(user) if account['key'] == 'gmail' else account['config']['token']) if account else {}
     connected = bool(account and set(google_chat.SCOPES.split()).issubset(set(stored.get('scope','').split())))
     connections.append({'key':'google-chat','name':'Google Chat','subtitle':account['email'] if account else 'Chats and spaces',
         'connected':connected, 'messages_url':url_for('google_chat_spaces') if connected else ''})
     for provider, name in [('telegram','Telegram'), ('teams','Microsoft Teams'), ('discord','Discord'), ('whatsapp','WhatsApp')]:
-        config = get_integration(user['id'], provider)
+        config = configs.get(provider)
         if not config or (provider == 'telegram' and config.get('stage') != 'connected'):
             continue
         subtitle = config.get('channel_name') or config.get('display_phone_number') or (config.get('account') or {}).get('username') or 'Recent conversations'
@@ -2665,7 +2732,7 @@ def workspace_connections(user):
     for spec in SOCIAL_PROVIDERS:
         if spec['key'] in integration_catalog.PLACEHOLDER_PROVIDERS:
             continue
-        if get_integration(user['id'],'social:'+spec['key']):
+        if configs.get('social:' + spec['key']):
             connections.append({'key':spec['key'],'name':spec['name'],'subtitle':'Connected integration','messages_url':''})
     return connections
 
@@ -2839,18 +2906,19 @@ def settings():
 @app.get('/integrations')
 def integrations(email_error='', email_value=''):
     accounts = email_accounts(g.user)
-    chat_config = get_integration(g.user['id'], 'google_chat')
+    saved_configs = connected_app_configs(g.user['id'])
+    chat_config = saved_configs.get('google_chat')
     chat_account = next((account for account in accounts if chat_config and account['key'] == chat_config.get('account_key') and account['kind'] == 'gmail'), None)
-    telegram = get_integration(g.user["id"], "telegram")
+    telegram = saved_configs.get('telegram')
     telegram_stage = telegram.get("stage") if telegram else None
     telegram_account = telegram.get("account") if telegram else None
-    whatsapp = get_integration(g.user["id"], "whatsapp")
-    discord = get_integration(g.user["id"], "discord")
-    teams = get_integration(g.user['id'], 'teams')
+    whatsapp = saved_configs.get('whatsapp')
+    discord = saved_configs.get('discord')
+    teams = saved_configs.get('teams')
     social_cards = [
         {
             "spec": spec,
-            "config": get_integration(g.user["id"], "social:" + spec["key"]),
+            "config": saved_configs.get('social:' + spec['key']),
         }
         for spec in SOCIAL_PROVIDERS
     ]
@@ -3279,7 +3347,7 @@ def telegram_chat_route(chat_id):
         return jsonify(error=str(error)), 400
     except Exception as error:
         app.logger.warning('Telegram chat request failed for user id=%s', g.user['id'])
-        message = telegram_error_text(error) if isinstance(error, RuntimeError) or (TELETHON_AVAILABLE and isinstance(error, FloodWaitError)) else 'Telegram could not complete the request. Your draft is kept; refresh before retrying.'
+        message = telegram_error_text(error, fallback='Telegram could not complete the request. Your draft is kept; refresh before retrying.')
         return jsonify(error=message), 502
 
 
@@ -3310,7 +3378,7 @@ def telegram_message_action_route(chat_id, message_id):
         return jsonify(error=str(error)), 400
     except Exception as error:
         app.logger.warning('Telegram message action failed for user id=%s', g.user['id'])
-        message = telegram_error_text(error) if isinstance(error, RuntimeError) or (TELETHON_AVAILABLE and isinstance(error, FloodWaitError)) else 'Telegram could not confirm this action. Your edit is kept; refresh the conversation before retrying.'
+        message = telegram_error_text(error, fallback='Telegram could not confirm this action. Your edit is kept; refresh the conversation before retrying.')
         return jsonify(error=message), 502
 
 

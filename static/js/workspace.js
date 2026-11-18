@@ -1,17 +1,37 @@
 (() => {
     const buttons = [...document.querySelectorAll('[data-app-provider]')];
-    if (!buttons.length) return;
+    const appsTab = document.querySelector('#workspace-tab-apps');
+    if (!buttons.length) {
+        if (location.hash === '#apps') appsTab.click();
+        return;
+    }
     const feed = document.querySelector('#apps-feed-messages');
     const status = document.querySelector('#apps-feed-status');
     const refresh = document.querySelector('#refresh-app-feed');
     const loading = document.querySelector('#apps-feed-loading');
     const connectionPrompt = document.querySelector('#apps-connection-prompt');
-    let selected, controller;
+    const stylesheet = document.querySelector('#chat-styles');
+    let chatStyles;
+    const loadChatStyles = () => chatStyles ??= new Promise((resolve, reject) => {
+        const link = stylesheet.content.firstElementChild.cloneNode();
+        link.addEventListener('load', resolve, {once: true});
+        link.addEventListener('error', () => {
+            link.remove();
+            chatStyles = null;
+            reject(new Error('Chat styles could not be loaded. Try Refresh.'));
+        }, {once: true});
+        stylesheet.after(link);
+    });
+    const clients = {
+        telegram: () => import('./telegram-chat.js').then(() => window.CentroMailTelegram),
+        teams: () => Promise.all([import('./teams-chat.js'), loadChatStyles()]).then(() => window.CentroMailTeams),
+        'google-chat': () => Promise.all([import('./google-chat.js'), loadChatStyles()]).then(() => window.CentroMailGoogleChat),
+    };
+    let selected, controller, activeClient;
     const load = async button => {
         selected = button;
-        window.CentroMailTelegram.close();
-        window.CentroMailTeams?.close();
-        window.CentroMailGoogleChat?.close();
+        activeClient?.close();
+        activeClient = null;
         controller?.abort();
         controller = null;
         buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
@@ -40,23 +60,32 @@
         feed.setAttribute('aria-busy','true');
         loading.hidden = false;
         try {
-            const response = await fetch(button.dataset.appFeed,{signal:pending.signal});
+            const provider = button.dataset.appProvider;
+            const cancelled = new Promise((_, reject) => {
+                pending.signal.addEventListener('abort', () => reject(pending.signal.reason), {once: true});
+            });
+            const [response, client] = await Promise.race([cancelled, Promise.all([
+                fetch(button.dataset.appFeed, {signal: pending.signal}),
+                clients[provider]?.(),
+            ])]);
+            if (controller !== pending) return;
             if (response.redirected) { location.assign(response.url); return; }
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Messages could not be loaded.');
-            if (selected !== button || controller !== pending) return;
-            if (button.dataset.appProvider === 'telegram') {
-                window.CentroMailTelegram.open(data.messages || []);
+            if (controller !== pending) return;
+            activeClient = client;
+            if (provider === 'telegram') {
+                client.open(data.messages || []);
                 status.textContent = 'Your recent Telegram conversations.';
                 return;
             }
-            if (button.dataset.appProvider === 'teams') {
-                window.CentroMailTeams.open(data);
+            if (provider === 'teams') {
+                client.open(data);
                 status.textContent = 'Your Teams chats and team channels.';
                 return;
             }
-            if (button.dataset.appProvider === 'google-chat') {
-                window.CentroMailGoogleChat.open(data);
+            if (provider === 'google-chat') {
+                client.open(data);
                 status.textContent = 'Your Google Chat conversations and spaces.';
                 return;
             }
@@ -75,11 +104,12 @@
             if (controller === pending) status.textContent = error.name === 'AbortError' ? 'Loading took too long. Try Refresh.' : error.message;
         } finally {
             clearTimeout(timeout);
+            pending.abort();
             if (controller === pending) { refresh.disabled = false; feed.removeAttribute('aria-busy'); loading.hidden = true; }
         }
     };
     buttons.forEach(button => button.addEventListener('click', () => load(button)));
-    refresh.addEventListener('click', () => { if (selected?.dataset.appProvider === 'teams') window.CentroMailTeams.refresh(); else if (selected) load(selected); });
-    document.querySelector('#workspace-tab-apps').addEventListener('click', () => { if (!selected) load(buttons.find(button => button.dataset.appConnected !== 'false') || buttons[0]); });
-    if (location.hash === '#apps') document.querySelector('#workspace-tab-apps').click();
+    refresh.addEventListener('click', () => { if (selected?.dataset.appProvider === 'teams' && activeClient) activeClient.refresh(); else if (selected) load(selected); });
+    appsTab.addEventListener('click', () => { if (!selected) load(buttons.find(button => button.dataset.appConnected !== 'false') || buttons[0]); });
+    if (location.hash === '#apps') appsTab.click();
 })();

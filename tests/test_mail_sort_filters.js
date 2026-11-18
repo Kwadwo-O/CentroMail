@@ -28,6 +28,7 @@ function inbox(messages,preferences={}) {
     const fields = ['read','star','reply','date'].map(name=>({...control(),id:'mail-filter-'+name}));
     const elements = Object.fromEntries(['#mail-sort','#mail-sort-direction','#clear-mail-filters','#mail-filter-count',
         '#mail-filter-status','#mail-page-count','#empty-state','.mail-selection-actions','#mail-selection-count'].map(name=>[name,control()]));
+    for (const field of fields) elements['#'+field.id] = field;
     const icon=control(),label=control();elements['#mail-sort-direction'].querySelector=selector=>selector==='.m3e-icon'?icon:label;
     const listeners={};
     const list={children:messages,contains:()=>false,querySelector:()=>null,focus(){context.document.activeElement=this;},
@@ -38,7 +39,7 @@ function inbox(messages,preferences={}) {
             querySelectorAll:selector=>selector==='.mail-filter-fields select'?fields:[],
             addEventListener(event,listener){listeners[event]=listener;}},
         window:{CentroMailAppearance:{get:key=>settings[key],set(key,value){settings[key]=value;listeners['centromail-appearance-change']();}}}};
-    vm.runInNewContext(section('const sort =','const showFeedback =')+section('const updateSelection =','const setRefreshBusy =')+
+    vm.runInNewContext(section('const sort =','const showFeedback =')+section('const selectionActions =','const setRefreshBusy =')+
         'this.syncSort=syncSort;this.sortMessages=sortMessages;this.applyFilters=applyFilters;this.selected=selected;',context);
     context.syncSort();
     return {context,settings,fields,elements,icon,label,messages,
@@ -65,6 +66,14 @@ test('sender and subject ordering ignores case and keeps newest first within mat
     assert.deepEqual(view.ids(),['c','b','a']);
     view.elements['#mail-sort-direction'].listeners.click();
     assert.deepEqual(view.ids(),['a','b','c']);
+});
+
+test('unrelated appearance changes leave the loaded rows and sort controls alone', () => {
+    const messages = [message('older', 100, {sender: 'A'}), message('newer', 200, {sender: 'B'})];
+    const view = inbox(messages, {'mail-sort': 'sender', 'mail-sort-direction': 'asc'});
+    for (const row of messages) row.querySelector = () => assert.fail('Read a sort key unnecessarily');
+    view.context.window.CentroMailAppearance.set('theme', 'dark');
+    assert.deepEqual(view.ids(), ['older', 'newer']);
 });
 
 test('combined read, star and reply filters exclude hidden selections and clear without deleting messages',()=>{

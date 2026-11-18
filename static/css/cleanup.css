@@ -5,12 +5,12 @@
 }
 
 .cleanup-panel {
-    background: var(--m3e-sys-color-surface-container-low);
-    border: 1px solid var(--m3e-sys-color-outline-variant);
-    border-radius: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--cm-panel-radius);
     margin: 0 auto;
     max-width: 900px;
-    padding: 28px;
+    padding: clamp(20px, 4vw, 32px);
 }
 
 .cleanup-back {
@@ -23,10 +23,17 @@
     gap: 18px;
 }
 
+.cleanup-heading > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .cleanup-heading-icon {
-    color: var(--m3e-sys-color-primary);
-    font-size: 34px;
-    margin-top: 5px;
+    background: var(--highlight);
+    border-radius: var(--cm-control-radius);
+    color: var(--m3e-sys-color-on-secondary-container);
+    flex-shrink: 0;
+    padding: 12px;
 }
 
 .cleanup-eyebrow {
@@ -74,7 +81,7 @@
 .cleanup-note {
     align-items: flex-start;
     background: var(--m3e-sys-color-secondary-container);
-    border-radius: 12px;
+    border-radius: var(--cm-control-radius);
     color: var(--m3e-sys-color-on-secondary-container);
     display: flex;
     gap: 12px;
@@ -110,6 +117,10 @@
 .cleanup-status {
     color: var(--m3e-sys-color-on-surface-variant);
     margin: 0;
+}
+
+.cleanup-note + .cleanup-status {
+    margin: 1rem 0 .75rem;
 }
 
 .cleanup-progress {
@@ -169,6 +180,8 @@
 }
 
 .cleanup-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--cm-control-radius);
     margin-top: 12px;
     overflow-x: auto;
 }
@@ -188,8 +201,13 @@
 }
 
 .cleanup-results th {
+    background: var(--surface-container-low);
     color: var(--m3e-sys-color-on-surface-variant);
     font-size: 0.85rem;
+}
+
+.cleanup-results tr:last-child td {
+    border-bottom: 0;
 }
 
 .cleanup-results td:first-child {
@@ -222,5 +240,13 @@
     .cleanup-panel {
         border-radius: 16px;
         padding: 20px 16px;
+    }
+
+    .cleanup-heading {
+        gap: 12px;
+    }
+
+    :root[data-theme] .cleanup-heading h1 {
+        font-size: calc(1.75rem * var(--cm-heading-scale));
     }
 }

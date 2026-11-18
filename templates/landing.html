@@ -11,7 +11,6 @@
     <nav class="landing-shell landing-nav" aria-label="Main navigation">
         <a class="landing-brand" href="{{ url_for('index') }}" aria-label="CentroMail home">
             <img class="landing-brand-image cm-brand-logo" src="{{ url_for('static', filename='images/Logo_compact.png') }}" alt="CentroMail" width="132" height="60">
-            <span class="m3e-badge m3e-badge--large landing-beta">BETA</span>
         </a>
         <div class="landing-nav-links">
             <a href="#features">Features</a>
@@ -71,7 +70,7 @@
     </section>
 
     <section class="landing-features" id="features" aria-labelledby="features-title">
-        <div class="landing-section-heading" data-landing-enter><h2 id="features-title">Less switching. More doing.</h2><p>The tools you need to keep your conversations organised.</p></div>
+        <div class="landing-section-heading" data-landing-enter><h2 id="features-title">What you can do with CentroMail</h2></div>
         <div class="landing-feature-grid">
             <article class="landing-feature" data-landing-enter><span class="landing-feature-icon m3e-icon" aria-hidden="true">all_inbox</span><h3>Keep it organised</h3><p>Search your messages, star what matters, and manage your connected inboxes.</p></article>
             <article class="landing-feature" data-landing-enter><span class="landing-feature-icon m3e-icon" aria-hidden="true">chat</span><h3>Stay in the conversation</h3><p>Read email threads and reply to messages from one workspace.</p></article>
@@ -80,7 +79,7 @@
     </section>
 
     <section class="landing-faq" aria-labelledby="faq-title" data-landing-enter>
-        <div><h2 id="faq-title">A few questions</h2></div>
+        <div><h2 id="faq-title">Frequently asked questions</h2></div>
         <div class="landing-questions">
             <details><summary>What can I connect?<span class="m3e-icon" aria-hidden="true">add</span></summary><p>Connect Gmail, Microsoft email, or an IMAP account, plus Telegram, WhatsApp Business, and Discord. The integrations page lists other supported services and their setup requirements. Some connections need a developer account or access token.</p></details>
             <details><summary>How does CentroMail handle my data?<span class="m3e-icon" aria-hidden="true">add</span></summary><p>CentroMail stores account details and cached messages in its application database, and talks to providers to load and send messages. You can disconnect integrations or delete your account in settings. Read our <a href="{{ url_for('privacy') }}">privacy policy</a> for the details.</p></details>

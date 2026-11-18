@@ -234,6 +234,44 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(self.client.get("/api/mail/messages").json["count"], 1)
             self.assertEqual(list_mail.call_count, 2)
 
+    def test_static_assets_do_not_read_signed_in_user_from_database(self):
+        self.register()
+        with patch.object(application, 'get_db') as db:
+            response = self.client.get('/static/css/style.css')
+            self.assertEqual(response.status_code, 200)
+            response.close()
+            db.assert_not_called()
+
+    def test_cached_page_reads_metadata_in_one_query_in_provider_order(self):
+        self.register()
+        ids = ['latest', 'missing', 'earlier']
+        user_id = self.users()[0]['id']
+        with application.app.app_context():
+            for identifier in ('earlier', 'latest'):
+                application.gmail_cache_put(user_id, identifier, metadata=self.mail_metadata(identifier))
+            db = application.get_db()
+            db.execute(
+                'INSERT INTO gmail_folder_pages VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (user_id, 'inbox', '', '', application.json.dumps(ids), None, len(ids), application.time.time()),
+            )
+            db.commit()
+
+        queries = []
+        get_db = application.get_db
+
+        def trace_db():
+            db = get_db()
+            db.set_trace_callback(queries.append)
+            return db
+
+        with patch.object(application, 'get_db', side_effect=trace_db):
+            response = self.client.get('/inbox')
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(response.data.index(b'Subject latest'), response.data.index(b'Subject earlier'))
+        self.assertNotIn(b'Subject missing', response.data)
+        reads = [query for query in queries if 'SELECT message_id, metadata' in query]
+        self.assertEqual(len(reads), 1)
+
     @staticmethod
     def mail_metadata(message_id, labels=None):
         labels = labels if labels is not None else ["INBOX", "UNREAD"]

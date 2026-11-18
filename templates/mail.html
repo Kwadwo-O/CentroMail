@@ -4,7 +4,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mail.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/teams.css') }}">
+<template id="chat-styles"><link rel="stylesheet" href="{{ url_for('static', filename='css/teams.css') }}"></template>
 {% endblock %}
 
 {% block main_class %}mail-page{% endblock %}
@@ -172,14 +172,14 @@
         <aside class="apps-sidebar" aria-label="Apps">
             <div class="apps-heading"><h2>Apps</h2><a class="m3e-icon-button m3e-icon-button--standard" href="{{ url_for('integrations') }}" aria-label="Connect an app"><span class="m3e-icon" aria-hidden="true">add</span></a></div>
             {% for connection in app_connections %}
-            <button class="m3e-button m3e-button--text apps-connection" type="button" data-app-provider="{{ connection.key }}" data-app-name="{{ connection.name }}" data-app-feed="{{ connection.messages_url }}" data-app-connected="{{ 'true' if connection.connected|default(true) else 'false' }}" aria-pressed="false" aria-controls="apps-feed-panel"><img src="{{ url_for('static',filename='images/integrations/' + connection.key + '.svg') }}" width="32" height="32" alt=""><span><strong>{{ connection.name }}</strong><small>{{ connection.subtitle }}</small><small>{{ 'Connected' if connection.connected|default(true) else 'Not connected' }}</small></span></button>
+            <button class="m3e-button m3e-button--text apps-connection" type="button" data-app-provider="{{ connection.key }}" data-app-name="{{ connection.name }}" data-app-feed="{{ connection.messages_url }}" data-app-connected="{{ 'true' if connection.connected|default(true) else 'false' }}" aria-pressed="false" aria-controls="apps-feed-panel"><img src="{{ url_for('static',filename='images/integrations/' + connection.key + '.svg') }}" width="32" height="32" alt="" loading="lazy" decoding="async"><span><strong>{{ connection.name }}</strong><small>{{ connection.subtitle }}</small><small>{{ 'Connected' if connection.connected|default(true) else 'Not connected' }}</small></span></button>
             {% endfor %}
         </aside>
         <section class="apps-feed-panel" id="apps-feed-panel" aria-labelledby="apps-feed-title">
             <header class="apps-feed-header"><div><h2 id="apps-feed-title">Messages</h2><p id="apps-feed-status" role="status">Choose an app to see recent messages.</p></div><button class="m3e-button m3e-button--tonal" id="refresh-app-feed" type="button" disabled><span class="m3e-icon" aria-hidden="true">refresh</span>Refresh</button><a class="m3e-button m3e-button--text" href="{{ url_for('integrations') }}">Manage connection</a></header>
             <div id="apps-feed-messages"></div>
             <section id="apps-connection-prompt" class="chat-empty" aria-labelledby="apps-connect-title" hidden>
-                <img src="{{ url_for('static',filename='images/integrations/google-chat.svg') }}" width="48" height="48" alt="">
+                <img src="{{ url_for('static',filename='images/integrations/google-chat.svg') }}" width="48" height="48" alt="" loading="lazy" decoding="async">
                 <h3 id="apps-connect-title">Connect Google Chat</h3>
                 <p>Connect your Google account to read and send messages in chats and spaces here.</p>
                 <a class="m3e-button m3e-button--filled" href="{{ url_for('google_chat_connect') }}">Connect Google Chat</a>
@@ -291,12 +291,10 @@
       });
     });
 </script>
-<script src="{{ url_for('static', filename='js/compose.js') }}"></script>
-<script src="{{ url_for('static', filename='js/email-tools.js') }}"></script>
-<script src="{{ url_for('static', filename='js/telegram-chat.js') }}"></script>
-<script src="{{ url_for('static', filename='js/teams-chat.js') }}"></script>
-<script src="{{ url_for('static', filename='js/google-chat.js') }}"></script>
-<script src="{{ url_for('static', filename='js/reply-position.js') }}"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}"></script>
+<script src="{{ url_for('static', filename='js/email-validation.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/compose.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/email-tools.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/reply-position.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/mail.js') }}" defer></script>
 {% endblock %}

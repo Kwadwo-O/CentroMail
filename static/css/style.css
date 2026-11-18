@@ -75,8 +75,7 @@ img {
 /* Top navigation ------------------------------------------------------- */
 
 .site-header {
-    backdrop-filter: blur(18px);
-    background: color-mix(in srgb, var(--m3e-sys-color-surface) 86%, transparent);
+    background: var(--surface);
     border-bottom: 1px solid var(--m3e-sys-color-outline-variant);
     position: sticky;
     top: 0;

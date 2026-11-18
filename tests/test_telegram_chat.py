@@ -7,6 +7,9 @@ from unittest.mock import AsyncMock, patch
 import app as a
 from test_integrations import IntegrationFixture
 
+if a.TELETHON_AVAILABLE:
+    from telethon import TelegramClient, errors as telegram_errors, functions as telegram_functions, types as telegram_types
+
 
 @unittest.skipUnless(a.TELETHON_AVAILABLE, 'Telethon is not installed')
 class TelegramChatTests(IntegrationFixture):
@@ -15,7 +18,7 @@ class TelegramChatTests(IntegrationFixture):
         self.login()
         self.config={'stage':'connected','session':'private-session','api_id':123,'api_hash':'a'*32}
         with a.app.app_context():a.save_integration(self.user_id,'telegram',self.config)
-        self.dialog=Item(id=-100123,name='Study group',entity=Item(forum=False),input_entity=a.telegram_types.InputPeerChannel(123,456),is_group=True,is_channel=True,unread_count=2,message=None)
+        self.dialog=Item(id=-100123,name='Study group',entity=Item(forum=False),input_entity=telegram_types.InputPeerChannel(123,456),is_group=True,is_channel=True,unread_count=2,message=None)
         self.telegram=AsyncMock()
         self.telegram.is_user_authorized.return_value=True
         self.telegram.get_dialogs.return_value=[self.dialog]
@@ -27,13 +30,13 @@ class TelegramChatTests(IntegrationFixture):
         return Item(id=identifier,chat_id=-100123,message=text,media=media,out=out,date=datetime.now(timezone.utc),sender=Item(first_name='Friend',last_name='',username='friend'),reply_to=Item(reply_to_top_id=root,reply_to_msg_id=root,forum_topic=bool(root)))
 
     def photo(self):
-        return a.telegram_types.MessageMediaPhoto(photo=a.telegram_types.Photo(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),sizes=[a.telegram_types.PhotoSize(type='x',w=640,h=480,size=1024)],dc_id=1))
+        return telegram_types.MessageMediaPhoto(photo=telegram_types.Photo(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),sizes=[telegram_types.PhotoSize(type='x',w=640,h=480,size=1024)],dc_id=1))
 
     def video(self,*,size=1024,mime='video/mp4'):
-        return a.telegram_types.MessageMediaDocument(document=a.telegram_types.Document(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),mime_type=mime,size=size,dc_id=1,attributes=[]))
+        return telegram_types.MessageMediaDocument(document=telegram_types.Document(id=123,access_hash=456,file_reference=b'private-reference',date=datetime.now(timezone.utc),mime_type=mime,size=size,dc_id=1,attributes=[]))
 
     def topic(self,identifier,title,closed=False):
-        return a.telegram_types.ForumTopic(id=identifier,date=datetime.now(timezone.utc),peer=a.telegram_types.PeerChannel(123),title=title,icon_color=0,top_message=identifier,read_inbox_max_id=0,read_outbox_max_id=0,unread_count=0,unread_mentions_count=0,unread_reactions_count=0,unread_poll_votes_count=0,from_id=a.telegram_types.PeerUser(1),notify_settings=a.telegram_types.PeerNotifySettings(),closed=closed,hidden=False)
+        return telegram_types.ForumTopic(id=identifier,date=datetime.now(timezone.utc),peer=telegram_types.PeerChannel(123),title=title,icon_color=0,top_message=identifier,read_inbox_max_id=0,read_outbox_max_id=0,unread_count=0,unread_mentions_count=0,unread_reactions_count=0,unread_poll_votes_count=0,from_id=telegram_types.PeerUser(1),notify_settings=telegram_types.PeerNotifySettings(),closed=closed,hidden=False)
 
     def forum(self):
         self.dialog.entity.forum=True
@@ -79,7 +82,7 @@ class TelegramChatTests(IntegrationFixture):
         self.telegram.edit_message.assert_not_awaited()
         self.assertEqual(self.message_action(text='').status_code, 200)
         message.media = None
-        self.telegram.edit_message.side_effect = a.telegram_errors.MessageEditTimeExpiredError(request=None)
+        self.telegram.edit_message.side_effect = telegram_errors.MessageEditTimeExpiredError(request=None)
         response = self.message_action(text='Edit')
         self.assertEqual(response.status_code, 400); self.assertIn('time limit', response.json['error'])
 
@@ -103,13 +106,13 @@ class TelegramChatTests(IntegrationFixture):
         self.assertEqual(self.telegram.call_args.args[0].reaction[0].emoticon, '👍')
         self.assertEqual(self.message_action('reaction', emoji='').status_code, 200)
         self.assertEqual(self.telegram.call_args.args[0].reaction, [])
-        target = Item(id=123, entity=Item(forum=False), input_entity=a.telegram_types.InputPeerUser(123,456))
+        target = Item(id=123, entity=Item(forum=False), input_entity=telegram_types.InputPeerUser(123,456))
         self.telegram.get_dialogs.return_value.append(target)
         ids = []
         for _ in range(2):
             self.assertEqual(self.message_action('forward', destination='123', request_id='a'*32).json, {'forwarded':True})
             sent = self.telegram.call_args.args[0]
-            self.assertIsInstance(sent, a.telegram_functions.messages.ForwardMessagesRequest)
+            self.assertIsInstance(sent, telegram_functions.messages.ForwardMessagesRequest)
             self.assertEqual(sent.id, [7]); self.assertEqual(sent.to_peer, target.input_entity); ids.append(sent.random_id)
         self.assertEqual(ids[0], ids[1])
         self.dialog.entity.noforwards = True
@@ -129,7 +132,7 @@ class TelegramChatTests(IntegrationFixture):
     def test_polling_reports_edits_reactions_and_deletions_for_already_loaded_messages(self):
         edited = self.message(2, 'Edited externally', out=True)
         edited.edit_date = datetime.now(timezone.utc)
-        edited.reactions = Item(results=[Item(reaction=a.telegram_types.ReactionEmoji('👍'), count=2, chosen_order=0)])
+        edited.reactions = Item(results=[Item(reaction=telegram_types.ReactionEmoji('👍'), count=2, chosen_order=0)])
         self.telegram.get_messages.side_effect = [[], [edited]]
         response = self.client.get('/api/integrations/telegram/chats/-100123?after=2&known_ids=2,7')
         self.assertEqual(response.status_code, 200)
@@ -161,7 +164,7 @@ class TelegramChatTests(IntegrationFixture):
     def test_regular_group_send_is_plain_text_and_retry_id_is_stable(self):
         for _ in range(2):self.assertEqual(self.post_chat().json,{'sent':True})
         requests=[call.args[0] for call in self.telegram.call_args_list]
-        self.assertTrue(all(isinstance(request,a.telegram_functions.messages.SendMessageRequest) for request in requests))
+        self.assertTrue(all(isinstance(request,telegram_functions.messages.SendMessageRequest) for request in requests))
         self.assertEqual(requests[0].random_id,requests[1].random_id)
         self.assertEqual(requests[0].message,'Hello <everyone>');self.assertIsNone(requests[0].reply_to)
         self.assertEqual(requests[0].peer,self.dialog.input_entity)
@@ -185,7 +188,7 @@ class TelegramChatTests(IntegrationFixture):
         self.forum()
         self.telegram.get_messages.return_value=[self.message(4,'Homework',root=20),self.message(3,'General reply',root=1),self.message(2,'General message')]
         created=self.message(20,'Topic creation')
-        created.action=a.telegram_types.MessageActionTopicCreate(title='Homework',icon_color=0)
+        created.action=telegram_types.MessageActionTopicCreate(title='Homework',icon_color=0)
         self.telegram.get_messages.return_value.insert(0,created)
         response=self.client.get('/api/integrations/telegram/chats/-100123?topic=1')
         self.assertEqual([message['text'] for message in response.json['messages']],['General message','General reply'])
@@ -197,7 +200,7 @@ class TelegramChatTests(IntegrationFixture):
         response=self.client.get('/api/integrations/telegram/chats/-100123?topic_search=Homework')
         self.assertEqual(response.status_code,200)
         request=self.telegram.call_args.args[0]
-        self.assertIsInstance(request,a.telegram_functions.messages.GetForumTopicsRequest)
+        self.assertIsInstance(request,telegram_functions.messages.GetForumTopicsRequest)
         self.assertEqual(request.q,'Homework');self.assertEqual(request.limit,100)
         self.telegram.get_messages.assert_not_awaited()
 
@@ -216,13 +219,13 @@ class TelegramChatTests(IntegrationFixture):
         response=self.client.get('/api/integrations/telegram/chats/-100123?topic=20')
         self.assertEqual(response.status_code,200)
         self.assertTrue(response.json['can_send'])
-        self.assertIsInstance(self.telegram.call_args.args[0],a.telegram_functions.messages.GetForumTopicsByIDRequest)
+        self.assertIsInstance(self.telegram.call_args.args[0],telegram_functions.messages.GetForumTopicsByIDRequest)
 
     def test_closed_unknown_and_topics_disabled_destinations_do_not_send(self):
         self.forum()
         for topic in ('30','999'):
             self.assertEqual(self.post_chat(topic=topic).status_code,400)
-        self.assertFalse(any(isinstance(call.args[0],a.telegram_functions.messages.SendMessageRequest) for call in self.telegram.call_args_list))
+        self.assertFalse(any(isinstance(call.args[0],telegram_functions.messages.SendMessageRequest) for call in self.telegram.call_args_list))
         self.dialog.entity.forum=False
         self.assertEqual(self.post_chat(topic='20').status_code,400)
 
@@ -318,19 +321,19 @@ class TelegramChatTests(IntegrationFixture):
 
     def test_progressive_photos_use_a_thumbnail_key_accepted_by_telethon(self):
         photo = self.photo()
-        progressive = a.telegram_types.PhotoSizeProgressive(type='w', w=2560, h=1440, sizes=[25820, 606431])
+        progressive = telegram_types.PhotoSizeProgressive(type='w', w=2560, h=1440, sizes=[25820, 606431])
         photo.photo.sizes.append(progressive)
         message = self.message(7, 'Photo', media=photo)
         self.telegram.get_messages.return_value = message
 
         async def download(received, *, file, thumb):
-            selected = a.TelegramClient._get_thumb(received.media.photo.sizes, thumb)
+            selected = TelegramClient._get_thumb(received.media.photo.sizes, thumb)
             return b'\xff\xd8\xffphoto' if selected is progressive else None
 
         self.telegram.download_media.side_effect = download
         route = '/api/integrations/telegram/chats/-100123/messages/7/media'
         self.assertEqual(self.client.get(route).status_code, 200)
-        photo.photo.sizes.append(a.telegram_types.PhotoStrippedSize(type='i', bytes=b'tiny-preview'))
+        photo.photo.sizes.append(telegram_types.PhotoStrippedSize(type='i', bytes=b'tiny-preview'))
         self.assertEqual(self.client.get(route).status_code, 200)
         self.telegram.get_messages.return_value = [message]
         self.assertEqual(self.client.get('/api/integrations/telegram/chats/-100123').json['messages'][0]['media']['size'], 606431)
@@ -353,7 +356,7 @@ class TelegramChatTests(IntegrationFixture):
 
     def test_documents_download_as_attachments_without_executing_html(self):
         message = self.message(7, 'File', media=self.video(mime='text/html'))
-        message.media.document.attributes = [a.telegram_types.DocumentAttributeFilename(file_name='example.html')]
+        message.media.document.attributes = [telegram_types.DocumentAttributeFilename(file_name='example.html')]
         self.telegram.get_messages.return_value = [message]
         data = self.client.get('/api/integrations/telegram/chats/-100123').json['messages'][0]['media']
         self.assertEqual((data['kind'], data['name']), ('file', 'example.html'))

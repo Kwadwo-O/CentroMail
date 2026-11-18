@@ -344,9 +344,22 @@ class IntegrationTests(IntegrationFixture):
             with self.assertRaises(RuntimeError):
                 application.mastodon_request("https://mastodon.social", "/api/v1/accounts/verify_credentials", "test")
 
-    def test_stats_do_not_invent_sent_messages(self):
-        self.assertEqual(application.make_stats([])["sent"], 0)
-        self.assertEqual(application.make_stats([{"unread":False,"starred":False,"label_ids":["SENT"]}])["sent"], 1)
+    def test_stats_count_cached_mail_and_ignore_other_users_and_invalid_entries(self):
+        with application.app.app_context():
+            user = {'id': self.user_id}
+            self.assertEqual(application.cached_mail_stats(user), dict(total=0, unread=0, starred=0, sent=0))
+            application.gmail_cache_put(self.user_id, 'inbox', metadata={
+                'unread': True, 'starred': True, 'label_ids': ['INBOX'],
+            })
+            application.gmail_cache_put(self.user_id, 'sent', metadata={
+                'unread': False, 'starred': False, 'label_ids': ['SENT'],
+            })
+            application.gmail_cache_put(self.user_id + 1, 'sent', metadata={'label_ids': ['SENT']})
+            application.get_db().execute(
+                "INSERT INTO gmail_cache (user_id, message_id, metadata) VALUES (?, 'invalid', 'broken')",
+                (self.user_id,),
+            )
+            self.assertEqual(application.cached_mail_stats(user), dict(total=2, unread=1, starred=1, sent=1))
 
     def test_whatsapp_webhook_stores_inbound_message(self):
         self.save_whatsapp()

@@ -8,9 +8,8 @@
         button.querySelector('.m3e-icon').textContent = dark ? 'light_mode' : 'dark_mode';
     };
     button.addEventListener('click', () => {
-        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('centromail-theme', root.dataset.theme);
-        update();
+        window.CentroMailAppearance.set('theme', root.dataset.theme === 'dark' ? 'light' : 'dark');
     });
+    document.addEventListener('centromail-appearance-change', update);
     update();
 })();

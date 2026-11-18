@@ -46,7 +46,7 @@ function inbox(messages, failures = {}) {
         },
     };
     vm.runInNewContext(section('const messageKey =', 'const clearFocusedRow =') +
-        section('const readJson =', 'const updateSelection =') +
+        section('const readJson =', 'const selectionActions =') +
         section('const performAction =', "list.addEventListener('click'") +
         'this.performAction = performAction; this.messageKey = messageKey;', context);
     return {context, feedback, calls, listeners};
@@ -118,12 +118,13 @@ test('pagination preserves matching IDs from different accounts and displays par
         message('email:imap:work', 'shared'), message('email:imap:work', 'second')];
     const fragment = {querySelectorAll: () => incoming.filter(message => !message.row.removed).map(message => message.row)};
     const element = () => ({hidden: false, setAttribute() {}, removeAttribute() {}});
+    let statusChecks = 0;
     Object.assign(context, {
         cursor: 'next', hasMore: true, loading: false, failed: false, generation: 0, statusOffset: 0,
         controller: null, search: {value: ''}, status: {}, loadingIndicator: element(), more: element(),
         location: {origin: 'http://localhost'}, URL, AbortController,
         setTimeout: () => 1, clearTimeout() {}, clearFocusedRow() {}, sortMessages() {},
-        setRefreshBusy() {}, updateSelection() {}, syncGmailStatus() {},
+        setRefreshBusy() {}, updateSelection() {}, syncGmailStatus() { statusChecks++; },
         fetch: async () => ({ok: true, headers: {get: () => 'application/json'}, json: async () =>
             ({html: fragment, next_cursor: null, total: 3, warning: 'Some accounts could not be loaded.'})}),
     });
@@ -136,4 +137,28 @@ test('pagination preserves matching IDs from different accounts and displays par
     assert.equal(messages.length, 3);
     assert.notEqual(context.messageKey(messages[0].row), context.messageKey(messages[1].row));
     assert.equal(feedback.at(-1).text, 'Some accounts could not be loaded.');
+    assert.equal(statusChecks, 0);
+});
+
+test('opening Apps skips inbox requests until Email is selected', () => {
+    const requests = [], handlers = {};
+    const context = {
+        inboxStarted: false, search: {disabled: false}, statusController: null,
+        list: {childElementCount: 0}, selectAll: {},
+        location: {hash: '#apps', search: '?refresh=1'}, URLSearchParams,
+        scheduleRefresh() {}, syncSort() {}, applyFilters() {},
+        loadMessages: options => requests.push(['messages', options.reset, options.force]),
+        loadCounts: () => requests.push(['counts']),
+        syncGmailStatus: () => requests.push(['status']),
+        window: {addEventListener() {}},
+        document: {addEventListener() {}, querySelector: () => ({
+            addEventListener: (event, listener) => { handlers[event] = listener; },
+        })},
+    };
+    vm.runInNewContext(section('const startInbox =', '// Keyboard shortcuts'), context);
+    assert.deepEqual(requests, []);
+    handlers.click();
+    assert.deepEqual(requests, [['messages', true, true], ['counts']]);
+    handlers.click();
+    assert.deepEqual(requests, [['messages', true, true], ['counts'], ['status']]);
 });

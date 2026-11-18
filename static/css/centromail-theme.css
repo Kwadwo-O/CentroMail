@@ -14,6 +14,7 @@
     --background: var(--m3e-sys-color-background);
     --page-bg: var(--m3e-sys-color-background);
     --surface: var(--m3e-sys-color-surface);
+    --surface-container-low: var(--m3e-sys-color-surface-container-low);
     --surface-container: var(--m3e-sys-color-surface-container);
     --surface-variant: var(--m3e-sys-color-surface-variant);
     --primary: var(--m3e-sys-color-primary);
@@ -30,6 +31,8 @@
     --shadow: none;
     --elevation-1: none;
     --elevation-2: none;
+    --cm-panel-radius: var(--cm-custom-radius, 20px);
+    --cm-control-radius: min(var(--cm-custom-radius, 12px), 12px);
     --hero-glow: color-mix(in srgb, var(--m3e-sys-color-primary) 16%, transparent);
 }
 

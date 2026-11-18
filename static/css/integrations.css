@@ -15,11 +15,11 @@
 .integrations-heading h1 { margin: .4rem 0 1rem; font-size: clamp(2rem, 4.5vw, 3.5rem); line-height: 1.1; letter-spacing: -.04em; }
 .integrations-heading p:not(.eyebrow) { max-width: 38rem; margin: 0; line-height: 1.65; color: var(--m3e-sys-color-on-surface-variant); }
 .integrations-heading > .m3e-button { flex-shrink: 0; }
-.integration-welcome { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; margin-bottom: 2rem; border-radius: var(--m3e-sys-shape-corner-extra-large, 28px); background: var(--m3e-sys-color-primary-container); color: var(--m3e-sys-color-on-primary-container); }
+.integration-welcome { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--border); border-radius: var(--cm-panel-radius); background: var(--surface-container); color: var(--text); }
 .integration-welcome p { margin: .3rem 0 0; font-size: .95rem; line-height: 1.5; }
 .integration-welcome-icons { display: flex; flex-shrink: 0; padding-left: .5rem; }
-.integration-welcome-icons .integration-mark { margin-left: -.5rem; border: 3px solid var(--m3e-sys-color-primary-container); }
-.integration-mark { display: inline-flex; align-items: center; justify-content: center; width: 3.5rem; height: 3.5rem; flex-shrink: 0; border-radius: var(--m3e-sys-shape-corner-large, 16px); background: var(--m3e-sys-color-surface-container-lowest); }
+.integration-welcome-icons .integration-mark { margin-left: -.5rem; border: 3px solid var(--surface-container); }
+.integration-mark { display: inline-flex; align-items: center; justify-content: center; width: 3.25rem; height: 3.25rem; flex-shrink: 0; border-radius: var(--cm-control-radius); background: var(--surface-container-low); }
 .integration-mark img { width: 2rem; height: 2rem; object-fit: contain; }
 .integration-card[data-integration-app=x] .integration-mark, #integration-dialog-x .integration-mark,
 .integration-card[data-integration-app=tiktok] .integration-mark, #integration-dialog-tiktok .integration-mark,
@@ -33,14 +33,14 @@
 #integration-results { margin-left: auto; color: var(--m3e-sys-color-on-surface-variant); font-size: .9rem; }
 .integration-toolbar [aria-pressed=true] { background: var(--m3e-sys-color-secondary-container); color: var(--m3e-sys-color-on-secondary-container); }
 .integration-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.integration-card { display: flex; flex-direction: column; padding: 1.5rem; min-width: 0; background: var(--m3e-sys-color-surface-container-low); border: 1px solid var(--m3e-sys-color-outline-variant); border-radius: var(--m3e-sys-shape-corner-extra-large, 28px); }
+.integration-card { display: flex; flex-direction: column; padding: 1.375rem; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--cm-panel-radius); }
 .integration-card.is-connected { border-color: var(--m3e-sys-color-primary); }
 .integration-card:focus-within { background: var(--m3e-sys-color-surface-container); }
 .integration-card-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.integration-status { display: inline-flex; align-items: center; gap: .2rem; font-size: .75rem; line-height: 1.3; color: var(--m3e-sys-color-on-surface-variant); text-align: right; }
-.integration-status.is-connected, .integration-status.is-pending { color: var(--m3e-sys-color-primary); }
+.integration-status { display: inline-flex; align-items: center; gap: .25rem; padding: .3rem .65rem; border-radius: 999px; background: var(--surface-container-low); color: var(--muted); font-size: .75rem; line-height: 1.3; text-align: right; }
+.integration-status.is-connected, .integration-status.is-pending { background: var(--highlight); color: var(--m3e-sys-color-on-secondary-container); }
 .integration-status .m3e-icon { font-size: 1rem; }
-.integration-card h2 { margin: 1.2rem 0 .5rem; font-size: 1.25rem; line-height: 1.3; }
+.integration-card h2 { margin: 1.1rem 0 .5rem; font-size: 1.25rem; line-height: 1.3; letter-spacing: -.02em; }
 .integration-summary { color: var(--m3e-sys-color-on-surface-variant); font-size: .95rem; line-height: 1.6; margin: 0 0 1.5rem; }
 .integration-card-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; }
 .integration-method { font-size: .8rem; line-height: 1.4; color: var(--m3e-sys-color-on-surface-variant); }

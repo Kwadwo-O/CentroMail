@@ -1,11 +1,4 @@
-/*
- * CentroMail inbox and apps workspace.
- *
- * A Gmail-style two-pane layout built from Material 3 Expressive system
- * roles. Everything below the masthead is a single responsive grid: the
- * sidebar collapses into a drawer under 900px and the composer becomes a
- * full-screen sheet under 640px.
- */
+/* Inbox, reading pane and apps workspace */
 
 body:has(.gmail-app) {
     background: var(--m3e-sys-color-surface);
@@ -25,7 +18,7 @@ body:has(.gmail-app) .site-footer {
 }
 
 .gmail-app {
-    background: var(--m3e-sys-color-surface);
+    background: var(--surface-container-low);
     color: var(--m3e-sys-color-on-surface);
     min-height: 100dvh;
 }
@@ -47,7 +40,8 @@ body:has(.gmail-app) .site-footer {
 
 .search-box {
     align-items: center;
-    background: var(--m3e-sys-color-surface-container);
+    background: var(--surface-container-low);
+    border: 1px solid var(--border);
     border-radius: 999px;
     display: flex;
     flex: 1;
@@ -288,9 +282,9 @@ body:has(.gmail-app) .site-footer {
 
 .workspace-tab.active,
 .inbox-tab.active {
-    background: var(--m3e-sys-color-primary-container);
+    background: var(--highlight);
     border-color: var(--m3e-sys-color-primary);
-    color: var(--m3e-sys-color-on-primary-container);
+    color: var(--m3e-sys-color-on-secondary-container);
     font-weight: 700;
 }
 
@@ -322,7 +316,7 @@ body:has(.gmail-app) .site-footer {
 }
 
 .mail-sidebar {
-    background: var(--m3e-sys-color-surface);
+    background: var(--surface-container-low);
     flex: 0 0 236px;
     padding: 16px 12px 28px;
 }
@@ -379,7 +373,7 @@ body:has(.gmail-app) .site-footer {
 .inbox {
     background: var(--m3e-sys-color-surface);
     border: 1px solid var(--m3e-sys-color-outline-variant);
-    border-radius: 1.5rem;
+    border-radius: var(--cm-panel-radius);
     flex: 1;
     margin: 16px 16px 28px 0;
     min-width: 0;
@@ -421,7 +415,8 @@ body:has(.gmail-app) .site-footer {
 
 .page-count {
     color: var(--m3e-sys-color-on-surface-variant);
-    font-size: 0.72rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
 }
 
@@ -1303,6 +1298,11 @@ body:has(.gmail-app) .site-footer {
 }
 
 @media (max-width: 380px) {
+    .search-box {
+        gap: 5px;
+        padding-inline: 8px 6px;
+    }
+
     .message {
         grid-template-columns: 22px 24px 30px minmax(0, 1fr);
     }
@@ -1382,7 +1382,7 @@ body:has(.gmail-app) .site-footer {
 .message-subject { color: var(--m3e-sys-color-on-surface); font-weight: 500; }
 .message.unread .message-subject { font-weight: 650; }
 .message-spam.m3e-badge { background: var(--m3e-sys-color-error-container); color: var(--m3e-sys-color-on-error-container); width: max-content; margin-block: 3px; }
-.message-date { align-self: start; color: var(--m3e-sys-color-on-surface-variant); font-size: 0.72rem; padding-top: 2px; margin-left: 12px; white-space: nowrap; }
+.message-date { align-self: start; color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; padding-top: 2px; margin-inline-start: 12px; white-space: nowrap; }
 .star-button .material-symbols-rounded { font-size: 21px; font-variation-settings: "FILL" 0; }
 .star-button.starred { color: var(--m3e-sys-color-primary); }
 .star-button.starred .material-symbols-rounded { font-variation-settings: "FILL" 1; }
@@ -1514,6 +1514,7 @@ body:has(.message-page) .site-footer { display: none; }
 /* Account controls and workspace tabs share one compact, wrapping row. */
 .mail-workspace-bar {
     align-items: center;
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     flex-wrap: wrap;
@@ -1533,8 +1534,8 @@ body:has(.message-page) .site-footer { display: none; }
 
 .mail-account-picker select {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    border: 1px solid var(--m3e-sys-color-outline);
+    border-radius: var(--cm-control-radius);
     color: var(--text);
     font: inherit;
     font-size: .8125rem;

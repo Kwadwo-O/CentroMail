@@ -10,15 +10,18 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
     <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/email-validation.js') }}" defer></script>
     <script type="module" src="{{ url_for('static', filename='js/components.js') }}"></script>
+    {% if request.endpoint in ['dashboard', 'inbox', 'mail', 'settings'] %}
     <script type="module" src="{{ url_for('static', filename='js/menus.js') }}"></script>
+    {% endif %}
     {% block head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/customization.css') }}">
+    {% if g.user and request.endpoint != 'index' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navigation.css') }}">
     <script type="module" src="{{ url_for('static', filename='js/navigation.js') }}"></script>
-    <title>{% block title %}Row Project{% endblock %}</title>
+    {% endif %}
+    <title>{% block title %}CentroMail{% endblock %}</title>
 </head>
 <body>
     {% block header %}
@@ -55,14 +58,7 @@
             {% endif %}
         {% endwith %}
 
-        {% block content %}
-        <section class="hero" id="content">
-            <p class="eyebrow">Welcome</p>
-            <h1>Build something <span>great.</span></h1>
-            <p class="intro">A clean starting point for the Row Project.</p>
-            <a class="m3e-button m3e-button--filled" href="#content">Explore the project <span aria-hidden="true">&rarr;</span></a>
-        </section>
-        {% endblock %}
+        {% block content %}{% endblock %}
     </main>
 
     {% block footer %}
