@@ -79,6 +79,9 @@
                     {% if key in ['inbox', 'drafts'] %}<b class="m3e-badge m3e-badge--large" data-folder-count="{{ key }}" hidden></b>{% endif %}
                 </a>
                 {% endfor %}
+                <a class="mail-nav-link m3e-button m3e-button--text" href="{{ url_for('cleanup', account=compose_account_key) }}">
+                    <span class="material-symbols-rounded" aria-hidden="true">cleaning_services</span><span>Smart Cleanup</span>
+                </a>
                 <details class="mail-more" {% if folder in ['archive', 'all', 'important', 'spam', 'trash'] %}open{% endif %}>
                     <summary class="mail-nav-link m3e-button m3e-button--text"><span class="material-symbols-rounded more-icon" aria-hidden="true">expand_more</span><span>More</span></summary>
                     <div class="mail-more-folders">

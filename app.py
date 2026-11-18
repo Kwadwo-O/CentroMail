@@ -47,6 +47,7 @@ from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from google_transport import GoogleOAuthApp, google_requests
+from smart_cleanup import scan_promotions
 
 try:
     from telethon import TelegramClient, errors as telegram_errors, functions as telegram_functions, types as telegram_types
@@ -324,6 +325,8 @@ def csrf_token():
 PROTECTED_ENDPOINTS = {
     'check_integration',
     "home", "dashboard", "inbox", "mail", "message_detail", "compose", "settings",
+    "cleanup", "cleanup_promotions", "cleanup_promotion_details", "cleanup_gmail_refresh",
+    "cleanup_trash_promotions",
     "mailbox_messages", "mailbox_counts", "mail_action",
     "gmail_message_states", "mail_conversation",
     "delete_account",
@@ -458,7 +461,7 @@ def get_google_token(user):
     return token if isinstance(token, dict) else None
 
 
-def get_gmail_access_token(user, account=None):
+def get_gmail_access_token(user, account=None, *, force_refresh=False):
     account = account or active_email_account(user)
     if account["kind"] != "gmail":
         return None
@@ -466,7 +469,7 @@ def get_gmail_access_token(user, account=None):
     if not token:
         return None
     expires_at = token.get("expires_at", 0)
-    if token.get("access_token") and expires_at > datetime.now(timezone.utc).timestamp() + 60:
+    if not force_refresh and token.get("access_token") and expires_at > datetime.now(timezone.utc).timestamp() + 60:
         return token["access_token"]
     refresh_token = token.get("refresh_token")
     if not refresh_token:
@@ -615,6 +618,43 @@ def gmail_error_message(error):
             "and allow access to Gmail."
         )
     return "Gmail could not be loaded right now. Please try again."
+
+
+def gmail_cleanup_http_error(error, action):
+    status = gmail_error_status(error)
+    reason = gmail_error_reason(error)
+    if status == 401:
+        return jsonify(error="Gmail access expired.", refresh_required=True), 401
+    if status == 429 or (
+        status == 403
+        and any(term in reason for term in ("quota", "ratelimit", "rate_limit", "limit exceeded"))
+    ):
+        return jsonify(
+            error="Gmail is temporarily limiting requests. CentroMail will retry this scan.",
+            retryable=True,
+        ), 429
+    if status == 403 and any(term in reason for term in ("insufficient", "forbidden", "unauthorized")):
+        return jsonify(
+            error=f"Gmail denied {action} because the connected account is missing permission.",
+            reconnect=True,
+        ), 403
+    return jsonify(error=gmail_error_message(error)), status or 502
+
+
+def fetch_cleanup_gmail_detail(headers, message_id):
+    for attempt in range(3):
+        try:
+            return _fetch_gmail_detail(headers, message_id)
+        except requests.HTTPError as error:
+            status = gmail_error_status(error)
+            reason = gmail_error_reason(error)
+            rate_limited = status == 429 or (
+                status == 403
+                and any(term in reason for term in ("quota", "ratelimit", "rate_limit", "limit exceeded"))
+            )
+            if not rate_limited or attempt == 2:
+                raise
+            time.sleep(2 ** attempt)
 
 
 def gmail_header(headers, name):
@@ -2477,7 +2517,14 @@ def mailbox_counts(account=None):
     if cached and time.time() - cached["updated_at"] < 60 and request.args.get("refresh") != "1":
         return jsonify(json.loads(cached["counts"]))
     try:
-        token = get_gmail_access_token(g.user, account)
+        try:
+            token = get_gmail_access_token(g.user, account)
+        except requests.HTTPError as error:
+            if gmail_error_status(error) in {401, 403}:
+                return jsonify(error="Reconnect Gmail to continue scanning.", reconnect=True), 401
+            return jsonify(error="Could not connect to Gmail. Please try again."), 502
+        except requests.RequestException:
+            return jsonify(error="Could not connect to Gmail. Please try again."), 502
         if not token:
             return jsonify({})
         counts = {}
@@ -3667,11 +3714,22 @@ def authenticate(provider):
         if (callback.hostname in loopback and origin.hostname in loopback
                 and callback.scheme == origin.scheme and callback.port == origin.port
                 and callback.netloc != origin.netloc):
-            path = url_for('authenticate', provider='google', connect=1, **({'service':'chat'} if request.args.get('service') == 'chat' else {})) if g.user is not None or request.args.get('connect') == '1' else url_for('authenticate', provider='google')
+            options = {}
+            if request.args.get('connect') == '1':
+                options['connect'] = 1
+            if request.args.get('cleanup') == '1':
+                options['cleanup'] = 1
+                if request.args.get('account'):
+                    options['account'] = request.args['account']
+            if request.args.get('service') == 'chat':
+                options['service'] = 'chat'
+            path = url_for('authenticate', provider='google', **options) if g.user is not None or request.args.get('connect') == '1' else url_for('authenticate', provider='google')
             return redirect(f"{callback.scheme}://{callback.netloc}{path}")
         if g.user is not None:
             session['google_connect_user']=g.user['id']
             session['google_connect_chat'] = request.args.get('service') == 'chat'
+            session['google_cleanup_return'] = request.args.get('cleanup') == '1'
+            session['google_cleanup_account'] = request.args.get('account', '')
         try:
             if g.user is not None:
                 options = {'prompt':'select_account consent','access_type':'offline','include_granted_scopes':'true'}
@@ -3708,6 +3766,9 @@ def authenticate(provider):
 def google_callback():
     connect_user = session.pop('google_connect_user', None)
     connect_chat = session.pop('google_connect_chat', False)
+    cleanup_return = session.pop('google_cleanup_return', False)
+    cleanup_account = session.pop('google_cleanup_account', '')
+    cleanup_url = url_for('cleanup', account=cleanup_account, resume=1) if cleanup_return else url_for('login')
     if connect_user is not None and (g.user is None or g.user['id'] != connect_user):
         abort(400, description="Sign in to the account that started this Gmail connection.")
     if not app.config["GOOGLE_CLIENT_ID"] or not app.config["GOOGLE_CLIENT_SECRET"]:
@@ -3716,7 +3777,7 @@ def google_callback():
 
     if request.args.get("error"):
         flash("Google sign-in was cancelled or denied. Please try again.", "error")
-        return redirect(url_for('login'))
+        return redirect(cleanup_url)
 
     try:
         token = google.authorize_access_token()
@@ -3726,10 +3787,10 @@ def google_callback():
         else:
             message = "Google sign-in could not be completed. Check the OAuth callback URI and try again."
         flash(message, "error")
-        return redirect(url_for('login'))
+        return redirect(cleanup_url)
     except (requests.RequestException, ValueError):
         flash("Google sign-in took too long or could not connect. Please try again.", "error")
-        return redirect(url_for('login'))
+        return redirect(cleanup_url)
 
     profile = token.get("userinfo")
     if not profile or profile.get("email_verified") is not True:
@@ -3763,6 +3824,8 @@ def google_callback():
                 return redirect(url_for('inbox') + '#apps')
             flash('Google Chat permission was not granted. Reconnect Google Chat and allow the requested access.', 'error')
         flash(f"Gmail connected: {email}.", 'success')
+        if cleanup_return:
+            return redirect(url_for('cleanup', account=key, resume=1))
         return redirect(url_for('inbox', account=key))
 
     user = find_user(email)
@@ -3797,6 +3860,182 @@ def google_callback():
     store_google_token(user["id"], token)
     sign_in(user)
     return redirect(url_for('dashboard'))
+
+@app.get("/cleanup")
+def cleanup():
+    account = active_email_account(g.user)
+    return render_template(
+        "cleanup.html",
+        account=account,
+        mail_accounts=email_accounts(g.user),
+    )
+
+
+@app.get("/api/cleanup/promotions")
+def cleanup_promotions():
+    account = active_email_account(g.user)
+
+    if account["kind"] != "gmail":
+        return jsonify(error="Promotional email scanning currently supports Gmail only."), 400
+
+    try:
+        token = get_gmail_access_token(g.user, account)
+    except requests.HTTPError:
+        return jsonify(error="Reconnect Gmail to scan promotional emails.", reconnect=True), 401
+    except requests.RequestException:
+        return jsonify(error="Could not connect to Gmail. Please try again."), 502
+
+    if not token:
+        return jsonify(error="Reconnect Gmail to scan promotional emails.", reconnect=True), 401
+
+    try:
+        message_ids = scan_promotions(token)
+        raw_ids = [item["id"] for item in message_ids]
+        if any(not isinstance(message_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", message_id) for message_id in raw_ids):
+            raise ValueError("Gmail returned an invalid message identifier")
+        return jsonify(count=len(raw_ids), message_ids=[gmail_message_key(account, raw_id) for raw_id in raw_ids])
+    except requests.HTTPError as error:
+        return gmail_cleanup_http_error(error, "the promotional email scan")
+    except (requests.RequestException, ValueError):
+        return jsonify(error="Could not scan promotional emails. Please try again."), 502
+
+
+@app.get("/api/cleanup/promotions/details")
+def cleanup_promotion_details():
+    account = active_email_account(g.user)
+    if account["kind"] != "gmail":
+        return jsonify(error="Promotional email scanning currently supports Gmail only."), 400
+
+    identifiers = request.args.getlist("message_ids")
+    if not identifiers or len(identifiers) > 50 or len(set(identifiers)) != len(identifiers):
+        return jsonify(error="Provide between 1 and 50 unique message IDs."), 400
+
+    try:
+        raw_ids = [gmail_raw_message_id(account, identifier) for identifier in identifiers]
+    except ValueError:
+        return jsonify(error="One or more message IDs do not belong to this Gmail account."), 400
+
+    try:
+        token = get_gmail_access_token(g.user, account)
+    except requests.HTTPError as error:
+        if gmail_error_status(error) in {401, 403}:
+            return jsonify(error="Reconnect Gmail to continue scanning.", reconnect=True), 401
+        return jsonify(error="Could not connect to Gmail. Please try again."), 502
+    except requests.RequestException:
+        return jsonify(error="Could not connect to Gmail. Please try again."), 502
+    if not token:
+        return jsonify(error="Reconnect Gmail to continue scanning.", reconnect=True), 401
+
+    headers = {"Authorization": "Bearer " + token}
+    try:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            details = list(executor.map(
+                lambda message_id: fetch_cleanup_gmail_detail(headers, message_id),
+                raw_ids,
+            ))
+        messages = [
+            {
+                "id": gmail_message_key(account, message["id"]),
+                "sender": message["sender"],
+                "subject": message["subject"],
+                "date": message["date"],
+                "preview": message["preview"],
+            }
+            for message in details
+            if "CATEGORY_PROMOTIONS" in message.get("label_ids", [])
+            and not {"TRASH", "SPAM", "STARRED", "IMPORTANT"}.intersection(message.get("label_ids", []))
+        ]
+        return jsonify(checked=len(raw_ids), messages=messages)
+    except requests.HTTPError as error:
+        return gmail_cleanup_http_error(error, "checking promotional messages")
+    except requests.RequestException:
+        return jsonify(error="Could not check promotional emails. Please try again."), 502
+
+
+@app.post("/api/cleanup/gmail/refresh")
+def cleanup_gmail_refresh():
+    account = active_email_account(g.user)
+    if account["kind"] != "gmail":
+        return jsonify(error="Promotional email scanning currently supports Gmail only."), 400
+    try:
+        token = get_gmail_access_token(g.user, account, force_refresh=True)
+    except requests.RequestException:
+        return jsonify(error="Could not reconnect to Gmail. Please try again.", reconnect=True), 502
+    if not token:
+        return jsonify(error="Gmail could not refresh access. Reconnect the account to continue.", reconnect=True), 401
+    return jsonify(reconnected=True)
+
+
+@app.post("/api/cleanup/promotions/trash")
+def cleanup_trash_promotions():
+    account = active_email_account(g.user)
+    if account["kind"] != "gmail":
+        return jsonify(error="Promotional email cleanup currently supports Gmail only."), 400
+
+    identifiers = list(dict.fromkeys(request.form.getlist("message_ids")))
+    if not identifiers or len(identifiers) > 500:
+        return jsonify(error="Select between 1 and 500 promotional emails."), 400
+    try:
+        raw_ids = [gmail_raw_message_id(account, identifier) for identifier in identifiers]
+    except ValueError:
+        return jsonify(error="One or more message IDs do not belong to this Gmail account."), 400
+
+    try:
+        token = get_gmail_access_token(g.user, account)
+        if not token:
+            return jsonify(error="Gmail access expired.", refresh_required=True), 401
+        headers = {"Authorization": "Bearer " + token}
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            details = list(executor.map(
+                lambda message_id: fetch_cleanup_gmail_detail(headers, message_id),
+                raw_ids,
+            ))
+        trash_ids = [
+            message["id"] for message in details
+            if "CATEGORY_PROMOTIONS" in message.get("label_ids", [])
+            and not {"TRASH", "SPAM", "STARRED", "IMPORTANT"}.intersection(message.get("label_ids", []))
+        ]
+        if not trash_ids:
+            return jsonify(trashed=0, skipped=len(identifiers), ids=[])
+
+        response = google_requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
+            headers={"Authorization": "Bearer " + token},
+            json={"ids": trash_ids, "addLabelIds": ["TRASH"], "removeLabelIds": ["INBOX"]},
+            timeout=(5, 20),
+        )
+        response.raise_for_status()
+
+        db = get_db()
+        db.executemany(
+            "DELETE FROM gmail_cache WHERE user_id=? AND message_id=?",
+            [(g.user["id"], gmail_message_key(account, raw_id)) for raw_id in trash_ids],
+        )
+        if account["key"] == "gmail":
+            db.execute("DELETE FROM gmail_folder_pages WHERE user_id=? AND folder NOT LIKE 'gm:%'", (g.user["id"],))
+            db.execute("DELETE FROM gmail_mailbox_counts WHERE user_id=?", (g.user["id"],))
+            db.execute("DELETE FROM gmail_sync_state WHERE user_id=?", (g.user["id"],))
+        else:
+            db.execute(
+                "DELETE FROM gmail_folder_pages WHERE user_id=? AND folder LIKE ?",
+                (g.user["id"], gmail_folder_key(account, "") + "%"),
+            )
+            db.execute(
+                "DELETE FROM gmail_account_counts WHERE user_id=? AND account_key=?",
+                (g.user["id"], account["key"]),
+            )
+        db.commit()
+        return jsonify(
+            trashed=len(trash_ids),
+            skipped=len(identifiers) - len(trash_ids),
+            ids=[gmail_message_key(account, raw_id) for raw_id in trash_ids],
+        )
+    except requests.HTTPError as error:
+        if gmail_error_status(error) == 401:
+            return jsonify(error="Gmail access expired.", refresh_required=True), 401
+        return gmail_cleanup_http_error(error, "moving promotional messages to Trash")
+    except requests.RequestException:
+        return jsonify(error="Could not move promotional emails to Trash. Please try again."), 502
 
 
 if __name__ == '__main__':

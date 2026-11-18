@@ -1,0 +1,226 @@
+.cleanup-page {
+    margin: 0 auto;
+    max-width: 1040px;
+    padding: 32px 24px 64px;
+}
+
+.cleanup-panel {
+    background: var(--m3e-sys-color-surface-container-low);
+    border: 1px solid var(--m3e-sys-color-outline-variant);
+    border-radius: 24px;
+    margin: 0 auto;
+    max-width: 900px;
+    padding: 28px;
+}
+
+.cleanup-back {
+    margin: -8px 0 20px -12px;
+}
+
+.cleanup-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 18px;
+}
+
+.cleanup-heading-icon {
+    color: var(--m3e-sys-color-primary);
+    font-size: 34px;
+    margin-top: 5px;
+}
+
+.cleanup-eyebrow {
+    color: var(--m3e-sys-color-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: 0 0 4px;
+    text-transform: uppercase;
+}
+
+.cleanup-heading h1,
+.cleanup-results h2 {
+    margin: 0;
+}
+
+.cleanup-heading p:last-child {
+    color: var(--m3e-sys-color-on-surface-variant);
+    margin: 8px 0 0;
+}
+
+.cleanup-account-form {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 20px;
+}
+
+.cleanup-account-form label {
+    font-weight: 600;
+}
+
+.cleanup-account-form select {
+    background: var(--m3e-sys-color-surface);
+    border: 1px solid var(--m3e-sys-color-outline);
+    border-radius: 8px;
+    color: var(--m3e-sys-color-on-surface);
+    font: inherit;
+    max-width: 100%;
+    min-height: 42px;
+    padding: 6px 12px;
+}
+
+.cleanup-note {
+    align-items: flex-start;
+    background: var(--m3e-sys-color-secondary-container);
+    border-radius: 12px;
+    color: var(--m3e-sys-color-on-secondary-container);
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+.cleanup-note .material-symbols-rounded {
+    flex: 0 0 auto;
+}
+
+.cleanup-note p {
+    margin: 0;
+}
+
+.cleanup-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.cleanup-trash-button {
+    margin-top: 18px;
+}
+
+.cleanup-trash-note {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.9rem;
+    margin: 8px 0 0;
+}
+
+.cleanup-status {
+    color: var(--m3e-sys-color-on-surface-variant);
+    margin: 0;
+}
+
+.cleanup-progress {
+    color: var(--m3e-sys-color-on-surface-variant);
+    margin-top: 16px;
+    max-width: 520px;
+}
+
+.cleanup-progress-track {
+    background: var(--m3e-sys-color-surface-container-highest);
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.cleanup-progress-track span {
+    background: linear-gradient(90deg, var(--m3e-sys-color-primary), var(--m3e-sys-color-tertiary, var(--m3e-sys-color-primary)));
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+    margin: 0;
+    transition: width 350ms cubic-bezier(0.2, 0, 0, 1);
+    width: 0;
+}
+
+.cleanup-progress-track.is-indeterminate span {
+    animation: cleanup-progress-sweep 1.5s ease-in-out infinite;
+    width: 38%;
+}
+
+@keyframes cleanup-progress-sweep {
+    0% { transform: translateX(-105%); }
+    100% { transform: translateX(370%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cleanup-progress-track span {
+        animation-duration: 3s;
+        transition-duration: 0ms;
+    }
+}
+
+.cleanup-progress p {
+    font-size: 0.9rem;
+    margin: 8px 0 0;
+}
+
+.cleanup-progress > span {
+    display: block;
+    font-variant-numeric: tabular-nums;
+    margin-top: 8px;
+}
+
+.cleanup-results {
+    margin-top: 28px;
+}
+
+.cleanup-table-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+}
+
+.cleanup-results table {
+    border-collapse: collapse;
+    min-width: 620px;
+    text-align: left;
+    width: 100%;
+}
+
+.cleanup-results th,
+.cleanup-results td {
+    border-bottom: 1px solid var(--m3e-sys-color-outline-variant);
+    padding: 12px;
+    vertical-align: top;
+}
+
+.cleanup-results th {
+    color: var(--m3e-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+}
+
+.cleanup-results td:first-child {
+    font-weight: 600;
+    width: 25%;
+}
+
+.cleanup-results td:last-child {
+    color: var(--m3e-sys-color-on-surface-variant);
+    white-space: nowrap;
+}
+
+.cleanup-preview-text {
+    color: var(--m3e-sys-color-on-surface-variant);
+    display: block;
+    font-weight: 400;
+    margin-top: 4px;
+}
+
+.cleanup-empty {
+    color: var(--m3e-sys-color-on-surface-variant);
+    margin: 16px 0 0;
+}
+
+@media (max-width: 600px) {
+    .cleanup-page {
+        padding: 16px 12px 40px;
+    }
+
+    .cleanup-panel {
+        border-radius: 16px;
+        padding: 20px 16px;
+    }
+}

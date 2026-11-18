@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Cleanup | CentroMail{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cleanup.css') }}">
+{% endblock %}
+
+{% block main_class %}cleanup-page{% endblock %}
+
+{% block content %}
+<section class="cleanup-panel" aria-labelledby="cleanup-title">
+    <a class="cleanup-back m3e-button m3e-button--text" href="{{ url_for('inbox', account=account.key) }}">
+        <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Back to inbox
+    </a>
+    <div class="cleanup-heading">
+        <span class="material-symbols-rounded cleanup-heading-icon" aria-hidden="true">cleaning_services</span>
+        <div>
+            <p class="cleanup-eyebrow">Smart Cleanup</p>
+            <h1 id="cleanup-title">Promotional emails</h1>
+            <p>Review a preview of promotional messages before deciding what to do with them.</p>
+        </div>
+    </div>
+
+    <form class="cleanup-account-form" method="get" action="{{ url_for('cleanup') }}">
+        <label for="cleanup-account">Email account</label>
+        <select id="cleanup-account" name="account" {% if not mail_accounts %}disabled{% endif %}>
+            {% for mail_account in mail_accounts %}
+            <option value="{{ mail_account.key }}" {% if mail_account.key == account.key %}selected{% endif %}>{{ mail_account.name }} · {{ mail_account.email }}</option>
+            {% endfor %}
+            {% if not mail_accounts %}<option value="gmail">Gmail · connect an account</option>{% endif %}
+        </select>
+        <button class="m3e-button m3e-button--text" type="submit" {% if not mail_accounts %}disabled{% endif %}>Switch</button>
+    </form>
+
+    <div class="cleanup-note" role="note">
+        <span class="material-symbols-rounded" aria-hidden="true">info</span>
+        <p>This scan checks up to 500 Gmail promotional messages and skips starred, important, spam, and trashed mail. Scanning only creates a preview; it does not change your mailbox.</p>
+    </div>
+
+    {% if account.kind != 'gmail' %}
+    <p class="cleanup-status" role="status">Promotional email scanning currently supports Gmail only. Choose a Gmail account to continue.</p>
+    {% elif not mail_accounts %}
+    <p class="cleanup-status" role="status">Connect a Gmail account before scanning promotional emails.</p>
+    <a class="m3e-button m3e-button--filled" href="{{ url_for('authenticate', provider='google', connect=1) }}">Connect Gmail</a>
+    {% else %}
+    <div class="cleanup-actions">
+        <button class="m3e-button m3e-button--filled" id="scan-promotions" type="button" data-scan-url="{{ url_for('cleanup_promotions', account=account.key) }}" data-details-url="{{ url_for('cleanup_promotion_details', account=account.key) }}" data-trash-url="{{ url_for('cleanup_trash_promotions', account=account.key) }}" data-refresh-url="{{ url_for('cleanup_gmail_refresh', account=account.key) }}" data-reconnect-url="{{ url_for('authenticate', provider='google', connect=1, cleanup=1, account=account.key) }}" data-csrf="{{ csrf_token() }}" data-resume="{{ 'true' if request.args.get('resume') == '1' else 'false' }}" data-account="{{ account.key }}">
+            <span class="material-symbols-rounded" aria-hidden="true">search</span>Scan promotions
+        </button>
+        <span class="cleanup-status" id="cleanup-status" role="status" aria-live="polite">No scan has been run yet.</span>
+    </div>
+    <button class="m3e-button m3e-button--tonal cleanup-trash-button" id="cleanup-trash-all" type="button" hidden>
+        <span class="material-symbols-rounded" aria-hidden="true">delete</span>Move all to Trash
+    </button>
+    <p class="cleanup-trash-note">Selected messages will be moved to Gmail Trash and removed from your CentroMail inbox.</p>
+    <div class="cleanup-progress" id="cleanup-progress" hidden>
+        <div class="cleanup-progress-track" role="progressbar" aria-label="Promotional email scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="cleanup-progress-fill"></span>
+        </div>
+        <span id="cleanup-progress-count" aria-live="polite">Finding promotional emails…</span>
+        <span id="cleanup-elapsed" aria-live="off">Elapsed 00:00</span>
+        <p>Scan time depends on the number of promotional messages and Gmail's response time.</p>
+    </div>
+    <div class="cleanup-results" id="cleanup-results" hidden>
+        <h2>Preview</h2>
+        <div class="cleanup-table-wrap">
+            <table>
+                <thead>
+                    <tr><th scope="col">Sender</th><th scope="col">Subject and preview</th><th scope="col">Date</th></tr>
+                </thead>
+                <tbody id="cleanup-message-list"></tbody>
+            </table>
+        </div>
+        <p class="cleanup-empty" id="cleanup-empty" hidden>No promotional messages matched the scan.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/cleanup.js') }}" defer></script>
+{% endblock %}
